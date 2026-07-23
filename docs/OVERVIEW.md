@@ -74,10 +74,13 @@ senão cria com `docker run` na primeira execução.
 
 Configuração via env vars (sem default forçado além do indicado):
 - `START_WORKSPACE_DIR` — caminho do monorepo no host (equivalente ao `$(pwd)` do `build.sh`
-  original). Se não for passada, é derivada automaticamente subindo 5 níveis a partir do próprio
-  binário (`<repo>/.code-server/start/target/release/start` → raiz do repo) — só funciona se o
-  binário continuar rodando de dentro dessa estrutura; se for movido/copiado pra outro lugar,
-  precisa setar a env var manualmente.
+  original). Se não for passada, é derivada automaticamente subindo os diretórios a partir do
+  próprio binário até achar o `.git` mais externo (não o primeiro) — assim funciona tanto no uso
+  direto do template (`<repo>/.code-server/start/target/release/start`, nesting único) quanto
+  quando ele é vendorizado como git submodule dentro de outro repo (`<repo>/.code-server/.code-server/start/...`,
+  nesting duplo), caso em que o `.git` do próprio submódulo ficaria no meio do caminho e seria
+  ignorado. Se o binário for movido/copiado pra fora de qualquer árvore git, precisa setar a env
+  var manualmente.
 - `START_CONTAINER_NAME` (default `<basename-do-workspace>-app`), `START_IMAGE_NAME` (default
   `<basename-do-workspace>-dev`) — derivados do basename de `START_WORKSPACE_DIR`, mesma convenção
   usada pelo `setup` pra nomear a imagem, pra não precisar configurar os dois em sincronia manual.

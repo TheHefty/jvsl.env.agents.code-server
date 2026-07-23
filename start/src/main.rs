@@ -10,13 +10,17 @@ fn env_or(key: &str, default: &str) -> String {
     env::var(key).unwrap_or_else(|_| default.to_string())
 }
 
-/// O binário sempre roda de `<repo>/.code-server/start/target/{release,debug}/start`
-/// — sobe 5 níveis a partir do próprio executável pra achar a raiz do repo,
-/// caso `START_WORKSPACE_DIR` não seja passada explicitamente.
+/// Acha a raiz do repo subindo a partir do próprio executável até o `.git`
+/// mais externo, caso `START_WORKSPACE_DIR` não seja passada explicitamente.
+/// Usa o mais externo (não o primeiro) porque, quando este template é
+/// vendorizado como git submodule (ex: `<repo>/.code-server/`), o próprio
+/// submódulo tem um `.git` (arquivo, apontando pro gitdir real) que ficaria
+/// no caminho antes da raiz do repo consumidor.
 fn default_workspace_dir() -> Option<String> {
     let exe = env::current_exe().ok()?;
     exe.ancestors()
-        .nth(5)
+        .filter(|p| p.join(".git").exists())
+        .last()
         .map(|p| p.to_string_lossy().into_owned())
 }
 
