@@ -107,6 +107,20 @@ fn wait_for_code_server(url: &str, timeout: Duration) -> bool {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    {
+        // WebKitGTK + IBus mishandle dead-key composition (e.g. accented
+        // vowels via ABNT2/US-International layouts) on some systems,
+        // dropping or duplicating characters. Forcing the cedilla IM
+        // module fixes it; must run before GTK initializes. Skipped if the
+        // user has already set GTK_IM_MODULE themselves.
+        if env::var("GTK_IM_MODULE").is_err() {
+            // SAFETY: single-threaded, runs before any other thread or
+            // GTK/webkit2gtk initialization reads the environment.
+            unsafe { env::set_var("GTK_IM_MODULE", "cedilla") };
+        }
+    }
+
     let workspace = env::var("START_WORKSPACE_DIR")
         .ok()
         .or_else(default_workspace_dir)

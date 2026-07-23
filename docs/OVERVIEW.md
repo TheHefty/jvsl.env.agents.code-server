@@ -87,12 +87,17 @@ Configuration via env vars (no forced default beyond what's noted):
 - `START_CODE_SERVER_URL` (default `http://localhost:8443`) — the actual port depends on how
   code-server is configured in the image.
 
+**Prerequisites to run `cargo build --release`** (host only — this container doesn't have Rust
+installed):
+- Rust toolchain (`rustup`, stable channel) — https://rustup.rs
+- Tauri's Linux system libs:
+  - Arch: `pacman -S webkit2gtk-4.1 base-devel curl wget file openssl appmenu-gtk-module
+    libappindicator-gtk3 librsvg xdotool`
+  - Debian/Ubuntu: `apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev
+    libssl-dev libayatana-appindicator3-dev librsvg2-dev`
+
 **Build verified** on the user's host (Arch Linux) with `cargo build --release`, binary generated
-at `target/release/start`. Done outside this container, which doesn't have Rust installed.
-System prerequisites for Tauri (Linux): Arch —
-`webkit2gtk-4.1 base-devel curl wget file openssl appmenu-gtk-module libappindicator-gtk3 librsvg
-xdotool` via `pacman`; Debian/Ubuntu — `libwebkit2gtk-4.1-dev build-essential curl wget file
-libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` via `apt`.
+at `target/release/start`.
 
 Errors already hit and fixed:
 - `webkit2gtk-4.1`/`javascriptcoregtk-4.1` not found by `pkg-config` → resolved by installing the
@@ -107,6 +112,10 @@ Errors already hit and fixed:
   `setup` actually generates (repo basename + `-dev`, e.g.
   `jvsl.monorepo.agents.template-dev`) — `docker run` failed with "Unable to find image". Fixed by
   deriving the default from `START_WORKSPACE_DIR`'s basename, same as `setup`.
+- On Linux, typing accented characters (e.g. ABNT2/US-International dead-keys) inside the native
+  window produced broken/duplicated output (e.g. "pr  óximo") — a known WebKitGTK + IBus dead-key
+  composition bug. Fixed by forcing `GTK_IM_MODULE=cedilla` at the start of `main()` (only if the
+  user hasn't already set it), before GTK initializes. Confirmed working on the user's host.
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
