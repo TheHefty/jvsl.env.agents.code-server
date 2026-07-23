@@ -1,4 +1,4 @@
-# Instala Java {{VERSION}} + Maven
+# Installs Java {{VERSION}} + Maven
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-{{VERSION}}-jdk \
     maven \
