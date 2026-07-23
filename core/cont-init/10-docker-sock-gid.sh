@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# custom-cont-init.d script: roda como root, antes do s6-overlay derrubar
-# privilégios pro usuário 'abc'. Necessário porque o --group-add do `docker
-# run` só afeta o processo PID 1 (root); ao aplicar PUID/PGID e trocar pra
-# 'abc', o s6-overlay recalcula os grupos suplementares a partir do
-# /etc/group da imagem, descartando o gid injetado via --group-add. Alinhar
-# o gid do grupo 'docker' aqui garante que ele sobreviva ao drop.
+# custom-cont-init.d script: runs as root, before s6-overlay drops
+# privileges to user 'abc'. Needed because `docker run`'s --group-add only
+# affects the PID 1 process (root); when applying PUID/PGID and switching to
+# 'abc', s6-overlay recomputes supplementary groups from the image's
+# /etc/group, discarding the gid injected via --group-add. Aligning the
+# 'docker' group's gid here ensures it survives the drop.
 set -euo pipefail
 
 if [ -z "${DOCKER_SOCK_GID:-}" ]; then
@@ -18,8 +18,8 @@ if [ "$CURRENT_GID" = "$DOCKER_SOCK_GID" ]; then
 fi
 
 if getent group "$DOCKER_SOCK_GID" >/dev/null; then
-    # já existe um grupo com esse gid na imagem (colisão) — só adiciona
-    # 'abc' a ele em vez de tentar renomear o gid do grupo 'docker'
+    # a group with this gid already exists in the image (collision) — just
+    # add 'abc' to it instead of trying to rename the 'docker' group's gid
     EXISTING_GROUP="$(getent group "$DOCKER_SOCK_GID" | cut -d: -f1)"
     usermod -aG "$EXISTING_GROUP" abc
 else

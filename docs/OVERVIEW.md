@@ -1,112 +1,112 @@
-# Visão geral
+# Overview
 
-Template de monorepo com dois executáveis: `setup`, que seleciona (e permite adicionar/remover)
-as stacks de tecnologia usadas no monorepo, e `start`, que sobe o ambiente de dev numa janela
-nativa. Este documento registra as decisões tomadas em conversa; ambos os executáveis já têm uma
-primeira implementação (ver "Implementação" em cada seção).
+Monorepo template with two executables: `setup`, which selects (and lets you add/remove) the tech
+stacks used in the monorepo, and `start`, which brings up the dev environment in a native window.
+This document records the decisions made in conversation; both executables already have a first
+implementation (see "Implementation" in each section).
 
-Tudo isso mora dentro de `.code-server/` na raiz do repo (mesma ideia de um `.devcontainer/`),
-mantendo a raiz livre pros serviços de verdade do monorepo.
+All of this lives inside `.code-server/` at the repo root (same idea as a `.devcontainer/`),
+keeping the root free for the monorepo's actual services.
 
 ## `setup`
 
-- **`.code-server/core/`** — camada obrigatória, não é opção do menu: code-server, Node.js
-  (exigido pelo Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (exigido pelo `setup` pra ler e
-  editar o manifest), e o ajuste do gid do docker socket via script em `custom-cont-init.d`.
-- **`.code-server/stacks/<nome>/`** — uma pasta por stack (ex. `java/`, `dotnet/`, `python/`), cada
-  uma com:
-  - `Dockerfile.frag` — fragmento de Dockerfile usando o placeholder `{{VERSION}}`, substituído na
-    hora da composição. Quando o processo de instalação diverge entre versões da mesma stack, a
-    diferença vira um `if` dentro do próprio `Dockerfile.frag` (não uma pasta por versão).
-  - `versions.json` — lista das versões válidas oferecidas no menu.
-- **Manifest `.code-server/.stack.json`** — objeto `{ stack: versão }` com a seleção atual,
-  regravado a cada execução do `setup`. Formato JSON escolhido em vez de um `KEY=VALUE`
-  sourceable porque fica mais fácil de estender (ex. algo a mais por stack no futuro) e de outras
-  ferramentas (ex. o `start` em Rust) lerem sem parser caseiro; custo é depender de `jq` no
+- **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
+  the Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (required by `setup` to read and edit the
+  manifest), and the docker socket gid fix via the script in `custom-cont-init.d`.
+- **`.code-server/stacks/<name>/`** — one folder per stack (e.g. `java/`, `dotnet/`, `python/`),
+  each with:
+  - `Dockerfile.frag` — a Dockerfile fragment using the `{{VERSION}}` placeholder, substituted at
+    compose time. When the install process diverges between versions of the same stack, the
+    difference becomes an `if` inside the `Dockerfile.frag` itself (not a folder per version).
+  - `versions.json` — list of the valid versions offered in the menu.
+- **Manifest `.code-server/.stack.json`** — a `{ stack: version }` object with the current
+  selection, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
+  because it's easier to extend (e.g. something more per stack in the future) and for other tools
+  (e.g. the Rust `start`) to read without a hand-rolled parser; the cost is depending on `jq` in
   `core/`.
-- **Menu** — multi-select interativo via `whiptail --checklist`, pré-marcado com o que já está no
-  manifest; versão de cada stack escolhida é perguntada em seguida.
-- **Fluxo de execução**: lê o manifest atual → mostra o menu → grava o novo manifest → concatena
-  `core/Dockerfile.frag` + os `Dockerfile.frag` das stacks selecionadas (com `{{VERSION}}`
-  substituído) em `.code-server/Dockerfile` (gerado) → copia os scripts de `cont-init` relevantes
-  → `docker build`.
-- **`.code-server/Dockerfile` é gitignorado** — é sempre derivado do manifest + fragments, nunca
-  editado à mão; versionar um artefato gerado arriscaria divergir da fonte de verdade sem ninguém
-  notar. O `.stack.json` é o registro versionado da intenção.
-- **Remover uma stack** = tirá-la do manifest. Não existe lógica de desinstalação: a imagem é
-  sempre reconstruída do zero a partir do Dockerfile gerado.
+- **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
+  in the manifest; each selected stack's version is then asked in turn.
+- **Execution flow**: reads the current manifest → shows the menu → writes the new manifest →
+  concatenates `core/Dockerfile.frag` + the `Dockerfile.frag` of each selected stack (with
+  `{{VERSION}}` substituted) into `.code-server/Dockerfile` (generated) → copies the relevant
+  `cont-init` scripts → `docker build`.
+- **`.code-server/Dockerfile` is gitignored** — it's always derived from the manifest + fragments,
+  never hand-edited; versioning a generated artifact would risk it drifting from the source of
+  truth without anyone noticing. `.stack.json` is the versioned record of intent.
+- **Removing a stack** = taking it out of the manifest. There's no uninstall logic: the image is
+  always rebuilt from scratch from the generated Dockerfile.
 
-### Implementação
+### Implementation
 
-`.code-server/setup` (bash) + `.code-server/core/` + `.code-server/stacks/java/` (primeira stack,
-serve de padrão pras próximas). Requer `jq`, `whiptail` e `docker` no host — roda antes de
-qualquer container existir, então não pode depender de nada de dentro da imagem. Testado só com
-`bash -n` (sintaxe); o fluxo interativo do `whiptail` ainda não foi rodado de ponta a ponta.
+`.code-server/setup` (bash) + `.code-server/core/` + `.code-server/stacks/java/` (first stack,
+serves as the pattern for the next ones). Requires `jq`, `whiptail`, and `docker` on the host —
+runs before any container exists, so it can't depend on anything from inside the image. Only
+tested with `bash -n` (syntax); the interactive `whiptail` flow hasn't been run end-to-end yet.
 
 ## `start`
 
-- App **Tauri**, com apenas o código-fonte versionado no repo (sem binários pré-compilados) — quem
-  for usar builda localmente com `cargo tauri build`. Motivo: repo mais leve e mais fácil de rodar
-  em outra máquina, já que o uso é próprio.
-- Escolhido em vez de Electron (mais leve, usa o WebView do próprio SO) e em vez de simplesmente
-  abrir o browser: numa aba de browser comum, atalhos do editor (ex. `Ctrl+W`, `Ctrl+N`, `Ctrl+T`)
-  são interceptados pelo próprio browser e não dá pra sobrescrever; numa janela nativa isso não
-  acontece.
-- Roda no **host**, não dentro do container (precisa de acesso ao display do host).
-- **Fluxo de execução**: garante que o container do ambiente está rodando → espera o code-server
-  responder na porta → abre uma janela WebView apontando para `http://localhost:<porta>`.
-- **Orquestração dos serviços da aplicação (`docker-compose.yml` do monorepo) é fora de escopo** —
-  `setup`/`start` cuidam só do container de dev. Subir os serviços do projeto (banco, outros
-  microsserviços etc.) é responsabilidade de cada monorepo instanciado a partir do template, feito
-  de dentro do ambiente via DooD.
+- **Tauri** app, with only the source code versioned in the repo (no pre-built binaries) — whoever
+  uses it builds locally with `cargo tauri build`. Reason: a lighter repo that's easier to run on
+  another machine, since usage is personal.
+- Chosen over Electron (lighter, uses the OS's own WebView) and over simply opening the browser:
+  in a regular browser tab, editor shortcuts (e.g. `Ctrl+W`, `Ctrl+N`, `Ctrl+T`) get intercepted by
+  the browser itself and can't be overridden; in a native window this doesn't happen.
+- Runs on the **host**, not inside the container (needs access to the host's display).
+- **Execution flow**: ensures the environment's container is running → waits for code-server to
+  respond on the port → opens a WebView window pointing at `http://localhost:<port>`.
+- **Orchestrating the application's own services (the monorepo's `docker-compose.yml`) is out of
+  scope** — `setup`/`start` only handle the dev container. Bringing up the project's services
+  (database, other microservices, etc.) is the responsibility of each monorepo instantiated from
+  the template, done from inside the environment via DooD.
 
-### Implementação
+### Implementation
 
-`.code-server/start/` — app Tauri v2 em Rust puro (sem frontend JS): `src/main.rs`,
+`.code-server/start/` — a Tauri v2 app in pure Rust (no JS frontend): `src/main.rs`,
 `Cargo.toml`, `tauri.conf.json`, `build.rs`, `capabilities/default.json`, `dist/index.html`
-(placeholder vazio, nunca é exibido — a janela navega direto pra URL externa do code-server).
+(empty placeholder, never shown — the window navigates straight to code-server's external URL).
 
-`ensure_container_running` replica o `docker run` que existia no `build.sh` do repo original
-(mounts do workspace, `~/.claude`, docker socket, volume nomeado `code-server-data`, `--network
-host`, `--cap-add=SYS_ADMIN`, `--security-opt seccomp=unconfined`/`systempaths=unconfined`, gid do
-docker socket via `DOCKER_SOCK_GID`): se o container já existe faz só `docker start` (idempotente),
-senão cria com `docker run` na primeira execução.
+`ensure_container_running` replicates the `docker run` that used to live in the original repo's
+`build.sh` (workspace mounts, `~/.claude`, docker socket, named volume `code-server-data`,
+`--network host`, `--cap-add=SYS_ADMIN`, `--security-opt seccomp=unconfined`/
+`systempaths=unconfined`, docker socket gid via `DOCKER_SOCK_GID`): if the container already
+exists it just does `docker start` (idempotent), otherwise it creates it with `docker run` on the
+first run.
 
-Configuração via env vars (sem default forçado além do indicado):
-- `START_WORKSPACE_DIR` — caminho do monorepo no host (equivalente ao `$(pwd)` do `build.sh`
-  original). Se não for passada, é derivada automaticamente subindo os diretórios a partir do
-  próprio binário até achar o `.git` mais externo (não o primeiro) — assim funciona tanto no uso
-  direto do template (`<repo>/.code-server/start/target/release/start`, nesting único) quanto
-  quando ele é vendorizado como git submodule dentro de outro repo (`<repo>/.code-server/.code-server/start/...`,
-  nesting duplo), caso em que o `.git` do próprio submódulo ficaria no meio do caminho e seria
-  ignorado. Se o binário for movido/copiado pra fora de qualquer árvore git, precisa setar a env
-  var manualmente.
-- `START_CONTAINER_NAME` (default `<basename-do-workspace>-app`), `START_IMAGE_NAME` (default
-  `<basename-do-workspace>-dev`) — derivados do basename de `START_WORKSPACE_DIR`, mesma convenção
-  usada pelo `setup` pra nomear a imagem, pra não precisar configurar os dois em sincronia manual.
-- `START_CODE_SERVER_URL` (default `http://localhost:8443`) — porta real depende de como o
-  code-server está configurado na imagem.
+Configuration via env vars (no forced default beyond what's noted):
+- `START_WORKSPACE_DIR` — the monorepo's path on the host (equivalent to the original `build.sh`'s
+  `$(pwd)`). If not passed, it's derived automatically by walking up the directories from the
+  binary itself until finding the outermost `.git` (not the first) — this way it works both for
+  direct use of the template (`<repo>/.code-server/start/target/release/start`, single nesting)
+  and when it's vendored as a git submodule inside another repo
+  (`<repo>/.code-server/.code-server/start/...`, double nesting), in which case the submodule's own
+  `.git` would sit in the middle of the path and gets ignored. If the binary is moved/copied
+  outside of any git tree, the env var needs to be set manually.
+- `START_CONTAINER_NAME` (default `<workspace-basename>-app`), `START_IMAGE_NAME` (default
+  `<workspace-basename>-dev`) — derived from `START_WORKSPACE_DIR`'s basename, the same convention
+  `setup` uses to name the image, so both don't need to be kept in manual sync.
+- `START_CODE_SERVER_URL` (default `http://localhost:8443`) — the actual port depends on how
+  code-server is configured in the image.
 
-**Compilação verificada** no host do usuário (Arch Linux) com `cargo build --release`, binário
-gerado em `target/release/start`. Feito fora deste container, que não tem Rust instalado.
-Pré-requisitos de sistema pro Tauri (Linux): Arch —
+**Build verified** on the user's host (Arch Linux) with `cargo build --release`, binary generated
+at `target/release/start`. Done outside this container, which doesn't have Rust installed.
+System prerequisites for Tauri (Linux): Arch —
 `webkit2gtk-4.1 base-devel curl wget file openssl appmenu-gtk-module libappindicator-gtk3 librsvg
 xdotool` via `pacman`; Debian/Ubuntu — `libwebkit2gtk-4.1-dev build-essential curl wget file
 libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` via `apt`.
 
-Erros já encontrados e corrigidos:
-- `webkit2gtk-4.1`/`javascriptcoregtk-4.1` não encontrados pelo `pkg-config` → resolvido instalando
-  os pré-requisitos do Tauri acima (não era bug no código).
-- `generate_context!()` falhava em compilar porque esperava `icons/icon.png` (ícone default da
-  janela/app, exigido mesmo com `bundle.active: false`) — criado um PNG placeholder 1×1 em
-  `.code-server/start/icons/icon.png` e declarado explicitamente em `bundle.icon` no
-  `tauri.conf.json`. Vale trocar por um ícone de verdade mais pra frente.
-- Primeiro placeholder gerado era grayscale+alpha (PNG color type 4) — o Tauri exige RGBA (color
-  type 6) mesmo num ícone 1×1. Regerado como RGBA de verdade.
-- Default de `START_IMAGE_NAME` no `start` (`workspace-dev` fixo) não batia com o nome que o
-  `setup` de fato gera (basename do repo + `-dev`, ex. `jvsl.monorepo.agents.template-dev`) —
-  `docker run` falhava com "Unable to find image". Corrigido derivando o default a partir do
-  basename de `START_WORKSPACE_DIR`, igual ao `setup`.
+Errors already hit and fixed:
+- `webkit2gtk-4.1`/`javascriptcoregtk-4.1` not found by `pkg-config` → resolved by installing the
+  Tauri prerequisites above (not a code bug).
+- `generate_context!()` failed to compile because it expected `icons/icon.png` (default
+  window/app icon, required even with `bundle.active: false`) — created a 1×1 placeholder PNG at
+  `.code-server/start/icons/icon.png` and declared it explicitly in `bundle.icon` in
+  `tauri.conf.json`. Worth swapping for a real icon later.
+- First generated placeholder was grayscale+alpha (PNG color type 4) — Tauri requires RGBA (color
+  type 6) even for a 1×1 icon. Regenerated as true RGBA.
+- `start`'s default for `START_IMAGE_NAME` (hardcoded `workspace-dev`) didn't match the name
+  `setup` actually generates (repo basename + `-dev`, e.g.
+  `jvsl.monorepo.agents.template-dev`) — `docker run` failed with "Unable to find image". Fixed by
+  deriving the default from `START_WORKSPACE_DIR`'s basename, same as `setup`.
 
-**Confirmado de ponta a ponta**: `./target/release/start` sobe/detecta o container, espera o
-code-server responder e abre a janela corretamente.
+**Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
+code-server to respond, and opens the window correctly.

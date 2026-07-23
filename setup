@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Seleciona as stacks do ambiente de dev, regrava o manifest e builda a
-# imagem. Roda no host (não dentro do container) — é o que builda a imagem,
-# então não pode depender de nada de dentro dela.
+# Selects the dev environment's stacks, rewrites the manifest, and builds
+# the image. Runs on the host (not inside the container) — it's what builds
+# the image, so it can't depend on anything from inside it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,13 +13,13 @@ IMAGE_NAME="${IMAGE_NAME:-$(basename "$(cd "$SCRIPT_DIR/.." && pwd)")-dev}"
 
 for bin in jq whiptail docker; do
     command -v "$bin" >/dev/null 2>&1 || {
-        echo "setup: '$bin' precisa estar instalado no host." >&2
+        echo "setup: '$bin' must be installed on the host." >&2
         exit 1
     }
 done
 
 if [ ! -d "$STACKS_DIR" ] || [ -z "$(ls -A "$STACKS_DIR" 2>/dev/null)" ]; then
-    echo "setup: nenhuma stack encontrada em $STACKS_DIR." >&2
+    echo "setup: no stacks found in $STACKS_DIR." >&2
     exit 1
 fi
 
@@ -29,8 +29,8 @@ else
     CURRENT='{}'
 fi
 
-# Monta o checklist a partir das pastas em stacks/, pré-marcando o que já
-# está no manifest atual.
+# Builds the checklist from the folders in stacks/, pre-checking whatever
+# is already in the current manifest.
 CHECKLIST_ARGS=()
 for stack_dir in "$STACKS_DIR"/*/; do
     name="$(basename "$stack_dir")"
@@ -43,17 +43,17 @@ for stack_dir in "$STACKS_DIR"/*/; do
 done
 
 if ! SELECTED_RAW=$(whiptail --title "setup" --checklist \
-        "Selecione as stacks do monorepo (espaço marca, enter confirma)" \
+        "Select the monorepo's stacks (space to toggle, enter to confirm)" \
         20 70 10 "${CHECKLIST_ARGS[@]}" 3>&1 1>&2 2>&3); then
-    echo "setup: cancelado." >&2
+    echo "setup: cancelled." >&2
     exit 1
 fi
 
 mapfile -t SELECTED_STACKS < <(xargs -n1 <<<"$SELECTED_RAW")
 
-# Pra cada stack selecionada, pergunta a versão (usando a versão atual do
-# manifest, se já houver, como default) e monta o novo manifest do zero —
-# stacks desmarcadas simplesmente não entram, sem lógica de desinstalação.
+# For each selected stack, asks for the version (using the manifest's
+# current version, if any, as the default) and builds the new manifest from
+# scratch — unchecked stacks simply don't get included, no uninstall logic.
 NEW_MANIFEST='{}'
 for name in "${SELECTED_STACKS[@]}"; do
     versions_file="$STACKS_DIR/$name/versions.json"
@@ -69,8 +69,8 @@ for name in "${SELECTED_STACKS[@]}"; do
     fi
 
     if ! VERSION=$(whiptail --title "setup" "${DEFAULT_ARGS[@]}" --menu \
-            "Versão de $name" 15 50 6 "${VERSION_MENU_ARGS[@]}" 3>&1 1>&2 2>&3); then
-        echo "setup: cancelado." >&2
+            "Version of $name" 15 50 6 "${VERSION_MENU_ARGS[@]}" 3>&1 1>&2 2>&3); then
+        echo "setup: cancelled." >&2
         exit 1
     fi
 
@@ -79,8 +79,9 @@ done
 
 echo "$NEW_MANIFEST" | jq '.' > "$MANIFEST"
 
-# Compõe o Dockerfile: core + cada stack selecionada, com {{VERSION}}
-# substituído pela versão escolhida. Sempre do zero — nunca editado à mão.
+# Composes the Dockerfile: core + each selected stack, with {{VERSION}}
+# substituted with the chosen version. Always from scratch — never
+# hand-edited.
 cat "$CORE_FRAG" > "$DOCKERFILE_OUT"
 for name in "${SELECTED_STACKS[@]}"; do
     version="$(jq -r --arg s "$name" '.[$s]' "$MANIFEST")"
@@ -90,7 +91,7 @@ for name in "${SELECTED_STACKS[@]}"; do
     } >> "$DOCKERFILE_OUT"
 done
 
-echo "setup: Dockerfile gerado em $DOCKERFILE_OUT"
-echo "setup: buildando imagem '$IMAGE_NAME'..."
+echo "setup: Dockerfile generated at $DOCKERFILE_OUT"
+echo "setup: building image '$IMAGE_NAME'..."
 docker build -f "$DOCKERFILE_OUT" -t "$IMAGE_NAME" "$SCRIPT_DIR"
-echo "setup: imagem '$IMAGE_NAME' pronta."
+echo "setup: image '$IMAGE_NAME' ready."

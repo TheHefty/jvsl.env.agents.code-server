@@ -10,12 +10,12 @@ fn env_or(key: &str, default: &str) -> String {
     env::var(key).unwrap_or_else(|_| default.to_string())
 }
 
-/// Acha a raiz do repo subindo a partir do próprio executável até o `.git`
-/// mais externo, caso `START_WORKSPACE_DIR` não seja passada explicitamente.
-/// Usa o mais externo (não o primeiro) porque, quando este template é
-/// vendorizado como git submodule (ex: `<repo>/.code-server/`), o próprio
-/// submódulo tem um `.git` (arquivo, apontando pro gitdir real) que ficaria
-/// no caminho antes da raiz do repo consumidor.
+/// Finds the repo root by walking up from the executable itself to the
+/// outermost `.git`, in case `START_WORKSPACE_DIR` isn't passed explicitly.
+/// Uses the outermost one (not the first) because, when this template is
+/// vendored as a git submodule (e.g. `<repo>/.code-server/`), the submodule
+/// itself has a `.git` (a file, pointing at the real gitdir) that would sit
+/// in the path before the consuming repo's root.
 fn default_workspace_dir() -> Option<String> {
     let exe = env::current_exe().ok()?;
     exe.ancestors()
@@ -24,9 +24,9 @@ fn default_workspace_dir() -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
-/// gid real do socket do host — repassado ao container pra o script em
-/// core/cont-init/10-docker-sock-gid.sh alinhar o grupo 'docker' antes do
-/// s6-overlay derrubar privilégios (ver .code-server/docs/OVERVIEW.md).
+/// The host socket's actual gid — passed to the container so the script in
+/// core/cont-init/10-docker-sock-gid.sh can align the 'docker' group before
+/// s6-overlay drops privileges (see .code-server/docs/OVERVIEW.md).
 #[cfg(unix)]
 fn docker_sock_gid() -> String {
     use std::os::unix::fs::MetadataExt;
@@ -44,7 +44,7 @@ fn container_exists(name: &str) -> bool {
 }
 
 fn run_container(name: &str, image: &str, workspace: &str) {
-    let home = env::var("HOME").expect("HOME não definido");
+    let home = env::var("HOME").expect("HOME not set");
 
     let status = Command::new("docker")
         .args([
@@ -78,15 +78,15 @@ fn run_container(name: &str, image: &str, workspace: &str) {
         .args(["-v", "code-server-data:/config"])
         .arg(image)
         .status()
-        .expect("falha ao executar `docker run`");
+        .expect("failed to run `docker run`");
 
     if !status.success() {
-        panic!("start: `docker run` falhou pro container '{name}'");
+        panic!("start: `docker run` failed for container '{name}'");
     }
 }
 
-/// Garante que o container está de pé: `docker start` se já existe
-/// (idempotente), ou um `docker run` completo na primeira execução.
+/// Ensures the container is up: `docker start` if it already exists
+/// (idempotent), or a full `docker run` on the first execution.
 fn ensure_container_running(name: &str, image: &str, workspace: &str) {
     if container_exists(name) {
         let _ = Command::new("docker").args(["start", name]).status();
@@ -111,13 +111,13 @@ fn main() {
         .ok()
         .or_else(default_workspace_dir)
         .expect(
-            "defina START_WORKSPACE_DIR com o caminho do monorepo no host \
-             (não consegui derivar a partir da localização do próprio binário)",
+            "set START_WORKSPACE_DIR to the monorepo's path on the host \
+             (couldn't derive it from the binary's own location)",
         );
 
-    // Mesma convenção de nome que o `setup` usa pra imagem
-    // (basename do repo + "-dev"), pra não precisar configurar os dois
-    // separadamente com o mesmo valor.
+    // Same naming convention the `setup` script uses for the image
+    // (repo basename + "-dev"), so both don't need to be configured
+    // separately with the same value.
     let repo_basename = std::path::Path::new(&workspace)
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -133,17 +133,17 @@ fn main() {
 
             if !wait_for_code_server(&code_server_url, Duration::from_secs(60)) {
                 eprintln!(
-                    "start: code-server não respondeu em {code_server_url} depois de 60s, abrindo a janela mesmo assim."
+                    "start: code-server did not respond at {code_server_url} after 60s, opening the window anyway."
                 );
             }
 
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(code_server_url.parse()?))
-                .title("Ambiente de dev")
+                .title("Dev Environment")
                 .inner_size(1280.0, 800.0)
                 .build()?;
 
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("erro ao rodar a aplicação Tauri");
+        .expect("error running the Tauri application");
 }
