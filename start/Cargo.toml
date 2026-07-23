@@ -1,0 +1,12 @@
+[package]
+name = "start"
+version = "0.1.0"
+edition = "2021"
+description = "Sobe o container do ambiente de dev e abre o code-server numa janela nativa"
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+ureq = "2"
