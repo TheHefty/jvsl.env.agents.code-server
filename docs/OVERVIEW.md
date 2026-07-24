@@ -93,6 +93,31 @@ tested with `bash -n` (syntax); the interactive `whiptail` flow hasn't been run 
 `DOCKER_SOCK_GID`): if the container already exists it just does `docker start` (idempotent),
 otherwise it creates it with `docker run` on the first run.
 
+**Why the container is this permissive** (audited deliberately, not just carried forward as-is):
+- **Docker socket mount + `abc` in the `docker` group (DooD)** — this alone is
+  root-on-the-host-equivalent (anything running inside can `docker run -v /:/host ... chroot
+  /host`). Kept as a deliberate trade-off, not an oversight: it's the mechanism for orchestrating
+  the monorepo's own `docker-compose` services from inside the environment (see the "out of
+  scope" note above), and this template's stated usage is personal/single-host. A meaningfully
+  more isolated alternative exists — a rootless Docker-in-Docker daemon instead of sharing the
+  host's socket — but it trades real complexity and performance for isolation that mostly matters
+  on a shared/multi-tenant host, which this isn't. Left as an open option to revisit if that
+  changes, not implemented.
+- **`--cap-add=SYS_ADMIN` + `--security-opt seccomp=unconfined`/`systempaths=unconfined`** — for
+  `ai-jail`'s `bwrap` (bubblewrap) sandbox, not for the app code. `ai-jail` itself is designed to
+  run unprivileged (no root, no sudo needed), sandboxing via Linux user namespaces — but Ubuntu
+  24.04+/Debian 13+ restrict *unprivileged* user-namespace creation via AppArmor by default, and
+  Docker's own default seccomp/AppArmor profile adds another layer blocking the same syscalls.
+  These three flags are the pragmatic way to lift both restrictions from inside a container that
+  can't assume it's allowed to patch the *host's* AppArmor policy (the properly narrow fix `bwrap`
+  itself suggests). Without them `ai-jail` can't build its sandbox at all.
+- **No passwordless sudo for `abc`** (previously granted, since removed) — `ai-jail`'s docs
+  confirm it doesn't need root or sudo to sandbox, so this was pure inherited surface with no
+  functional purpose, and no `SUDO_PASSWORD` is set for a real password prompt to fall back to
+  either. Removing it doesn't touch the actual biggest risk above (the docker socket already
+  grants root-equivalent access regardless), but closes an independent, unnecessary path to a
+  root shell *inside* the container's own namespace.
+
 **Networking and port discovery**: the container is *not* run with `--network host`. It publishes
 code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,
 bound to loopback only (not exposed on the LAN). `start` reads that port back with `docker

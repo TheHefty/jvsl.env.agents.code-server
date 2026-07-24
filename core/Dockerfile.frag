@@ -62,10 +62,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Passwordless sudo permissions for the LinuxServer default user (abc)
-# and add it to the 'docker' group
-RUN usermod -aG docker abc \
-    && echo 'abc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+# 4. Adds the LinuxServer default user (abc) to the 'docker' group (needed
+# for DooD — see .code-server/docs/OVERVIEW.md). No passwordless sudo: removed
+# after confirming ai-jail's own sandboxing doesn't require root, and no
+# SUDO_PASSWORD is configured for a real one to be set instead.
+RUN usermod -aG docker abc
 
 # 5. Ensures the Claude directory is created with permissions for user 'abc'
 RUN mkdir -p /config/.claude && chown -R abc:abc /config/.claude
