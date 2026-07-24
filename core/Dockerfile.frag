@@ -1,4 +1,4 @@
-FROM lscr.io/linuxserver/code-server:latest
+FROM lscr.io/linuxserver/code-server:4.129.0@sha256:076499743664cc7bac7fefe468860cd6949ad7ca247f20ffc1d4edefd2dc0956
 
 # Avoids interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

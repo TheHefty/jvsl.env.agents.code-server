@@ -43,7 +43,7 @@ fn container_exists(name: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn run_container(name: &str, image: &str, workspace: &str) {
+fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
     let home = env::var("HOME").expect("HOME not set");
 
     let status = Command::new("docker")
@@ -52,8 +52,8 @@ fn run_container(name: &str, image: &str, workspace: &str) {
             "-d",
             "--name",
             name,
-            "--network",
-            "host",
+            "-p",
+            "127.0.0.1:0:8443",
             "--memory=5g",
             "--cpus=6",
             "--cap-add=SYS_ADMIN",
@@ -75,7 +75,8 @@ fn run_container(name: &str, image: &str, workspace: &str) {
         .arg(format!("{workspace}:/config/workspace"))
         .arg("-v")
         .arg(format!("{home}/.claude:/config/.claude"))
-        .args(["-v", "code-server-data:/config"])
+        .arg("-v")
+        .arg(format!("{volume}:/config"))
         .arg(image)
         .status()
         .expect("failed to run `docker run`");
@@ -87,12 +88,35 @@ fn run_container(name: &str, image: &str, workspace: &str) {
 
 /// Ensures the container is up: `docker start` if it already exists
 /// (idempotent), or a full `docker run` on the first execution.
-fn ensure_container_running(name: &str, image: &str, workspace: &str) {
+fn ensure_container_running(name: &str, image: &str, volume: &str, workspace: &str) {
     if container_exists(name) {
         let _ = Command::new("docker").args(["start", name]).status();
     } else {
-        run_container(name, image, workspace);
+        run_container(name, image, volume, workspace);
     }
+}
+
+/// Reads back the host port Docker assigned to the container's published
+/// 8443/tcp (random, picked at `docker run` time via `-p 127.0.0.1:0:8443`
+/// — see .code-server/docs/OVERVIEW.md for why it's not a fixed/derived
+/// port). Stable across `docker start`/`docker stop` since the mapping is
+/// only decided once, at container creation.
+fn published_port(name: &str) -> Option<u16> {
+    let output = Command::new("docker")
+        .args([
+            "inspect",
+            "--format",
+            "{{(index (index .NetworkSettings.Ports \"8443/tcp\") 0).HostPort}}",
+            name,
+        ])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8_lossy(&output.stdout).trim().parse().ok()
 }
 
 fn wait_for_code_server(url: &str, timeout: Duration) -> bool {
@@ -139,11 +163,29 @@ fn main() {
 
     let container_name = env_or("START_CONTAINER_NAME", &format!("{repo_basename}-app"));
     let image_name = env_or("START_IMAGE_NAME", &format!("{repo_basename}-dev"));
-    let code_server_url = env_or("START_CODE_SERVER_URL", "http://localhost:8443");
+    let volume_name = env_or(
+        "START_VOLUME_NAME",
+        &format!("{repo_basename}-code-server-data"),
+    );
+    // Only set when the caller wants to skip port auto-discovery entirely
+    // (e.g. a manually customized container/port mapping).
+    let code_server_url_override = env::var("START_CODE_SERVER_URL").ok();
 
     tauri::Builder::default()
         .setup(move |app| {
-            ensure_container_running(&container_name, &image_name, &workspace);
+            ensure_container_running(&container_name, &image_name, &volume_name, &workspace);
+
+            let code_server_url = match &code_server_url_override {
+                Some(url) => url.clone(),
+                None => {
+                    let port = published_port(&container_name).expect(
+                        "start: couldn't determine the host port Docker published for \
+                         code-server (`docker inspect` failed) — set START_CODE_SERVER_URL \
+                         to override",
+                    );
+                    format!("http://127.0.0.1:{port}")
+                }
+            };
 
             if !wait_for_code_server(&code_server_url, Duration::from_secs(60)) {
                 eprintln!(

@@ -13,6 +13,14 @@ keeping the root free for the monorepo's actual services.
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
   the Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (required by `setup` to read and edit the
   manifest), and the docker socket gid fix via the script in `custom-cont-init.d`.
+- **Base image is pinned to `tag@digest`** (`lscr.io/linuxserver/code-server:4.129.0@sha256:...`),
+  not `:latest`. Found out the hard way while debugging the port issue below: `:latest` means the
+  build can change under you with zero warning, and the image's internals (e.g. the exact
+  `--bind-addr` flag baked into its s6 service script) aren't part of any documented contract.
+  Pinning the tag alone isn't enough either — registries can in principle re-push a tag to a
+  different digest — so both are pinned together: the tag keeps the Dockerfile readable, the
+  digest makes the build fully reproducible. Bumping the version is a deliberate, manual edit to
+  this line (look up the new tag+digest, e.g. via the Docker Hub tags API), not automatic.
 - **`.code-server/stacks/<name>/`** — one folder per stack (e.g. `java/`, `dotnet/`, `python/`),
   each with:
   - `Dockerfile.frag` — a Dockerfile fragment using the `{{VERSION}}` placeholder, substituted at
@@ -52,12 +60,16 @@ tested with `bash -n` (syntax); the interactive `whiptail` flow hasn't been run 
   in a regular browser tab, editor shortcuts (e.g. `Ctrl+W`, `Ctrl+N`, `Ctrl+T`) get intercepted by
   the browser itself and can't be overridden; in a native window this doesn't happen.
 - Runs on the **host**, not inside the container (needs access to the host's display).
-- **Execution flow**: ensures the environment's container is running → waits for code-server to
-  respond on the port → opens a WebView window pointing at `http://localhost:<port>`.
+- **Execution flow**: ensures the environment's container is running → reads back the host port
+  Docker published for it → waits for code-server to respond on it → opens a WebView window
+  pointing at `http://127.0.0.1:<port>`.
 - **Orchestrating the application's own services (the monorepo's `docker-compose.yml`) is out of
   scope** — `setup`/`start` only handle the dev container. Bringing up the project's services
   (database, other microservices, etc.) is the responsibility of each monorepo instantiated from
   the template, done from inside the environment via DooD.
+- **Multiple instances of this template can run concurrently on the same host** (one per
+  monorepo it's vendored into). This requires the container name, image name, code-server data
+  volume, and published port to all be namespaced per project — see below.
 
 ### Implementation
 
@@ -66,11 +78,33 @@ tested with `bash -n` (syntax); the interactive `whiptail` flow hasn't been run 
 (empty placeholder, never shown — the window navigates straight to code-server's external URL).
 
 `ensure_container_running` replicates the `docker run` that used to live in the original repo's
-`build.sh` (workspace mounts, `~/.claude`, docker socket, named volume `code-server-data`,
-`--network host`, `--cap-add=SYS_ADMIN`, `--security-opt seccomp=unconfined`/
-`systempaths=unconfined`, docker socket gid via `DOCKER_SOCK_GID`): if the container already
-exists it just does `docker start` (idempotent), otherwise it creates it with `docker run` on the
-first run.
+`build.sh` (workspace mounts, `~/.claude`, docker socket, `--cap-add=SYS_ADMIN`,
+`--security-opt seccomp=unconfined`/`systempaths=unconfined`, docker socket gid via
+`DOCKER_SOCK_GID`): if the container already exists it just does `docker start` (idempotent),
+otherwise it creates it with `docker run` on the first run.
+
+**Networking and port discovery**: the container is *not* run with `--network host`. It publishes
+code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,
+bound to loopback only (not exposed on the LAN). `start` reads that port back with `docker
+inspect` (`published_port` in `main.rs`) before connecting; the mapping is decided once, at
+`docker run` time, so it stays stable across `docker start`/`docker stop` of the same container.
+
+This replaced an earlier `--network host` design once two problems surfaced:
+- With host networking, every container from this template binds the *same* host port
+  (`8443`), single default, since the linuxserver/code-server image hardcodes
+  `--bind-addr "[::]:8443"` in its own s6 service script — there's no env var to change it, and
+  patching that script in `core/Dockerfile.frag` was considered but rejected as too fragile
+  against upstream image changes (the base image tracks `:latest`, unpinned). With two projects'
+  containers running at once, whichever `start` connects would silently get whichever
+  code-server answered on `:8443` first — not necessarily its own project's.
+- The named volume for `/config` (code-server's own settings/extensions/data) was a single
+  hardcoded name (`code-server-data`), shared by every container regardless of project — a
+  separate latent bug where concurrent projects would corrupt each other's code-server data. Now
+  namespaced per project (`START_VOLUME_NAME`, see below), same convention as the container/image
+  names.
+- Host networking was otherwise only used for reaching code-server's own port from the host, not
+  for anything inside the container reaching other host services (confirmed before removing it) —
+  so dropping it has no other side effect.
 
 Configuration via env vars (no forced default beyond what's noted):
 - `START_WORKSPACE_DIR` — the monorepo's path on the host (equivalent to the original `build.sh`'s
@@ -82,10 +116,12 @@ Configuration via env vars (no forced default beyond what's noted):
   `.git` would sit in the middle of the path and gets ignored. If the binary is moved/copied
   outside of any git tree, the env var needs to be set manually.
 - `START_CONTAINER_NAME` (default `<workspace-basename>-app`), `START_IMAGE_NAME` (default
-  `<workspace-basename>-dev`) — derived from `START_WORKSPACE_DIR`'s basename, the same convention
-  `setup` uses to name the image, so both don't need to be kept in manual sync.
-- `START_CODE_SERVER_URL` (default `http://localhost:8443`) — the actual port depends on how
-  code-server is configured in the image.
+  `<workspace-basename>-dev`), `START_VOLUME_NAME` (default `<workspace-basename>-code-server-data`)
+  — all derived from `START_WORKSPACE_DIR`'s basename, the same convention `setup` uses to name the
+  image, so none of them need to be kept in manual sync across projects.
+- `START_CODE_SERVER_URL` — unset by default, in which case the URL is auto-built from the
+  published port discovered via `docker inspect`. Setting it explicitly skips that discovery
+  entirely and is used as-is (escape hatch for a manually customized container/port setup).
 
 **Prerequisites to run `cargo build --release`** (host only — this container doesn't have Rust
 installed):
