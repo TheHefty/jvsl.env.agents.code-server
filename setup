@@ -39,7 +39,7 @@ for stack_dir in "$STACKS_DIR"/*/; do
     else
         status=off
     fi
-    CHECKLIST_ARGS+=("$name" "$name" "$status")
+    CHECKLIST_ARGS+=("$name" "" "$status")
 done
 
 if ! SELECTED_RAW=$(whiptail --title "setup" --checklist \
@@ -59,7 +59,7 @@ for name in "${SELECTED_STACKS[@]}"; do
     versions_file="$STACKS_DIR/$name/versions.json"
     VERSION_MENU_ARGS=()
     while IFS= read -r v; do
-        VERSION_MENU_ARGS+=("$v" "$v")
+        VERSION_MENU_ARGS+=("$v" "")
     done < <(jq -r '.[]' "$versions_file")
 
     CURRENT_VERSION="$(jq -r --arg s "$name" '.[$s] // empty' <<<"$CURRENT")"
