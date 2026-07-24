@@ -12,7 +12,17 @@ keeping the root free for the monorepo's actual services.
 
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
   the Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (required by `setup` to read and edit the
-  manifest), and the docker socket gid fix via the script in `custom-cont-init.d`.
+  manifest), Rust via `rustup` + the Tauri Linux libs, and the docker socket gid fix via the
+  script in `custom-cont-init.d`.
+- **Rust/Tauri deps live in `core/`, not a selectable stack.** They're there to build/verify
+  `.code-server/start` itself (the template's own launcher), not for the monorepo's application
+  code — every project needs it regardless of which stacks it picks, same reasoning as Node.js
+  being mandatory for the Claude Code CLI. Lets `cargo check`/`cargo build` run from inside the
+  dev container too, closing the verification gap noted while making the port-publishing fix
+  (`.code-server/start` could previously only be checked on the host). Actually *running* the
+  built Tauri binary still needs a host display, so `start` itself is still built and launched
+  from the host as documented below — this only makes editing `main.rs` from inside the
+  environment checkable without a round-trip to the host.
 - **Base image is pinned to `tag@digest`** (`lscr.io/linuxserver/code-server:4.129.0@sha256:...`),
   not `:latest`. Found out the hard way while debugging the port issue below: `:latest` means the
   build can change under you with zero warning, and the image's internals (e.g. the exact

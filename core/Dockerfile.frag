@@ -5,7 +5,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 USER root
 
-# 1. System dependencies, Bubblewrap, Socat and Docker tools
+# 1. System dependencies, Bubblewrap, Socat, Docker tools, and the Tauri
+# Linux libs (so `.code-server/start` can be `cargo check`/`build`-verified
+# from inside the container too, not just on the host — see rustup install
+# below and .code-server/docs/OVERVIEW.md)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -25,7 +28,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     libcap2-bin \
     docker.io \
+    file \
+    libwebkit2gtk-4.1-dev \
+    libxdo-dev \
+    libssl-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# 1.1 Installs Rust (stable, via rustup) system-wide, so the CLI/agent and
+# user 'abc' both have `cargo` — needed to verify changes to
+# `.code-server/start/src/main.rs` (a Tauri app; actually running the built
+# binary still requires a host display, only building/checking works here)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --profile minimal --default-toolchain stable \
+    && chmod -R a+w $RUSTUP_HOME $CARGO_HOME
 
 # 2. Installs Node.js 22 (LTS) — required by the Claude Code CLI
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
