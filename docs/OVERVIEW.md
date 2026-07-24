@@ -56,10 +56,25 @@ keeping the root free for the monorepo's actual services.
 
 ### Implementation
 
-`.code-server/setup` (bash) + `.code-server/core/` + `.code-server/stacks/java/` (first stack,
-serves as the pattern for the next ones). Requires `jq`, `whiptail`, and `docker` on the host —
-runs before any container exists, so it can't depend on anything from inside the image. Only
-tested with `bash -n` (syntax); the interactive `whiptail` flow hasn't been run end-to-end yet.
+`.code-server/setup` (bash) + `.code-server/core/` + `.code-server/stacks/{java,cpp,dotnet,python,
+golang,ruby,php}/`. Requires `jq`, `whiptail`, and `docker` on the host — runs before any
+container exists, so it can't depend on anything from inside the image. `bash -n`-clean; the
+interactive `whiptail` flow itself hasn't been run end-to-end, but every stack's actual
+`docker build` + the resulting interpreter/toolchain binary has been (see per-stack notes below).
+
+Each stack picks the lowest-maintenance install path that still allows per-version selection,
+in this order of preference: (1) Ubuntu's own repo when it already carries multiple versions
+(`java`, `cpp` — plain `apt-get install <pkg>-{{VERSION}}`), (2) a well-maintained external
+apt feed when it doesn't (`dotnet` via Microsoft's own feed; `python` via deadsnakes; `php` via
+`ondrej/php` — all PPAs/feeds actively maintained for current Ubuntu releases), (3) upstream's
+own binary release when there's no package feed at all (`golang` — official tarball from
+`go.dev`), (4) building from source as the last resort when even the "well-maintained PPA" turned
+out not to exist (`ruby` — `brightbox/ruby-ng`, the PPA used by most guides, hasn't published a
+release past `zesty`/~2017, discovered by actually running the build rather than trusting the
+PPA's description text; switched to `ruby-build`, the same source-build approach official Ruby
+Docker images use). Lesson from that: a PPA looking documented/well-known isn't the same as it
+actually publishing for the Ubuntu release in use — worth an actual `docker build`, not just
+reading the PPA page, before trusting one for a new stack.
 
 ## `start`
 
