@@ -196,6 +196,7 @@ fn main() {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(code_server_url.parse()?))
                 .title("Dev Environment")
                 .inner_size(1280.0, 800.0)
+                .enable_clipboard_access()
                 .build()?;
 
             Ok(())
