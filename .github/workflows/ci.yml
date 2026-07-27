@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  bash-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n on all shell scripts
+        run: |
+          find . -type f \( -name '*.sh' -o -name 'setup' \) -print0 \
+            | xargs -0 -n1 bash -n
+
+  cargo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tauri Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: start
+      - name: cargo check
+        working-directory: start
+        run: cargo check --release
+
+  core-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build core only
+        run: docker build -f core/Dockerfile.frag -t core-ci .
+
+  discover-stacks:
+    runs-on: ubuntu-latest
+    outputs:
+      stacks: ${{ steps.list.outputs.stacks }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          echo "stacks=$(ls stacks | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
+
+  stack-build:
+    needs: discover-stacks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: ${{ fromJson(needs.discover-stacks.outputs.stacks) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build core + ${{ matrix.stack }} (lowest listed version)
+        run: |
+          version="$(jq -r '.[0]' "stacks/${{ matrix.stack }}/versions.json")"
+          { cat core/Dockerfile.frag; echo; sed "s/{{VERSION}}/$version/g" "stacks/${{ matrix.stack }}/Dockerfile.frag"; } > /tmp/Dockerfile
+          docker build -f /tmp/Dockerfile -t "stack-ci-${{ matrix.stack }}" .
