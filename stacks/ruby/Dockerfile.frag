@@ -18,3 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && git clone --depth 1 https://github.com/rbenv/ruby-build.git /tmp/ruby-build \
     && /tmp/ruby-build/bin/ruby-build {{VERSION}} /usr/local \
     && rm -rf /tmp/ruby-build
+
+# Installs the code-server extension for Ruby (Open VSX)
+RUN /app/code-server/bin/code-server \
+    --extensions-dir /config/extensions \
+    --user-data-dir /config/data \
+    --install-extension shopify.ruby-lsp || true

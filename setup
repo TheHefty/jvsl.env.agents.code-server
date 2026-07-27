@@ -5,11 +5,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# .code-server is always a submodule directly under the consuming repo's
+# root (see docs/OVERVIEW.md) — REPO_ROOT is that root, one level up.
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 STACKS_DIR="$SCRIPT_DIR/stacks"
 CORE_FRAG="$SCRIPT_DIR/core/Dockerfile.frag"
-MANIFEST="$SCRIPT_DIR/.stack.json"
+# Lives in the consuming repo's own root (tracked by its own history), not
+# inside .code-server/: .code-server is a shared submodule pointing at this
+# template, and per-project stack selection has to survive `git submodule`
+# updates instead of being local, uncommittable state inside vendored code.
+MANIFEST="$REPO_ROOT/.code-server.stack.json"
 DOCKERFILE_OUT="$SCRIPT_DIR/Dockerfile"
-IMAGE_NAME="${IMAGE_NAME:-$(basename "$(cd "$SCRIPT_DIR/.." && pwd)")-dev}"
+IMAGE_NAME="${IMAGE_NAME:-$(basename "$REPO_ROOT")-dev}"
 
 for bin in jq whiptail docker; do
     command -v "$bin" >/dev/null 2>&1 || {
@@ -49,7 +56,10 @@ if ! SELECTED_RAW=$(whiptail --title "setup" --checklist \
     exit 1
 fi
 
-mapfile -t SELECTED_STACKS < <(xargs -n1 <<<"$SELECTED_RAW")
+SELECTED_STACKS=()
+if [ -n "$SELECTED_RAW" ]; then
+    mapfile -t SELECTED_STACKS < <(xargs -n1 <<<"$SELECTED_RAW")
+fi
 
 # For each selected stack, asks for the version (using the manifest's
 # current version, if any, as the default) and builds the new manifest from

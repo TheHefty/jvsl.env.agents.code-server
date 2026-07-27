@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     libcap2-bin \
     docker.io \
+    docker-compose-v2 \
     file \
     libwebkit2gtk-4.1-dev \
     libxdo-dev \
@@ -84,6 +85,13 @@ RUN /app/code-server/bin/code-server \
     --extensions-dir /config/extensions \
     --user-data-dir /config/data \
     --install-extension file-icons.file-icons || true
+
+# 6.1 Default editor settings: Dark Modern theme, .md files open as preview
+# by default (not the raw source editor). Written into user-data-dir now (not
+# hand-edited later) so it lands in the initial content Docker copies into
+# the named /config volume on first mount — same reasoning as the extension
+# install above.
+RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}}' > /config/data/User/settings.json
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
 RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/ai-jail-linux-x86_64.tar.gz \

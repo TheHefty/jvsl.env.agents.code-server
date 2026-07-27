@@ -6,14 +6,38 @@ This document records the decisions made in conversation; both executables alrea
 implementation (see "Implementation" in each section).
 
 All of this lives inside `.code-server/` at the repo root (same idea as a `.devcontainer/`),
-keeping the root free for the monorepo's actual services.
+keeping the root free for the monorepo's actual services. The template itself is consumed as a
+git submodule at `.code-server/` — the officially documented way, replacing an earlier
+copy-paste-in model — so the one piece of state that can't live inside `.code-server/` itself is
+the per-project stack selection (`.code-server.stack.json`, kept at the consuming repo's own
+root — see "Manifest" below for why).
 
 ## `setup`
 
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
   the Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (required by `setup` to read and edit the
-  manifest), Rust via `rustup` + the Tauri Linux libs, and the docker socket gid fix via the
-  script in `custom-cont-init.d`.
+  manifest), Rust via `rustup` + the Tauri Linux libs, `docker.io` + `docker-compose-v2` (`docker
+  compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't pull it
+  in — confirmed missing by actually running `docker compose version` inside a built image before
+  adding it; Ubuntu's own repo package for this is `docker-compose-v2`, not `docker-compose-plugin`
+  — that name is only for Docker's own upstream apt repo, which this template doesn't add), and the
+  docker socket gid fix via the script in `custom-cont-init.d`. `docker compose` here is for the
+  monorepo's own services from inside the environment via DooD (see the "out of scope" note under
+  `start` below) — it doesn't change how the dev environment itself is brought up, which stays
+  `start`'s `docker run`.
+- **Default editor settings** — `core/Dockerfile.frag` writes `/config/data/User/settings.json`
+  with `workbench.colorTheme: "Dark Modern"` and `workbench.editorAssociations: {"*.md":
+  "vscode.markdown.preview.editor"}` (`.md` files open in preview, not the raw source editor).
+  Both values confirmed against this exact code-server version's own bundled extensions rather than
+  assumed — the theme id actually contributed by `theme-defaults/package.json` is `"Dark Modern"`
+  (not `"Default Dark Modern"`, a different naming convention than expected), and
+  `"vscode.markdown.preview.editor"` is `markdown-language-features`'s registered custom-editor
+  `viewType` for the `*.md` selector. Written as a single-line `printf` (a multi-line JSON string
+  broke the Dockerfile parser — each unescaped newline inside the quoted string was read as a new
+  instruction) into `/config/data` at build time, same reasoning as the extension pre-installs:
+  Docker copies an image directory's existing content into the named `/config` volume the first
+  time it's mounted, so this is only picked up on first container creation, not on every rebuild of
+  an existing environment.
 - **Rust/Tauri deps live in `core/`, not a selectable stack.** They're there to build/verify
   `.code-server/start` itself (the template's own launcher), not for the monorepo's application
   code — every project needs it regardless of which stacks it picks, same reasoning as Node.js
@@ -37,11 +61,42 @@ keeping the root free for the monorepo's actual services.
     compose time. When the install process diverges between versions of the same stack, the
     difference becomes an `if` inside the `Dockerfile.frag` itself (not a folder per version).
   - `versions.json` — list of the valid versions offered in the menu.
-- **Manifest `.code-server/.stack.json`** — a `{ stack: version }` object with the current
+- **Each stack also installs one code-server extension for its language**, same
+  `code-server --extensions-dir /config/extensions --user-data-dir /config/data
+  --install-extension <id> || true` pattern core already uses for `file-icons`, appended as the
+  last `RUN` in each stack's fragment. The `|| true` matters here more than it did for
+  `file-icons`: `code-server`'s default marketplace is the **Open VSX Registry**, not Microsoft's
+  own Marketplace (code-server can't legally point at Microsoft's, being a non-Microsoft build), so
+  most `ms-*` extension IDs 404 there — verified per-ID against `open-vsx.org`'s API before picking
+  one, not assumed from what's popular on the real Marketplace:
+  - `java` → `redhat.java` (Red Hat publishes this one to Open VSX directly)
+  - `cpp` → `llvm-vs-code-extensions.vscode-clangd` (`ms-vscode.cpptools` 404s on Open VSX)
+  - `dotnet` → `muhammad-sammy.csharp` (`ms-dotnettools.csharp` 404s; this is an unofficial fork
+    built from the same open-source base, published to Open VSX)
+  - `python` → `ms-python.python` — the one `ms-*` exception found: Microsoft does publish this
+    specific extension to Open VSX
+  - `golang` → `golang.go`
+  - `ruby` → `shopify.ruby-lsp`
+  - `php` → `bmewburn.vscode-intelephense-client`
+  - `node` → `dbaeumer.vscode-eslint` (JS/TS language support itself already ships built into
+    code-server; ESLint is the companion most projects actually need on top of that)
+  - Considered switching code-server's extension gallery to the real Microsoft Marketplace instead
+    (would unlock the exact `ms-vscode.cpptools`/`ms-dotnettools.csharp` IDs) — rejected: doing
+    that is against Microsoft's Marketplace Terms of Use for non-official VS Code builds, a
+    policy/legal trade-off rather than a technical one, so Open VSX + closest maintained
+    equivalent stays the default.
+- **Manifest `.code-server.stack.json`** — a `{ stack: version }` object with the current
   selection, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
   because it's easier to extend (e.g. something more per stack in the future) and for other tools
   (e.g. the Rust `start`) to read without a hand-rolled parser; the cost is depending on `jq` in
-  `core/`.
+  `core/`. **Lives at the consuming repo's own root, not inside `.code-server/`** — since the
+  template is consumed as a git submodule, anything inside `.code-server/` is that submodule's own
+  tracked tree; per-project stack selection edited there would either get lost (if gitignored
+  inside the submodule — untracked by both the submodule's and the consumer's history) or show up
+  as unexpected "dirty submodule" changes blocking clean `git submodule` updates. `setup` derives
+  the path as one level above its own script directory (`$SCRIPT_DIR/..`), the same "`.code-server`
+  sits directly under the consuming repo's root" assumption `start`'s `default_workspace_dir()`
+  already made independently.
 - **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
   in the manifest; each selected stack's version is then asked in turn.
 - **Execution flow**: reads the current manifest → shows the menu → writes the new manifest →
@@ -53,6 +108,38 @@ keeping the root free for the monorepo's actual services.
   truth without anyone noticing. `.stack.json` is the versioned record of intent.
 - **Removing a stack** = taking it out of the manifest. There's no uninstall logic: the image is
   always rebuilt from scratch from the generated Dockerfile.
+- **No stack is mandatory** — deselecting everything in the checklist is a valid choice, producing
+  an image with just `core/Dockerfile.frag` (code-server, Claude Code CLI, `ai-jail`, DooD). Found
+  a bug here while confirming it: an empty `whiptail` selection makes `SELECTED_RAW` an empty
+  string, and `xargs -n1 <<<""` (a here-string always appends a trailing newline) still emits one
+  blank token, so `SELECTED_STACKS` ended up as a one-element array holding `""` instead of a truly
+  empty array — the loop then tried to read `stacks//versions.json` and crashed. Fixed by only
+  populating `SELECTED_STACKS` via `mapfile` when `SELECTED_RAW` is non-empty, otherwise leaving it
+  `()`.
+- **`node` stack** — Node.js is also installed unconditionally in `core/` (NodeSource, pinned LTS)
+  purely to bootstrap the Claude Code CLI, same reasoning as Rust being there to build `start` (see
+  above) — not meant for the monorepo's own application code. The `node` stack under
+  `stacks/node/` follows the same pattern as every other stack (`versions.json` +
+  `Dockerfile.frag`), and picking a version re-runs NodeSource's setup script + `apt-get install
+  nodejs` for that version, overwriting the core's system Node system-wide (same system-wide
+  install path, just a different version) — the same approach `dotnet`/`python` use, rather than a
+  per-project version manager like `nvm`, to stay consistent with how every other stack handles
+  versioning. `versions.json` starts at `18` (not lower) so the selected version can't regress
+  below what the already-installed Claude Code CLI needs to keep running.
+- **Downgrading Node needs an explicit pin from the right source, not `apt-cache policy`.** First
+  version of the fragment did a plain `apt-get install -y nodejs` after running NodeSource's
+  `setup_{{VERSION}}.x` script — built and "succeeded" but silently kept the core's Node 22 when a
+  lower version (e.g. `20`) was selected, since apt won't downgrade an already-installed package on
+  its own. Only caught by actually running `node --version` inside the built image, not by the
+  build succeeding. First fix attempt read the target version off `apt-cache policy nodejs`'s
+  "Candidate:" line + `--allow-downgrades` — still wrong, and for a more fundamental reason: APT's
+  own preference rules only let a repo's priority (NodeSource ships at 600) auto-select a
+  downgrade above priority 1000, so `policy`'s "Candidate:" kept reporting the installed 22.x even
+  with the 20.x repo configured — confirmed by reproducing it interactively
+  (`apt-cache policy nodejs` after `setup_20.x`, still `Candidate: 22.23.1-1nodesource1`). Fixed by
+  reading the version from `apt-cache madison nodejs`'s `nodesource`-origin entry instead (that
+  command lists what each configured repo actually offers, unaffected by candidate/downgrade
+  preference rules), then installing that exact pinned version with `--allow-downgrades`.
 
 ### Implementation
 
@@ -75,6 +162,24 @@ PPA's description text; switched to `ruby-build`, the same source-build approach
 Docker images use). Lesson from that: a PPA looking documented/well-known isn't the same as it
 actually publishing for the Ubuntu release in use — worth an actual `docker build`, not just
 reading the PPA page, before trusting one for a new stack.
+
+Two more found the same way (rebuilding every stack to verify the code-server extension installs
+below), both in versions that were already listed in `versions.json` before this round:
+- **`dotnet` `9.0` removed** — Microsoft's own feed for Ubuntu 24.04 no longer carries
+  `dotnet-sdk-9.0` (only `8.0` and `10.0` at time of writing); `9.0` is a Standard Term Support
+  release and its feed entry appears to get pulled once it's out of support, unlike the `8.0`/
+  `10.0` LTS releases. `versions.json` updated to `["8.0", "10.0"]`.
+- **`python` `ensurepip` fix** — `python{{VERSION}} -m ensurepip --upgrade` started failing
+  specifically for `3.12` with "ensurepip is disabled in Debian/Ubuntu for the system python":
+  Ubuntu 24.04 ships `3.12` as its own native `python3` package (not from deadsnakes, unlike
+  `3.11`/`3.13`, which install cleanly), and Debian patches `ensurepip` to refuse running for
+  whichever Python is the OS-provided one, regardless of `update-alternatives`. Confirmed
+  interactively that `3.11`/`3.13` (genuinely deadsnakes-provided) aren't affected — only `3.12`
+  is. Fixed by replacing `ensurepip` with PyPA's own `get-pip.py` bootstrap (`curl
+  https://bootstrap.pypa.io/get-pip.py | python{{VERSION}} - --break-system-packages` — the
+  PEP 668 "externally managed environment" marker Debian also ships blocks a plain `get-pip.py` run
+  too, hence `--break-system-packages`), which works uniformly across all three versions instead of
+  branching the fragment per-version.
 
 ## `start`
 
@@ -191,17 +296,24 @@ Errors already hit and fixed:
 - `generate_context!()` failed to compile because it expected `icons/icon.png` (default
   window/app icon, required even with `bundle.active: false`) — created a 1×1 placeholder PNG at
   `.code-server/start/icons/icon.png` and declared it explicitly in `bundle.icon` in
-  `tauri.conf.json`. Worth swapping for a real icon later.
+  `tauri.conf.json`.
 - First generated placeholder was grayscale+alpha (PNG color type 4) — Tauri requires RGBA (color
   type 6) even for a 1×1 icon. Regenerated as true RGBA.
+- **Replaced the 1×1 placeholder with a real 256×256 RGBA icon** (a simple `>_` terminal-prompt
+  glyph, accent-blue on a dark rounded square — colors matched to the Dark Modern theme now set as
+  the editor default, see above) — generated with a small pure-stdlib Python script (no PIL/ImageMagick
+  available/installed for this), since no existing brand asset was supplied.
 - `start`'s default for `START_IMAGE_NAME` (hardcoded `workspace-dev`) didn't match the name
   `setup` actually generates (repo basename + `-dev`, e.g.
   `jvsl.monorepo.agents.template-dev`) — `docker run` failed with "Unable to find image". Fixed by
   deriving the default from `START_WORKSPACE_DIR`'s basename, same as `setup`.
 - On Linux, typing accented characters (e.g. ABNT2/US-International dead-keys) inside the native
   window produced broken/duplicated output (e.g. "pr  óximo") — a known WebKitGTK + IBus dead-key
-  composition bug. Fixed by forcing `GTK_IM_MODULE=cedilla` at the start of `main()` (only if the
-  user hasn't already set it), before GTK initializes. Confirmed working on the user's host.
+  composition bug. Fixed by forcing `GTK_IM_MODULE=cedilla` at the start of `main()`, before GTK
+  initializes. Confirmed working on the user's host. Originally skipped if the user had already set
+  `GTK_IM_MODULE` themselves; changed to unconditional (always overrides whatever's in the
+  environment) — this template's own fix should win outright rather than silently no-op behind a
+  pre-existing value.
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
