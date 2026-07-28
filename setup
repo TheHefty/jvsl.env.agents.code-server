@@ -61,6 +61,21 @@ if [ -n "$SELECTED_RAW" ]; then
     mapfile -t SELECTED_STACKS < <(xargs -n1 <<<"$SELECTED_RAW")
 fi
 
+# Validates inter-stack dependencies: a stack may declare an optional
+# requires.json (array of stack names) that must also be selected. Kept
+# generic rather than special-cased, since android/java won't stay the only
+# pair — fails loudly instead of silently changing the user's selection.
+for name in "${SELECTED_STACKS[@]}"; do
+    requires_file="$STACKS_DIR/$name/requires.json"
+    [ -f "$requires_file" ] || continue
+    while IFS= read -r dep; do
+        if ! printf '%s\n' "${SELECTED_STACKS[@]}" | grep -qx "$dep"; then
+            echo "setup: stack '$name' requires '$dep' — select it too." >&2
+            exit 1
+        fi
+    done < <(jq -r '.[]' "$requires_file")
+done
+
 # For each selected stack, asks for the version (using the manifest's
 # current version, if any, as the default) and builds the new manifest from
 # scratch — unchecked stacks simply don't get included, no uninstall logic.
@@ -89,11 +104,31 @@ done
 
 echo "$NEW_MANIFEST" | jq '.' > "$MANIFEST"
 
+# Orders selected stacks so any requires.json dependency is concatenated
+# before its dependent, regardless of the checklist's (alphabetical) order.
+declare -A _ADDED
+ORDERED_STACKS=()
+add_stack() {
+    local name="$1"
+    [ -n "${_ADDED[$name]:-}" ] && return
+    local requires_file="$STACKS_DIR/$name/requires.json"
+    if [ -f "$requires_file" ]; then
+        while IFS= read -r dep; do
+            add_stack "$dep"
+        done < <(jq -r '.[]' "$requires_file")
+    fi
+    _ADDED[$name]=1
+    ORDERED_STACKS+=("$name")
+}
+for name in "${SELECTED_STACKS[@]}"; do
+    add_stack "$name"
+done
+
 # Composes the Dockerfile: core + each selected stack, with {{VERSION}}
 # substituted with the chosen version. Always from scratch — never
 # hand-edited.
 cat "$CORE_FRAG" > "$DOCKERFILE_OUT"
-for name in "${SELECTED_STACKS[@]}"; do
+for name in "${ORDERED_STACKS[@]}"; do
     version="$(jq -r --arg s "$name" '.[$s]' "$MANIFEST")"
     {
         echo
