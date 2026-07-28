@@ -314,6 +314,15 @@ Errors already hit and fixed:
   `GTK_IM_MODULE` themselves; changed to unconditional (always overrides whatever's in the
   environment) — this template's own fix should win outright rather than silently no-op behind a
   pre-existing value.
+- Separately, accented characters were also garbled inside code-server's own integrated terminal
+  (xterm.js) — composed characters reappearing duplicated and interspersed with stray
+  whitespace/tabs. Distinct from the GTK issue above: this happens inside the browser-rendered
+  terminal content itself, not GTK chrome, so `GTK_IM_MODULE` doesn't reach it. Likely cause: the
+  terminal's canvas/WebGL-accelerated renderer redrawing asynchronously while dead-key/IME
+  composition is in flight, replaying part of the composition buffer. Mitigated by setting
+  `"terminal.integrated.gpuAcceleration": "off"` in the default `settings.json` (core's 6.1 step).
+  Not yet confirmed fixed on the user's host as of this entry — try this before reaching for a
+  `GTK_IM_MODULE` variant if the symptom is terminal-only.
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.

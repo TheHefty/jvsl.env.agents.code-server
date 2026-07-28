@@ -87,11 +87,14 @@ RUN /app/code-server/bin/code-server \
     --install-extension file-icons.file-icons || true
 
 # 6.1 Default editor settings: Dark Modern theme, .md files open as preview
-# by default (not the raw source editor). Written into user-data-dir now (not
+# by default (not the raw source editor), GPU-accelerated terminal rendering
+# off (the canvas/WebGL renderer's async redraw races with dead-key/IME
+# composition, replaying parts of the composition buffer into the terminal —
+# see .code-server/docs/OVERVIEW.md). Written into user-data-dir now (not
 # hand-edited later) so it lands in the initial content Docker copies into
 # the named /config volume on first mount — same reasoning as the extension
 # install above.
-RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.iconTheme": "file-icons", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}}' > /config/data/User/settings.json
+RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.iconTheme": "file-icons", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}, "terminal.integrated.gpuAcceleration": "off"}' > /config/data/User/settings.json
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
 RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/ai-jail-linux-x86_64.tar.gz \
