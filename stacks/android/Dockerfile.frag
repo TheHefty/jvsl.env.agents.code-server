@@ -14,7 +14,7 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PA
 # is needed. build-tools version is likewise fixed, independent of the
 # platform API level selected above.
 RUN mkdir -p $ANDROID_HOME/cmdline-tools \
-    && curl -fsSL https://dl.google.com/android/repo/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip \
+    && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o /tmp/cmdline-tools.zip \
     && unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools \
     && mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest \
     && rm /tmp/cmdline-tools.zip \
