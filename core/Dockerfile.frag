@@ -91,7 +91,7 @@ RUN /app/code-server/bin/code-server \
 # hand-edited later) so it lands in the initial content Docker copies into
 # the named /config volume on first mount — same reasoning as the extension
 # install above.
-RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}}' > /config/data/User/settings.json
+RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.iconTheme": "file-icons", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}}' > /config/data/User/settings.json
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
 RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/ai-jail-linux-x86_64.tar.gz \
