@@ -78,6 +78,13 @@ RUN mkdir -p /config/.claude && chown -R abc:abc /config/.claude
 COPY core/cont-init/10-docker-sock-gid.sh /custom-cont-init.d/10-docker-sock-gid.sh
 RUN chmod +x /custom-cont-init.d/10-docker-sock-gid.sh
 
+# 5.2 Same mechanism as 5.1, for /dev/kvm instead of the Docker socket — only
+# acts when `start` passed KVM_GID (i.e. the host exposed /dev/kvm; see
+# start/src/main.rs and stacks/android/Dockerfile.frag). A no-op cont-init
+# step on any host/stack that doesn't need it.
+COPY core/cont-init/20-kvm-gid.sh /custom-cont-init.d/20-kvm-gid.sh
+RUN chmod +x /custom-cont-init.d/20-kvm-gid.sh
+
 # 6. Installs the Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
