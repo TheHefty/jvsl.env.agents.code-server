@@ -244,7 +244,27 @@ otherwise it creates it with `docker run` on the first run.
   socket (always mounted, always present on any Docker host), KVM access varies — Linux hosts with
   Intel VT-x/AMD-V have it, Docker Desktop's macOS/Windows VM doesn't. Checked at `start` time
   (`main.rs`) rather than assumed, since `docker run --device` on a path that doesn't exist fails
-  outright instead of silently no-op'ing.
+  outright instead of silently no-op'ing. **Without `/dev/kvm` the emulator does not boot at all**
+  for this x86_64 image — verified empirically, correcting an earlier assumption written down (and
+  since fixed) that it would just fall back to slower software CPU emulation: recent emulator
+  releases hard-require an accelerator for x86_64 guests, `-accel off`/TCG isn't a usable fallback
+  anymore. If the host machine's own virtualization support is in question, check for `vmx`/`svm`
+  in `/proc/cpuinfo` and confirm `/dev/kvm` actually exists there — if the "host" itself is a VM
+  (cloud instance, nested devcontainer, etc.), this also requires nested virtualization enabled at
+  that outer layer, which is infrastructure the host machine's owner controls, not something fixable
+  from inside this repo.
+- **The Claude Code agent's own shell sees `/opt` (and so `$ANDROID_HOME`) as read-only**, even
+  though a human working directly in code-server's terminal doesn't — `ai-jail`'s `bwrap` sandbox
+  (see `setup`'s installation of it, above) remounts it read-only specifically for the agent's own
+  command execution. This broke the emulator's runtime writes (`qemu-version.txt`, snapshot lock
+  state) under `$ANDROID_HOME/avd` the first time an agent tried running it directly. Fixed by
+  keeping the AVD `avdmanager` creates at build time as a "golden" copy under `$ANDROID_HOME/avd`
+  (unreachable at runtime either way, so its read-only-ness doesn't matter), and pointing the
+  actual runtime `ANDROID_AVD_HOME` at `/config/android-avd` instead — `/config` is the named
+  volume (writable under `ai-jail` too, since it isn't a system path) — seeded from the golden copy
+  on first boot by `stacks/android/cont-init/30-android-avd-home.sh`. The golden copy couldn't live
+  under `/config` directly at build time: anything baked there would be shadowed the moment a real
+  (initially empty) named volume mounts over it at container start.
 
 **Networking and port discovery**: the container is *not* run with `--network host`. It publishes
 code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,
