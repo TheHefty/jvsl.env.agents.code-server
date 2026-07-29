@@ -26,6 +26,14 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # consuming project pins in its own build.gradle) or React Native template
 # (which pins its own NDK revision) needs a newer one than what's here.
 #
+# `cmake` belongs alongside the NDK rather than being treated as optional:
+# React Native drives its native build through CMake via the Android Gradle
+# Plugin, so an image shipping the NDK alone still can't build an RN app —
+# AGP tries to auto-install `cmake;3.22.1` mid-build and dies against the
+# read-only SDK ("The SDK directory is not writable"). Unlike a build-tools
+# mismatch, no consuming-project setting avoids this: the toolchain has to
+# come from the SDK, so it's installed here.
+#
 # The emulator system image is x86_64 (not arm64): the realistic host for
 # this template is a Linux machine with Intel/AMD hardware virtualization,
 # which is also the only case `start` passes /dev/kvm through (see
@@ -53,15 +61,37 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # AVDs are created below under $ANDROID_HOME/avd, a "golden" copy baked into
 # the image — not the actual runtime ANDROID_AVD_HOME (see the ENV override
 # further down for why).
+#
+# The final `chmod -R a+rX` (rather than the `chown -R abc:abc` this used to
+# end with) is what makes the SDK usable as the runtime user at all. A
+# build-time `chown` to `abc` bakes in abc's *image* identity (911:1001),
+# but LinuxServer's init remaps abc to PUID/PGID at container start — so the
+# ownership ends up orphaned, abc falls into "other", and Google ships most
+# of these binaries mode 744 (no group/other execute). Net effect was
+# `emulator: Permission denied` for the very user meant to run it, across
+# ~1900 executables (emulator, adb, aapt2, …); only cmdline-tools'
+# `avdmanager`/`sdkmanager` are 755, which masked the problem. `a+rX`
+# restores traversal/execution regardless of what PUID the host picks.
+#
+# Read+execute is deliberately all the runtime user gets: the AVD (the one
+# thing that genuinely needs writing at runtime) lives under /config instead,
+# see the ANDROID_AVD_HOME override below. A Gradle build *will* still try to
+# write here if a project asks for an SDK component this image doesn't ship —
+# it auto-installs missing ones, and fails with "The SDK directory is not
+# writable" when it can't. That's the intended outcome, not a gap to paper
+# over by loosening these permissions: a build that silently mutates the SDK
+# is a build whose result depends on what a given machine happened to
+# download. The fix belongs in the consuming project, pinning the versions
+# it needs to what the image provides.
 RUN mkdir -p $ANDROID_HOME/cmdline-tools \
     && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o /tmp/cmdline-tools.zip \
     && unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools \
     && mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest \
     && rm /tmp/cmdline-tools.zip \
-    && android sdk install "platform-tools" "build-tools;36.0.0" "platforms;android-{{VERSION}}" "ndk;27.1.12297006" "emulator" "system-images;android-{{VERSION}};google_apis;x86_64" \
+    && android sdk install "platform-tools" "build-tools;36.0.0" "platforms;android-{{VERSION}}" "ndk;27.1.12297006" "cmake;3.22.1" "emulator" "system-images;android-{{VERSION}};google_apis;x86_64" \
     && mkdir -p $ANDROID_HOME/avd \
     && echo "no" | avdmanager create avd --name devcontainer --package "system-images;android-{{VERSION}};google_apis;x86_64" --path "$ANDROID_HOME/avd/devcontainer.avd" --force \
-    && chown -R abc:abc $ANDROID_HOME
+    && chmod -R a+rX $ANDROID_HOME
 
 # ANDROID_AVD_HOME (what `emulator` actually reads at lookup time) points at
 # /config, not the golden copy above under $ANDROID_HOME — /config is the
