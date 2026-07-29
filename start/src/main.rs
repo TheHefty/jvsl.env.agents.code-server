@@ -67,8 +67,19 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         name,
         "-p",
         "127.0.0.1:0:8443",
-        "--memory=5g",
-        "--cpus=6",
+        // Bumped from 5g/6 cpus once the android stack's emulator landed:
+        // Gradle + the headless AVD + code-server + agent processes running
+        // at once pushed peak usage close to the host's own physical RAM.
+        // `--memory-swap` pinned equal to `--memory` (not left at Docker's
+        // default of 2x) disables swap for this container specifically:
+        // without the cap, a peak would spill into swap, which is host disk
+        // I/O shared with everything else running there — the whole host
+        // slows down, not just this container. Capping it trades that for a
+        // hard, contained OOM-kill inside the container when a peak exceeds
+        // 6g, which only affects the offending process here.
+        "--memory=6g",
+        "--memory-swap=6g",
+        "--cpus=8",
         "--cap-add=SYS_ADMIN",
         "--security-opt",
         "seccomp=unconfined",
