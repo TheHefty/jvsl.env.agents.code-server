@@ -237,6 +237,14 @@ otherwise it creates it with `docker run` on the first run.
   either. Removing it doesn't touch the actual biggest risk above (the docker socket already
   grants root-equivalent access regardless), but closes an independent, unnecessary path to a
   root shell *inside* the container's own namespace.
+- **`--device /dev/kvm`, conditional on the host having it** — hardware-accelerated
+  virtualization for the android stack's emulator (see `stacks/android/Dockerfile.frag`). Passed
+  through with the same gid-alignment pattern as the docker socket above
+  (`core/cont-init/20-kvm-gid.sh`), but only when `/dev/kvm` exists on the host: unlike the docker
+  socket (always mounted, always present on any Docker host), KVM access varies — Linux hosts with
+  Intel VT-x/AMD-V have it, Docker Desktop's macOS/Windows VM doesn't. Checked at `start` time
+  (`main.rs`) rather than assumed, since `docker run --device` on a path that doesn't exist fails
+  outright instead of silently no-op'ing.
 
 **Networking and port discovery**: the container is *not* run with `--network host`. It publishes
 code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,

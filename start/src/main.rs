@@ -35,6 +35,19 @@ fn docker_sock_gid() -> String {
         .unwrap_or_else(|_| "0".to_string())
 }
 
+/// The host device's actual gid — passed to the container so the script in
+/// core/cont-init/20-kvm-gid.sh can align a 'kvm' group before s6-overlay
+/// drops privileges, same rationale as docker_sock_gid() above. Only called
+/// when /dev/kvm exists (see run_container), so this doesn't need its own
+/// existence check.
+#[cfg(unix)]
+fn kvm_gid() -> String {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata("/dev/kvm")
+        .map(|m| m.gid().to_string())
+        .unwrap_or_else(|_| "0".to_string())
+}
+
 fn container_exists(name: &str) -> bool {
     Command::new("docker")
         .args(["inspect", name])
@@ -46,40 +59,54 @@ fn container_exists(name: &str) -> bool {
 fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
     let home = env::var("HOME").expect("HOME not set");
 
-    let status = Command::new("docker")
-        .args([
-            "run",
-            "-d",
-            "--name",
-            name,
-            "-p",
-            "127.0.0.1:0:8443",
-            "--memory=5g",
-            "--cpus=6",
-            "--cap-add=SYS_ADMIN",
-            "--security-opt",
-            "seccomp=unconfined",
-            "--security-opt",
-            "systempaths=unconfined",
-            "-e",
-            "PUID=1000",
-            "-e",
-            "PGID=1000",
-            "-e",
-            "PASSWORD=",
-        ])
-        .arg("-e")
-        .arg(format!("DOCKER_SOCK_GID={}", docker_sock_gid()))
-        .args(["-v", "/var/run/docker.sock:/var/run/docker.sock"])
-        .arg("-v")
+    let mut cmd = Command::new("docker");
+    cmd.args([
+        "run",
+        "-d",
+        "--name",
+        name,
+        "-p",
+        "127.0.0.1:0:8443",
+        "--memory=5g",
+        "--cpus=6",
+        "--cap-add=SYS_ADMIN",
+        "--security-opt",
+        "seccomp=unconfined",
+        "--security-opt",
+        "systempaths=unconfined",
+        "-e",
+        "PUID=1000",
+        "-e",
+        "PGID=1000",
+        "-e",
+        "PASSWORD=",
+    ])
+    .arg("-e")
+    .arg(format!("DOCKER_SOCK_GID={}", docker_sock_gid()))
+    .args(["-v", "/var/run/docker.sock:/var/run/docker.sock"]);
+
+    // Passes hardware-accelerated virtualization through when the host
+    // exposes it, for the android stack's emulator (see
+    // stacks/android/Dockerfile.frag) — Linux hosts with Intel VT-x/AMD-V
+    // only; there's no equivalent under Docker Desktop's macOS/Windows VM.
+    // Conditional, not unconditional, so `start` still works on hosts
+    // without it: `docker run --device` on a path that doesn't exist is a
+    // hard failure, not a no-op.
+    if std::path::Path::new("/dev/kvm").exists() {
+        cmd.args(["--device", "/dev/kvm"])
+            .arg("-e")
+            .arg(format!("KVM_GID={}", kvm_gid()));
+    }
+
+    cmd.arg("-v")
         .arg(format!("{workspace}:/config/workspace"))
         .arg("-v")
         .arg(format!("{home}/.claude:/config/.claude"))
         .arg("-v")
         .arg(format!("{volume}:/config"))
-        .arg(image)
-        .status()
-        .expect("failed to run `docker run`");
+        .arg(image);
+
+    let status = cmd.status().expect("failed to run `docker run`");
 
     if !status.success() {
         panic!("start: `docker run` failed for container '{name}'");
