@@ -1,21 +1,20 @@
 # Installs the Android SDK for platform (API level) {{VERSION}} — Android
-# platform packages aren't apt packages, sdkmanager against Google's repo is
-# the only way to get a specific platform/build-tools set. Requires the
-# `java` stack (see requires.json): sdkmanager needs a JDK already on PATH,
-# so this fragment doesn't install one of its own — it'd duplicate whatever
-# JDK version was chosen for `java` and setup already enforces java being
+# platform packages aren't apt packages, the `android` CLI against Google's
+# repo is the only way to get a specific platform/build-tools set. Requires
+# the `java` stack (see requires.json): it needs a JDK already on PATH, so
+# this fragment doesn't install one of its own — it'd duplicate whatever JDK
+# version was chosen for `java` and setup already enforces java being
 # selected alongside android.
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=$ANDROID_HOME
-# AVDs live under $ANDROID_HOME (not the real $HOME's ~/.android/avd) so they
-# land in the one tree the chown below already covers, and survive
-# independently of whichever $HOME the emulator ends up invoked from.
-# `emulator` reads ANDROID_AVD_HOME directly at lookup time; `avdmanager
-# create avd` (verified empirically against this cmdline-tools build)
-# ignores ANDROID_AVD_HOME/HOME on its own and needs an explicit `--path`
-# pointed at an already-existing directory (the mkdir below) to put both the
-# AVD's content directory and its .ini registry file there instead of
-# defaulting to ~/.android/avd.
+# Set to the golden copy's own location for the `avdmanager create avd` RUN
+# step below, then overridden to the actual runtime location further down
+# (see the comment there for why). Needed even though that step also passes
+# an explicit `--path`: verified empirically that `--path` only controls
+# where the AVD's *content* directory lands — the separate top-level
+# `<name>.ini` registry file avdmanager also writes goes by
+# ANDROID_AVD_HOME/HOME instead, defaulting to `$HOME/.android/avd` (root's,
+# during the build) if this isn't set to match `--path` at RUN time.
 ENV ANDROID_AVD_HOME=$ANDROID_HOME/avd
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 
@@ -43,18 +42,43 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # KVM hardware acceleration (the emulator's default, `-accel auto`) depends
 # on the host exposing /dev/kvm, which `start` only passes through when
 # present (core/cont-init/20-kvm-gid.sh aligns the in-container 'kvm' group
-# to match). Without it the emulator still boots, just via much slower,
-# fully-software CPU emulation.
+# to match). Without it the emulator does not boot at all for this x86_64
+# image — verified empirically (see docs/OVERVIEW.md): recent emulator
+# releases hard-require an accelerator for x86_64 guests, there's no
+# TCG/software-CPU fallback left to fall back to. An arm64 system image
+# would sidestep this on Apple Silicon hosts (which use their own native
+# accelerator, not /dev/kvm), but isn't an option here — this template only
+# targets Linux hosts.
+#
+# AVDs are created below under $ANDROID_HOME/avd, a "golden" copy baked into
+# the image — not the actual runtime ANDROID_AVD_HOME (see the ENV override
+# further down for why).
 RUN mkdir -p $ANDROID_HOME/cmdline-tools \
     && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o /tmp/cmdline-tools.zip \
     && unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools \
     && mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest \
     && rm /tmp/cmdline-tools.zip \
-    && yes | sdkmanager --licenses > /dev/null \
-    && sdkmanager --install "platform-tools" "build-tools;36.0.0" "platforms;android-{{VERSION}}" "ndk;27.1.12297006" "emulator" "system-images;android-{{VERSION}};google_apis;x86_64" > /dev/null \
-    && mkdir -p $ANDROID_AVD_HOME \
-    && echo "no" | avdmanager create avd --name devcontainer --package "system-images;android-{{VERSION}};google_apis;x86_64" --path "$ANDROID_AVD_HOME/devcontainer.avd" --force \
+    && android sdk install "platform-tools" "build-tools;36.0.0" "platforms;android-{{VERSION}}" "ndk;27.1.12297006" "emulator" "system-images;android-{{VERSION}};google_apis;x86_64" \
+    && mkdir -p $ANDROID_HOME/avd \
+    && echo "no" | avdmanager create avd --name devcontainer --package "system-images;android-{{VERSION}};google_apis;x86_64" --path "$ANDROID_HOME/avd/devcontainer.avd" --force \
     && chown -R abc:abc $ANDROID_HOME
+
+# ANDROID_AVD_HOME (what `emulator` actually reads at lookup time) points at
+# /config, not the golden copy above under $ANDROID_HOME — /config is the
+# runtime named volume (see start/src/main.rs), writable regardless of
+# ai-jail's sandboxing of the Claude Code agent's own shell, unlike
+# $ANDROID_HOME (/opt/android-sdk): ai-jail (bwrap) mounts /opt read-only
+# for the agent specifically (confirmed empirically — a human working
+# directly in code-server's terminal doesn't hit this), which broke the
+# emulator's own runtime writes (qemu-version.txt, snapshot state) under
+# $ANDROID_HOME/avd. cont-init/30-android-avd-home.sh seeds /config/android-avd
+# from the golden copy the first time a given volume boots, since anything
+# baked directly under /config at build time would just be shadowed by the
+# volume mount on first run.
+ENV ANDROID_AVD_HOME=/config/android-avd
+
+COPY stacks/android/cont-init/30-android-avd-home.sh /custom-cont-init.d/30-android-avd-home.sh
+RUN chmod +x /custom-cont-init.d/30-android-avd-home.sh
 
 # Installs the code-server extension for Kotlin (Open VSX) — Android's
 # default language today; Java/Maven support already comes from the java
