@@ -223,6 +223,21 @@ otherwise it creates it with `docker run` on the first run.
   host's socket — but it trades real complexity and performance for isolation that mostly matters
   on a shared/multi-tenant host, which this isn't. Left as an open option to revisit if that
   changes, not implemented.
+- **`--cpuset-cpus` rather than `--cpus`, for the resource limits** — this one isn't about
+  permissiveness but about the limit being *honest*. `--cpus` sets a CFS quota, which the guest
+  cannot observe: under `--cpus=8` on a 16-thread host, `nproc` inside the container still reported
+  16. Every tool that self-tunes its parallelism from the CPU count — ninja, `make -j$(nproc)`,
+  Gradle/Jest worker pools — therefore over-subscribes by 2x, and because `--memory` is capped with
+  swap disabled (see the `--memory-swap` note in `main.rs`), the result is an OOM-kill rather than
+  merely running slower. Observed end-to-end: a React Native native build spawned **36 concurrent
+  `clang` processes** and killed its own Gradle daemon at the 6g ceiling, while the same build
+  pinned to 4 CPUs peaked at roughly half the memory and succeeded. Note that Gradle's
+  `--max-workers` is *not* a fix — it never reaches ninja. `--cpuset-cpus` sets CPU affinity, which
+  `sched_getaffinity` (and so `nproc`) does reflect, so guest tooling sizes itself correctly on its
+  own. `start` derives the range from the host's CPU count (half of them, leaving the rest for the
+  host) rather than hardcoding it, so it doesn't fail on a host with fewer cores. Tradeoff
+  accepted: the container is pinned to specific cores and can't migrate off them when the host is
+  busy there.
 - **`--cap-add=SYS_ADMIN` + `--security-opt seccomp=unconfined`/`systempaths=unconfined`** — for
   `ai-jail`'s `bwrap` (bubblewrap) sandbox, not for the app code. `ai-jail` itself is designed to
   run unprivileged (no root, no sudo needed), sandboxing via Linux user namespaces — but Ubuntu
@@ -261,10 +276,43 @@ otherwise it creates it with `docker run` on the first run.
   keeping the AVD `avdmanager` creates at build time as a "golden" copy under `$ANDROID_HOME/avd`
   (unreachable at runtime either way, so its read-only-ness doesn't matter), and pointing the
   actual runtime `ANDROID_AVD_HOME` at `/config/android-avd` instead — `/config` is the named
-  volume (writable under `ai-jail` too, since it isn't a system path) — seeded from the golden copy
-  on first boot by `stacks/android/cont-init/30-android-avd-home.sh`. The golden copy couldn't live
+  volume, so it survives image rebuilds — seeded from the golden copy by
+  `stacks/android/cont-init/30-android-avd-home.sh`. The golden copy couldn't live
   under `/config` directly at build time: anything baked there would be shadowed the moment a real
   (initially empty) named volume mounts over it at container start.
+
+  **That relocation does not, however, let the agent's own shell run the emulator** — an earlier
+  claim here that `/config` is "writable under `ai-jail` too, since it isn't a system path" was too
+  broad and has been corrected. `ai-jail` doesn't pass `/config` through as one mount: it builds a
+  *fresh tmpfs* at `/config` and binds in a hand-picked set of children (`.android`, `.cache`,
+  `.claude`, `.config`, `.copilot`, `.local`, `.npm`, `workspace` — read off `/proc/self/mountinfo`
+  from inside the sandbox). `android-avd` isn't among them, so the agent writing to
+  `/config/android-avd` just writes to the throwaway tmpfs. Independently, `ai-jail` synthesizes a
+  minimal `/dev` with no `kvm` node, so the host's `--device /dev/kvm` passthrough doesn't reach the
+  agent either. Two ways out, both valid: drive the emulator through `docker exec -u abc` (the
+  docker socket *is* passed into the sandbox, so this works today with no host change), or add
+  `--rw-map /dev/kvm --rw-map /config/android-avd` to the project's `.ai-jail` config and relaunch
+  the agent.
+- **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
+  android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
+  silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
+  `abc` to `PUID`/`PGID` when the container starts, orphaning that ownership. The runtime `abc` then
+  falls into "other" — and Google ships most SDK binaries mode `744`, no group/other execute — so
+  `emulator`, `adb`, `aapt2` and ~1900 other executables fail with `Permission denied` for the exact
+  user meant to run them. (`cmdline-tools`' `avdmanager`/`sdkmanager` are `755`, so those kept
+  working and masked it.) Replaced with `chmod -R a+rX $ANDROID_HOME`, which is independent of
+  whatever `PUID` a host picks; nothing needs to *write* under `$ANDROID_HOME` at runtime now that
+  the AVD lives under `/config`.
+- **Seeding the runtime AVD is conditional on the image's AVD definition, not on the runtime copy
+  merely being absent.** Because `/config` is a persistent named volume, a seed-once guard pins the
+  AVD to whatever the *first* image to boot that volume produced, and every later rebuild is
+  silently ignored — observed for real: a leftover `android-31` AVD against an `android-36`-only
+  SDK, which the emulator refuses outright (`Broken AVD system path. Check your ANDROID_SDK_ROOT`).
+  `30-android-avd-home.sh` therefore `cmp`s the golden `config.ini` against the runtime one and
+  re-seeds on any difference. `config.ini` is the right comparison target: it carries the target API
+  level and `image.sysdir` (exactly what goes stale), holds no absolute paths, and is left
+  byte-identical by a full emulator boot — verified empirically — so an unchanged image keeps its
+  emulator state (`hardware-qemu.ini`, `*.qcow2`, `snapshots/`) across ordinary container restarts.
 
 **Networking and port discovery**: the container is *not* run with `--network host`. It publishes
 code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,

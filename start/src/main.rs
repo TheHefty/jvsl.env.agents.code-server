@@ -56,6 +56,30 @@ fn container_exists(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Half the host's logical CPUs, as an inclusive `--cpuset-cpus` range
+/// (`0-N`), leaving the other half for the host itself.
+///
+/// `--cpus` alone is deliberately not enough here. It sets a CFS *quota*,
+/// which the guest can't observe: under `--cpus=8` on a 16-thread host,
+/// `nproc` inside the container still reported 16. Anything that self-tunes
+/// its parallelism from the CPU count — ninja, `make -j$(nproc)`, Gradle/Jest
+/// worker pools — therefore oversubscribes by 2x and, with `--memory` capped
+/// and swap disabled, gets OOM-killed rather than merely running slowly. Seen
+/// for real: a React Native native build spawned 36 concurrent `clang`
+/// processes and killed its own Gradle daemon at the 6g ceiling; the same
+/// build pinned to 4 CPUs peaked at half the memory and succeeded.
+/// `--cpuset-cpus` sets CPU *affinity*, which `sched_getaffinity` — and so
+/// `nproc` — does reflect, making the limit observable to guest tooling
+/// instead of a trap. The tradeoff accepted: the container is pinned to
+/// specific cores and can't migrate off them when the host is busy there.
+fn cpuset_range() -> String {
+    let host_cpus = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8);
+    let container_cpus = (host_cpus / 2).max(1);
+    format!("0-{}", container_cpus - 1)
+}
+
 fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
     let home = env::var("HOME").expect("HOME not set");
 
@@ -67,9 +91,11 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         name,
         "-p",
         "127.0.0.1:0:8443",
-        // Bumped from 5g/6 cpus once the android stack's emulator landed:
-        // Gradle + the headless AVD + code-server + agent processes running
-        // at once pushed peak usage close to the host's own physical RAM.
+        // Bumped from 5g once the android stack's emulator landed: Gradle +
+        // the headless AVD + code-server + agent processes running at once
+        // pushed peak usage close to the host's own physical RAM. (The CPU
+        // side of this limit is `--cpuset-cpus` below, not `--cpus` — see
+        // cpuset_range() for why that distinction matters.)
         // `--memory-swap` pinned equal to `--memory` (not left at Docker's
         // default of 2x) disables swap for this container specifically:
         // without the cap, a peak would spill into swap, which is host disk
@@ -79,7 +105,6 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         // 6g, which only affects the offending process here.
         "--memory=6g",
         "--memory-swap=6g",
-        "--cpus=8",
         "--cap-add=SYS_ADMIN",
         "--security-opt",
         "seccomp=unconfined",
@@ -92,6 +117,8 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         "-e",
         "PASSWORD=",
     ])
+    .arg("--cpuset-cpus")
+    .arg(cpuset_range())
     .arg("-e")
     .arg(format!("DOCKER_SOCK_GID={}", docker_sock_gid()))
     .args(["-v", "/var/run/docker.sock:/var/run/docker.sock"]);
