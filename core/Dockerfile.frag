@@ -9,6 +9,16 @@ USER root
 # Linux libs (so `.code-server/start` can be `cargo check`/`build`-verified
 # from inside the container too, not just on the host — see rustup install
 # below and .code-server/docs/OVERVIEW.md)
+#
+# `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` are what make the
+# nested *rootless* Docker daemon possible (see section 4 below and
+# docs/OVERVIEW.md's "Why the container is this permissive"): this image
+# deliberately no longer mounts the host's Docker socket, so `docker` inside
+# talks to a daemon running unprivileged as `abc` instead of to the host's.
+# All four come from Ubuntu's own repos — Docker's `docker-ce-rootless-extras`
+# package (the usual source, which also ships `dockerd-rootless.sh`) is only
+# in Docker's own apt repo, which this template doesn't add, so the launcher
+# is written out by hand in core/services/ instead.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -29,6 +39,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcap2-bin \
     docker.io \
     docker-compose-v2 \
+    uidmap \
+    rootlesskit \
+    slirp4netns \
+    fuse-overlayfs \
+    iproute2 \
+    iptables \
+    nftables \
     file \
     libwebkit2gtk-4.1-dev \
     libxdo-dev \
@@ -63,25 +80,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Adds the LinuxServer default user (abc) to the 'docker' group (needed
-# for DooD — see .code-server/docs/OVERVIEW.md). No passwordless sudo: removed
-# after confirming ai-jail's own sandboxing doesn't require root, and no
-# SUDO_PASSWORD is configured for a real one to be set instead.
-RUN usermod -aG docker abc
+# 4. Nested *rootless* Docker daemon, replacing the host-socket DooD this
+# image used to do — see core/services/svc-dockerd-rootless/run for the full
+# reasoning, and docs/OVERVIEW.md for what it fixes. `abc` is deliberately NOT
+# in the 'docker' group any more: there is no host socket to be granted access
+# to, and the nested daemon's socket is owned by `abc` directly. No
+# passwordless sudo either: removed after confirming ai-jail's own sandboxing
+# doesn't require root, and no SUDO_PASSWORD is configured for a real one.
+#
+# The subuid/subgid ranges are what newuidmap/newgidmap (from `uidmap`) hand to
+# rootlesskit for the daemon's user namespace. They're keyed by *name*, not by
+# uid, which matters here: LinuxServer's init rewrites abc's numeric uid to
+# whatever PUID says at container start, so a name-keyed entry keeps working
+# where a numeric one would silently stop matching.
+RUN echo "abc:100000:65536" > /etc/subuid \
+    && echo "abc:100000:65536" > /etc/subgid
+
+# `docker`/`docker compose` inside the container talk to the nested daemon.
+# Fixed path (not $XDG_RUNTIME_DIR/docker.sock) so this doesn't embed a
+# PUID-dependent uid — see the service's own comments.
+ENV DOCKER_HOST=unix:///config/.docker/run/docker.sock
+
+COPY core/services/svc-dockerd-rootless /etc/s6-overlay/s6-rc.d/svc-dockerd-rootless
+RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-dockerd-rootless/run \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-dockerd-rootless
 
 # 5. Ensures the Claude directory is created with permissions for user 'abc'
 RUN mkdir -p /config/.claude && chown -R abc:abc /config/.claude
 
-# 5.1 LinuxServer custom-cont-init.d hook: aligns the 'docker' group's gid
-# with the actual gid of the host socket (varies per host) before s6-overlay
-# drops privileges to 'abc' — see comments in cont-init/10-docker-sock-gid.sh
-COPY core/cont-init/10-docker-sock-gid.sh /custom-cont-init.d/10-docker-sock-gid.sh
-RUN chmod +x /custom-cont-init.d/10-docker-sock-gid.sh
-
-# 5.2 Same mechanism as 5.1, for /dev/kvm instead of the Docker socket — only
-# acts when `start` passed KVM_GID (i.e. the host exposed /dev/kvm; see
-# start/src/main.rs and stacks/android/Dockerfile.frag). A no-op cont-init
-# step on any host/stack that doesn't need it.
+# 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
+# group's gid with the host device's — only acts when `start` passed KVM_GID
+# (i.e. the host exposed /dev/kvm; see start/src/main.rs and
+# stacks/android/Dockerfile.frag). A no-op cont-init step on any host/stack
+# that doesn't need it. (There used to be a sibling script doing the same for
+# the host Docker socket's gid; it went away with the socket itself — see
+# section 4.)
 COPY core/cont-init/20-kvm-gid.sh /custom-cont-init.d/20-kvm-gid.sh
 RUN chmod +x /custom-cont-init.d/20-kvm-gid.sh
 

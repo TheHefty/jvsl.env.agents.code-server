@@ -1,0 +1,74 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Long-running s6 service: a *rootless* Docker daemon, owned by `abc`, that
+# replaces the host Docker socket this container used to bind-mount.
+#
+# Why this exists at all: mounting the host's /var/run/docker.sock made the
+# container (and so the Claude Code agent running inside it) root-equivalent
+# on the host — `docker run -v /:/host` is all it takes. Worse, it silently
+# voided ai-jail's entire sandbox: an agent whose shell sees a read-only /opt
+# can just `docker exec -u 0` into its own container and write there anyway.
+# That was demonstrated, not theorised — see docs/OVERVIEW.md. A nested
+# rootless daemon keeps everything the socket was actually *for* (compose for
+# the monorepo's own services, Testcontainers) while removing the escape: this
+# daemon has no access to the host's daemon, and its containers are children of
+# this container, bounded by its own --memory/--cpuset limits.
+#
+# Written by hand rather than calling `dockerd-rootless.sh` because that script
+# ships in Docker's `docker-ce-rootless-extras` package, which lives in Docker's
+# own apt repo — one this template deliberately doesn't add (see
+# core/Dockerfile.frag section 1). rootlesskit + slirp4netns + fuse-overlayfs
+# from Ubuntu's repos are the same moving parts that script wires together.
+set -euo pipefail
+
+# The socket lives under /config/.docker (the persistent volume) rather than in
+# $XDG_RUNTIME_DIR, so DOCKER_HOST can be a fixed path baked into the image
+# (see core/Dockerfile.frag) instead of one containing a PUID-dependent uid.
+# It also has to be somewhere the agent's ai-jail sandbox can be *granted*
+# access to — connecting to a unix socket needs write permission, so a
+# read-only bind wouldn't do; see docs/OVERVIEW.md for the `--rw-map` grant.
+SOCKET_DIR=/config/.docker/run
+DATA_ROOT=/config/.local/share/docker
+
+# rootlesskit's own state is deliberately *not* on the volume: it's per-boot
+# (netns handles, pid files), and stale state from a previous container start
+# makes the daemon fail to come up rather than degrade.
+export XDG_RUNTIME_DIR=/run/dockerd-rootless
+
+mkdir -p "$SOCKET_DIR" "$DATA_ROOT" "$XDG_RUNTIME_DIR"
+chown -R abc:abc "$SOCKET_DIR" "$DATA_ROOT" "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+# /dev/fuse is what fuse-overlayfs needs, and `start` only passes it through
+# when the host has it (same conditional pattern as /dev/kvm). Without it the
+# daemon can't stack a copy-on-write filesystem inside an already-overlayfs
+# container, so say so plainly instead of crash-looping: s6 would restart this
+# service forever and bury the reason in the logs.
+if [[ ! -e /dev/fuse ]]; then
+    echo "**** /dev/fuse absent — nested rootless Docker disabled ****"
+    echo "**** (host has no /dev/fuse, or start didn't pass --device /dev/fuse) ****"
+    sleep infinity
+fi
+
+export HOME=/config
+
+# --disable-host-loopback stops containers created by this daemon from reaching
+# 127.0.0.1 in *this* container's network namespace (rootlesskit warns if it's
+# left off). Publishing still works in the direction that's actually needed —
+# a nested container's published port lands on this container's loopback, which
+# is how Testcontainers and compose consumers reach it — this only blocks the
+# reverse, a nested container dialling back into its parent.
+exec s6-setuidgid abc \
+    rootlesskit \
+        --net=slirp4netns \
+        --mtu=65520 \
+        --disable-host-loopback \
+        --copy-up=/etc \
+        --copy-up=/run \
+        --state-dir="$XDG_RUNTIME_DIR/rootlesskit" \
+        dockerd \
+            --host="unix://$SOCKET_DIR/docker.sock" \
+            --data-root="$DATA_ROOT" \
+            --exec-root="$XDG_RUNTIME_DIR/docker" \
+            --storage-driver=fuse-overlayfs

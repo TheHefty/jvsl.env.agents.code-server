@@ -20,11 +20,13 @@ root — see "Manifest" below for why).
   compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't pull it
   in — confirmed missing by actually running `docker compose version` inside a built image before
   adding it; Ubuntu's own repo package for this is `docker-compose-v2`, not `docker-compose-plugin`
-  — that name is only for Docker's own upstream apt repo, which this template doesn't add), and the
-  docker socket gid fix via the script in `custom-cont-init.d`. `docker compose` here is for the
-  monorepo's own services from inside the environment via DooD (see the "out of scope" note under
-  `start` below) — it doesn't change how the dev environment itself is brought up, which stays
-  `start`'s `docker run`.
+  — that name is only for Docker's own upstream apt repo, which this template doesn't add), and
+  `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` plus the `svc-dockerd-rootless` s6 service
+  that turns them into a nested rootless daemon. `docker compose` here is for the monorepo's own
+  services from inside the environment, talking to that nested daemon rather than to the host's
+  socket (see "Why the container is this permissive" under `start` below for why the host socket
+  was removed) — it doesn't change how the dev environment itself is brought up, which stays
+  `start`'s `docker run` on the host.
 - **Default editor settings** — `core/Dockerfile.frag` writes `/config/data/User/settings.json`
   with `workbench.colorTheme: "Dark Modern"` and `workbench.editorAssociations: {"*.md":
   "vscode.markdown.preview.editor"}` (`.md` files open in preview, not the raw source editor).
@@ -214,15 +216,66 @@ below), both in versions that were already listed in `versions.json` before this
 otherwise it creates it with `docker run` on the first run.
 
 **Why the container is this permissive** (audited deliberately, not just carried forward as-is):
-- **Docker socket mount + `abc` in the `docker` group (DooD)** — this alone is
-  root-on-the-host-equivalent (anything running inside can `docker run -v /:/host ... chroot
-  /host`). Kept as a deliberate trade-off, not an oversight: it's the mechanism for orchestrating
-  the monorepo's own `docker-compose` services from inside the environment (see the "out of
-  scope" note above), and this template's stated usage is personal/single-host. A meaningfully
-  more isolated alternative exists — a rootless Docker-in-Docker daemon instead of sharing the
-  host's socket — but it trades real complexity and performance for isolation that mostly matters
-  on a shared/multi-tenant host, which this isn't. Left as an open option to revisit if that
-  changes, not implemented.
+- **No host Docker socket — a nested rootless daemon instead** (this replaced the previous DooD
+  design; the reasoning for the switch is worth keeping). Mounting the host's
+  `/var/run/docker.sock` and putting `abc` in the `docker` group is root-on-the-host-equivalent:
+  anything inside can `docker run -v /:/host ... chroot /host`. That much was already documented
+  and knowingly accepted, on the grounds that this template's usage is personal/single-host.
+
+  What changed the calculus is the *second* consequence, which turned out to matter more: **the
+  socket silently voids `ai-jail`'s sandbox of the Claude Code agent entirely.** Demonstrated, not
+  theorised — in one session an agent whose own shell is shown a read-only `/opt` and a `/config`
+  missing most of its children simply ran `docker exec -u 0` into its own container and
+  `chmod -R`'d `/opt/android-sdk`, installed SDK packages, `rm -rf`'d a path the sandbox doesn't
+  even expose, and started fresh containers from the image. Nothing stopped a
+  `docker run -v /:/host` either. So every restriction `ai-jail` applies — read-only system paths,
+  hidden dotdirs, the synthesized `/dev` — is advisory as long as the socket is reachable, because
+  one API call gets a root shell outside the sandbox.
+
+  The fix keeps what the socket was actually *for* and drops the escape: a **rootless `dockerd`
+  running as `abc` inside the container** (`core/services/svc-dockerd-rootless`, with
+  `DOCKER_HOST` pointing at its socket). `docker` and `docker compose` still work for the
+  monorepo's own services and for Testcontainers, but that daemon has no access to the host's, and
+  the containers it creates are children of this container — bounded by its own
+  `--memory`/`--cpuset-cpus` limits rather than able to sidestep them. Built on Ubuntu's
+  `rootlesskit`/`slirp4netns`/`fuse-overlayfs`/`uidmap` rather than Docker's
+  `docker-ce-rootless-extras`, since that package (and its `dockerd-rootless.sh`) is only in
+  Docker's own apt repo, which this template doesn't add — so the launcher is written out by hand.
+
+  **Verified end-to-end** before landing, in a throwaway container built from this image (not by
+  inspection): the daemon comes up on `fuse-overlayfs`, pulls images, runs containers, `docker build`
+  works *including* network access from build steps on both glibc (`apt-get update`) and musl
+  (`apk add --no-cache`) bases — the latter being what `netbanking`'s own Dockerfile uses —
+  `node:22-alpine` reaches the npm registry, `docker compose` brings a stack up with working
+  service-to-service DNS, and `docker ps -a` against the nested daemon returns **empty**, i.e. it
+  genuinely cannot see or touch the host's containers. Worth recording one trap from that session:
+  the obvious probe host `example.com` does **not** resolve on this network, which produced a long
+  run of convincing-looking false `DNS_FAIL`/`EGRESS_FAIL` results and a false alarm that `docker
+  build` had regressed. Probe with a hostname the network actually resolves.
+
+  Three consequences to know about, all accepted deliberately:
+  - **Published ports now land inside the dev container, not on the host.** Under DooD, a compose
+    stack's containers were siblings of the dev container on the host's daemon, so `-p 8080:8080`
+    was reachable straight from a host browser. They're now children of the dev container, so that
+    port is on *its* loopback — reach it through code-server's own port forwarding. This is a real
+    change to how the monorepo's services get opened during development, not just an internal
+    detail. `--disable-host-loopback` also means a nested container can't dial back into the dev
+    container's loopback (a `host.docker.internal`-style pattern), only the other way around.
+  - **Nested containers get no cgroup limits of their own.** `/sys/fs/cgroup` is read-only in the
+    container, so there's no delegation and rootless `dockerd` can't enforce per-container
+    cpu/memory. Making it writable (`-v /sys/fs/cgroup:/sys/fs/cgroup:rw`) would restore that at
+    the cost of write access to the host's cgroupfs — the wrong direction for the change's whole
+    purpose. Everything stays bounded by the outer container's limits regardless, which is the
+    containment that matters here, and neither compose nor Testcontainers needs per-container
+    quotas.
+  - **The agent can no longer inspect or patch its own container**, which is exactly the point, but
+    it does mean environment work that used to be possible from the agent's shell (booting the
+    android emulator, checking whether an image rebuild took) is now either a human step in
+    code-server's terminal or an explicit, narrow grant. Grants go in the project's `.ai-jail`,
+    e.g. `--rw-map /dev/kvm --rw-map /config/android-avd` for emulator work, or
+    `--rw-map /config/.docker` to let the agent reach the nested daemon's socket at all (a unix
+    socket needs *write* permission to connect, so a read-only bind won't do). Named permissions
+    that can be audited, rather than one hole that grants everything.
 - **`--cpuset-cpus` rather than `--cpus`, for the resource limits** — this one isn't about
   permissiveness but about the limit being *honest*. `--cpus` sets a CFS quota, which the guest
   cannot observe: under `--cpus=8` on a 16-thread host, `nproc` inside the container still reported
