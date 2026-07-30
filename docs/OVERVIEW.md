@@ -63,6 +63,13 @@ root — see "Manifest" below for why).
     compose time. When the install process diverges between versions of the same stack, the
     difference becomes an `if` inside the `Dockerfile.frag` itself (not a folder per version).
   - `versions.json` — list of the valid versions offered in the menu.
+  - `requires.json` *(optional)* — array of other stack names this one depends on, e.g. `android`
+    declares `["java"]` because its `avdmanager`/Gradle tooling needs a JDK already on `PATH` and
+    the fragment deliberately doesn't install one of its own (that would duplicate, and possibly
+    contradict, the version chosen for `java`). `setup` refuses a selection that omits a declared
+    dependency rather than silently adding it — the checklist is the user's statement of intent —
+    while composition orders dependencies before their dependents regardless of the checklist's
+    alphabetical order.
 - **Each stack also installs one code-server extension for its language**, same
   `code-server --extensions-dir /config/extensions --user-data-dir /config/data
   --install-extension <id> || true` pattern core already uses for `file-icons`, appended as the
@@ -102,9 +109,18 @@ root — see "Manifest" below for why).
 - **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
   in the manifest; each selected stack's version is then asked in turn.
 - **Execution flow**: reads the current manifest → shows the menu → writes the new manifest →
-  concatenates `core/Dockerfile.frag` + the `Dockerfile.frag` of each selected stack (with
-  `{{VERSION}}` substituted) into `.code-server/Dockerfile` (generated) → copies the relevant
-  `cont-init` scripts → `docker build`.
+  calls `core/compose-dockerfile.sh` to concatenate `core/Dockerfile.frag` + the `Dockerfile.frag`
+  of each selected stack (dependencies first, `{{VERSION}}` substituted) into
+  `.code-server/Dockerfile` (generated) → copies the relevant `cont-init` scripts → `docker build`.
+- **`core/compose-dockerfile.sh`** — the composition itself, split out of `setup` so that `setup`
+  and CI produce the *same* Dockerfile for a given set of stacks. It takes stack names, resolves
+  `requires.json` transitively, and writes the composed Dockerfile to stdout; versions come from
+  the JSON file named by `$STACK_MANIFEST` when set (what `setup` passes, carrying the user's
+  choices) and otherwise from the lowest entry in each stack's `versions.json` (what CI wants).
+  The split exists because the two copies of this logic had already drifted: CI's own inline
+  version ignored `requires.json`, so its `stack-build (android)` job built core+android with no
+  JDK and failed on the Java-based `avdmanager` — a red job that never reproduced through `setup`,
+  which honours the dependency. Composition changes belong here now, not in either caller.
 - **`.code-server/Dockerfile` is gitignored** — it's always derived from the manifest + fragments,
   never hand-edited; versioning a generated artifact would risk it drifting from the source of
   truth without anyone noticing. `.stack.json` is the versioned record of intent.
