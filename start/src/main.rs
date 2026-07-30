@@ -24,17 +24,6 @@ fn default_workspace_dir() -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
-/// The host socket's actual gid — passed to the container so the script in
-/// core/cont-init/10-docker-sock-gid.sh can align the 'docker' group before
-/// s6-overlay drops privileges (see .code-server/docs/OVERVIEW.md).
-#[cfg(unix)]
-fn docker_sock_gid() -> String {
-    use std::os::unix::fs::MetadataExt;
-    std::fs::metadata("/var/run/docker.sock")
-        .map(|m| m.gid().to_string())
-        .unwrap_or_else(|_| "0".to_string())
-}
-
 /// The host device's actual gid — passed to the container so the script in
 /// core/cont-init/20-kvm-gid.sh can align a 'kvm' group before s6-overlay
 /// drops privileges, same rationale as docker_sock_gid() above. Only called
@@ -118,10 +107,27 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         "PASSWORD=",
     ])
     .arg("--cpuset-cpus")
-    .arg(cpuset_range())
-    .arg("-e")
-    .arg(format!("DOCKER_SOCK_GID={}", docker_sock_gid()))
-    .args(["-v", "/var/run/docker.sock:/var/run/docker.sock"]);
+    .arg(cpuset_range());
+
+    // The host's Docker socket is deliberately NOT mounted (it used to be).
+    // Mounting it made anything inside the container root-equivalent on the
+    // host, and — the part that actually bit — silently voided ai-jail's
+    // sandbox of the Claude Code agent: an agent shown a read-only /opt can
+    // `docker exec -u 0` into its own container and write there regardless.
+    // `docker` inside now talks to a nested rootless daemon instead, which
+    // needs two device nodes: /dev/fuse for fuse-overlayfs (an already-overlayfs
+    // container can't stack native overlayfs on top) and /dev/net/tun for
+    // slirp4netns' tap device, without which rootlesskit can't build the
+    // daemon's network namespace at all. Both established empirically — see
+    // core/services/svc-dockerd-rootless/run. Conditional for the same reason
+    // as /dev/kvm below: `--device` on a missing path is a hard failure. When
+    // /dev/fuse is absent the service says so and stays down, rather than
+    // crash-looping.
+    for dev in ["/dev/fuse", "/dev/net/tun"] {
+        if std::path::Path::new(dev).exists() {
+            cmd.args(["--device", dev]);
+        }
+    }
 
     // Passes hardware-accelerated virtualization through when the host
     // exposes it, for the android stack's emulator (see
