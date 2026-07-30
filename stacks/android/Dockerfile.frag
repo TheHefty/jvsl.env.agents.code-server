@@ -18,6 +18,34 @@ ENV ANDROID_SDK_ROOT=$ANDROID_HOME
 ENV ANDROID_AVD_HOME=$ANDROID_HOME/avd
 ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 
+# The emulator needs libX11 even to run headless — `emulator` itself, both qemu
+# binaries, and libgfxstream/libemugl/libandroid-emu-shared all carry
+# libX11.so.6 as a hard DT_NEEDED, so its absence fails at load time rather
+# than degrading to no-graphics. It does resolve in this image today, but only
+# by accident: core's Tauri build dependencies (libwebkit2gtk-4.1-dev and
+# friends, present to build `start`) drag the whole GTK/X11 stack in, and no
+# fragment declares an X library for the emulator's sake anywhere. Trimming
+# those -dev packages out of a runtime image — a perfectly reasonable cleanup —
+# would therefore break the emulator with nothing recording why. Declaring it
+# here puts the dependency where it actually belongs.
+#
+# libxkbfile1 is deliberately included on a weaker justification, worth stating
+# so it isn't mistaken for a headless requirement: only the *windowed*
+# qemu-system-x86_64 needs it, and transitively at that
+# (libQt6WebEngineCoreAndroidEmu.so.6 -> libxkbfile.so.1) — the `-headless`
+# variant this AVD is meant to run links no Qt WebEngine at all. Measured with
+# LD_LIBRARY_PATH set the way the launcher sets it: the headless binary resolves
+# in full, the windowed one is short exactly that one library. So this buys no
+# capability (there's no display server here either way, see docs/OVERVIEW.md)
+# — it buys a legible failure. Without it, forgetting `-no-window` dies on
+# "libxkbfile.so.1: cannot open shared object file", which points at nothing a
+# caller would connect to a missing flag; with it, the run gets far enough to
+# fail on the missing display, which is the actual problem.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libx11-6 \
+    libxkbfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # cmdline-tools build number is pinned (Google doesn't publish a stable
 # "latest" URL) — bump this comment/URL together when a newer tools release
 # is needed. build-tools/NDK versions are likewise fixed, independent of the
