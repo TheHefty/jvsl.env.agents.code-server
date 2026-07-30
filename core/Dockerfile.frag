@@ -28,12 +28,20 @@ USER root
 # Ubuntu ships it as a CLI plugin at /usr/libexec/docker/cli-plugins/, the same
 # place docker-compose-v2 lands, so `docker` finds it with no extra wiring.
 #
-# Note this does *not* by itself make `docker compose build` work for the
-# ai-jail'd agent: buildx wants to create a state directory under
-# $DOCKER_CONFIG, which defaults to /config/.docker — bind-mounted here and not
-# writable by the sandboxed agent, giving "mkdir /config/.docker/buildx:
-# permission denied". Pointing DOCKER_CONFIG at a writable path is what fixes
-# that side, and it is the agent's environment to set, not this image's.
+# Installing it exposed a second, separate defect, fixed in
+# core/services/svc-dockerd-rootless/run rather than here — noted because the
+# first diagnosis of it, recorded in this comment, was wrong. buildx wants a
+# state directory at $DOCKER_CONFIG/buildx, which defaults to
+# /config/.docker/buildx, and that mkdir failed with "permission denied" for the
+# ai-jail'd agent. This comment concluded the agent should point DOCKER_CONFIG
+# somewhere writable, treating it as the sandbox's problem. Measuring instead of
+# reasoning showed otherwise: ai-jail binds /config/.docker **rw** and grants it
+# (the socket inside needs write access to connect at all), but the directory
+# itself was owned by root, the only child of /config that was — the daemon
+# service's `mkdir -p .../run` created the parent on its way to the socket dir
+# and the following `chown -R` only reached the leaf. So it was this image's
+# problem after all, and a directory nobody but root could write was going to
+# surface again in some other tool sooner or later.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \

@@ -28,7 +28,8 @@ set -euo pipefail
 # It also has to be somewhere the agent's ai-jail sandbox can be *granted*
 # access to — connecting to a unix socket needs write permission, so a
 # read-only bind wouldn't do; see docs/OVERVIEW.md for the `--rw-map` grant.
-SOCKET_DIR=/config/.docker/run
+CONFIG_DIR=/config/.docker
+SOCKET_DIR="$CONFIG_DIR/run"
 DATA_ROOT=/config/.local/share/docker
 
 # rootlesskit's own state is deliberately *not* on the volume: it's per-boot
@@ -37,6 +38,18 @@ DATA_ROOT=/config/.local/share/docker
 export XDG_RUNTIME_DIR=/run/dockerd-rootless
 
 mkdir -p "$SOCKET_DIR" "$DATA_ROOT" "$XDG_RUNTIME_DIR"
+
+# $CONFIG_DIR is chowned separately because `mkdir -p` creates it on the way to
+# $SOCKET_DIR — as root, since this service starts as root — while a `chown -R`
+# aimed at the leaves never touches it. That parent is not an implementation
+# detail of the socket: it *is* the default $DOCKER_CONFIG, so leaving it
+# root-owned breaks `docker` for everything that needs to write there while the
+# socket inside it keeps connecting fine. `docker buildx` is the concrete
+# casualty — current `docker compose build` routes through Bake, buildx wants a
+# state directory at $DOCKER_CONFIG/buildx, and it gets "mkdir
+# /config/.docker/buildx: permission denied". Measured 2026-07-30: this was the
+# only child of /config not owned by abc.
+chown abc:abc "$CONFIG_DIR"
 chown -R abc:abc "$SOCKET_DIR" "$DATA_ROOT" "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
