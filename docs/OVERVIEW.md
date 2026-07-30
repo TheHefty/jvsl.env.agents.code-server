@@ -392,6 +392,24 @@ otherwise it creates it with `docker run` on the first run.
   and `docker ps` against it is empty by design. The route that does work is `docker run` with this
   container's own paths bind-mounted into a fresh container, which grants considerably more than the
   emulator needs — see the nested-daemon bullet above for what it does and doesn't reach.
+
+  That second route was inference when this paragraph was first written, from the semantics of the
+  socket rather than from a run. It has since been executed end to end (2026-07-30), so it can be
+  stated as fact: a container taking `--device /dev/kvm` with `/opt/android-sdk` bind-mounted
+  read-only reports `KVM (version 12) is installed and usable` and boots the AVD to
+  `boot_completed=1`, `emulator-5554 device`, API 36. Three practical notes for anyone repeating it.
+  Copy `/config/android-avd` into the container and rewrite `devcontainer.ini`'s absolute `path=`
+  rather than bind-mounting it read-write, so a throwaway run cannot disturb the real AVD. The
+  emulator binary needs X libraries a bare `ubuntu` image lacks — `libX11` for the launcher, and
+  `libxkbfile1` for the QEMU binary specifically, which fails *after* the launcher already works and
+  so looks like a different problem. And expect `detected a hanging thread 'QEMU2 main loop'`
+  warnings from CPU contention under `--cpuset-cpus`; they did not prevent the boot.
+
+  Worth drawing the general lesson out, because it is not specific to the emulator: the sandbox
+  cannot reach *into* the daemon's network namespace, but anything it starts as a container is
+  already inside. Every "this can't run under `ai-jail`" in this repo's history has been of that
+  shape, and the same move answers all of them — the consuming project's backend test suites, long
+  documented as unrunnable under the sandbox, run in full this way too.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
