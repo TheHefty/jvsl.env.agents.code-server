@@ -397,13 +397,32 @@ otherwise it creates it with `docker run` on the first run.
   socket rather than from a run. It has since been executed end to end (2026-07-30), so it can be
   stated as fact: a container taking `--device /dev/kvm` with `/opt/android-sdk` bind-mounted
   read-only reports `KVM (version 12) is installed and usable` and boots the AVD to
-  `boot_completed=1`, `emulator-5554 device`, API 36. Three practical notes for anyone repeating it.
-  Copy `/config/android-avd` into the container and rewrite `devcontainer.ini`'s absolute `path=`
-  rather than bind-mounting it read-write, so a throwaway run cannot disturb the real AVD. The
-  emulator binary needs X libraries a bare `ubuntu` image lacks — `libX11` for the launcher, and
-  `libxkbfile1` for the QEMU binary specifically, which fails *after* the launcher already works and
-  so looks like a different problem. And expect `detected a hanging thread 'QEMU2 main loop'`
-  warnings from CPU contention under `--cpuset-cpus`; they did not prevent the boot.
+  `boot_completed=1`, `emulator-5554 device`, API 36. Four practical notes for anyone repeating it.
+
+  Don't bind-mount `/config/android-avd` read-write, so a throwaway run cannot disturb the real AVD
+  — either copy it in and rewrite `devcontainer.ini`'s absolute `path=`, or (simpler, and what was
+  done on 2026-07-30) point `ANDROID_AVD_HOME` at a named volume holding an SDK of its own and
+  recreate the AVD there with the same `avdmanager create avd` line the image build uses. That
+  second form is worth knowing for another reason: it is the only way to exercise the build's AVD
+  step without a full image rebuild. It took **one second** against an SDK on a `fuse-overlayfs`
+  named volume — the 45-minute `avdmanager` scan recorded elsewhere in this repo's history did not
+  reproduce, so whatever caused it, "avdmanager is slow on a volume" is not it.
+
+  The emulator binary needs X libraries a bare `ubuntu` image lacks, and they fail at three
+  different depths, which is why they were found one at a time: `libX11.so.6` is a hard `DT_NEEDED`
+  of the launcher itself; `libX11-xcb.so.1` is `dlopen`ed by name from `libgfxstream_backend.so`
+  (nothing declares it, so `readelf -d` over the whole tree finds nothing) and kills the process
+  headlessly at `Could not open libX11-xcb.so.1, give up`, before the guest starts, leaving `adb
+  wait-for-device` to hang rather than fail; `libxkbfile.so.1` is reached only through the
+  *windowed* QEMU binary, so it fails after the launcher already works and looks like a different
+  problem entirely. All three are now declared by `stacks/android/Dockerfile.frag` rather than
+  inherited by accident from core's GTK build dependencies. Measured both directions on 2026-07-30
+  against the same AVD: with only `libx11-6`/`libxkbfile1` installed the boot dies at that
+  `give up` line with no emulator process left; adding `libx11-xcb1` and changing nothing else, it
+  reaches `boot_completed=1` in ~38s.
+
+  And expect `detected a hanging thread 'QEMU2 main loop'` warnings from CPU contention under
+  `--cpuset-cpus`; they did not prevent the boot.
 
   Worth drawing the general lesson out, because it is not specific to the emulator: the sandbox
   cannot reach *into* the daemon's network namespace, but anything it starts as a container is

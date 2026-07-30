@@ -29,6 +29,26 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # would therefore break the emulator with nothing recording why. Declaring it
 # here puts the dependency where it actually belongs.
 #
+# libx11-xcb1 is the same accident with a different failure mode, and the
+# measurement above is exactly why it was missed: it is not a DT_NEEDED of
+# anything in the SDK. The gfxstream backend dlopen()s it by name at startup
+# (libgfxstream_backend.so is the only binary in the tree that so much as
+# mentions the string), so `readelf -d` over every emulator binary — which is
+# what produced the libx11-6 line above — reports nothing at all. It is fatal
+# regardless, and fatal *headlessly*, which is what makes it worth declaring
+# rather than filing under "windowed only" the way libxkbfile1 below is: with
+# it absent the launcher logs
+#   SharedLibrary::open for [libX11-xcb]
+#   Could not open libX11-xcb.so.1, give up
+# and the emulator process dies right there, before the guest starts, leaving
+# whatever waits on it (`adb wait-for-device`) to hang until it times out
+# rather than fail. The SDK does ship its own copy at
+# emulator/lib64/qt/lib/libX11-xcb.so.1, but a headless run never puts that Qt
+# directory on the loader path, so it does not help. Measured 2026-07-30
+# against a bare image carrying exactly the two packages this RUN used to
+# install: the boot dies at that line; adding libx11-xcb1 and changing nothing
+# else, the same AVD reaches boot_completed=1.
+#
 # libxkbfile1 is deliberately included on a weaker justification, worth stating
 # so it isn't mistaken for a headless requirement: only the *windowed*
 # qemu-system-x86_64 needs it, and transitively at that
@@ -43,6 +63,7 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # fail on the missing display, which is the actual problem.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libx11-6 \
+    libx11-xcb1 \
     libxkbfile1 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -207,14 +228,15 @@ RUN SDK_INSTALL_ATTEMPTS=40 sdk-install "system-images;android-{{VERSION}};googl
 # It is deliberately *not* justified by scan cost, though an earlier version
 # of this comment claimed it was. `avdmanager` does walk the SDK tree with
 # stat() before writing anything (LocalRepoLoaderImpl.collectPackages), and it
-# was observed taking upwards of 45 minutes of straight CPU — but that was
-# against an SDK on a fuse-overlayfs named volume, in a validation harness,
-# not against an image layer. Hiding the NDK from that walk changed nothing:
-# still running after 14 minutes with the NDK absent. The tree is small
-# (23,619 files, 8,676 of them the NDK's, 36 symlinks, no loops), so file
-# count does not explain it either, and the cause was never established. What
-# is established is that it does not reproduce on a normal image build, where
-# this same step has always completed.
+# was once observed taking upwards of 45 minutes of straight CPU — but nothing
+# about that reproduces. It was blamed on the fuse-overlayfs named volume it
+# ran against; re-running this exact command against that same volume on
+# 2026-07-30 completed in **one second**, so the volume is not the cause
+# either. Hiding the NDK from the walk had already changed nothing (still
+# running after 14 minutes with the NDK absent), and the tree is small anyway
+# (23,619 files, 8,676 of them the NDK's, 36 symlinks, no loops), so file count
+# never explained it. The cause remains unestablished; what is established is
+# that neither a normal image build nor a volume-backed SDK reproduces it.
 RUN set -eu; \
     mkdir -p $ANDROID_HOME/avd; \
     echo "no" | avdmanager create avd --name devcontainer \
