@@ -284,14 +284,40 @@ otherwise it creates it with `docker run` on the first run.
     purpose. Everything stays bounded by the outer container's limits regardless, which is the
     containment that matters here, and neither compose nor Testcontainers needs per-container
     quotas.
-  - **The agent can no longer inspect or patch its own container**, which is exactly the point, but
-    it does mean environment work that used to be possible from the agent's shell (booting the
-    android emulator, checking whether an image rebuild took) is now either a human step in
-    code-server's terminal or an explicit, narrow grant. Grants go in the project's `.ai-jail`,
-    e.g. `--rw-map /dev/kvm --rw-map /config/android-avd` for emulator work, or
-    `--rw-map /config/.docker` to let the agent reach the nested daemon's socket at all (a unix
-    socket needs *write* permission to connect, so a read-only bind won't do). Named permissions
-    that can be audited, rather than one hole that grants everything.
+  - **Environment work that used to be possible from the agent's shell** (booting the android
+    emulator, checking whether an image rebuild took) is now either a human step in code-server's
+    terminal or an explicit, narrow grant. Grants go in the project's `.ai-jail`, e.g.
+    `--rw-map /dev/kvm --rw-map /config/android-avd` for emulator work, or `--rw-map /config/.docker`
+    to let the agent reach the nested daemon's socket at all (a unix socket needs *write* permission
+    to connect, so a read-only bind won't do).
+
+    **Those grants are not peers, though, and an earlier claim here — that the nested daemon means
+    "the agent can no longer inspect or patch its own container" — was wrong.** Measured from inside
+    `ai-jail` (2026-07-30, demonstrated rather than reasoned about): the nested daemon runs *in* this
+    container, so a `docker run -v /:/probe` against it hands the new container this container's own
+    root filesystem. Everything the sandbox hides is reachable that way — `/opt/android-sdk` (the
+    agent's own `/opt` is an overlay showing nothing), `/config/android-avd` (the agent's own
+    `/config` is a tmpfs that omits it), and a real `/dev/kvm`, `10, 232`, mode `666` (the agent's
+    own `/dev` is synthesized without it).
+
+    Writes are bounded — but by the *rootless* uid mapping, not by `ai-jail`. Container-root maps to
+    `abc`, so paths `abc` owns are writable (`/config/android-avd`, i.e. exactly what the grant above
+    was meant to gate) while real-root-owned paths are not (`/opt/android-sdk` returns
+    `Permission denied`, so the read-only-SDK property does survive). Net effect:
+    `--rw-map /config/.docker` is the widest of the three grants rather than a narrow one beside
+    them — it subsumes `--rw-map /config/android-avd` and adds read access to the whole container.
+    What it still does *not* reach is the host, which is precisely what the switch away from DooD
+    bought, and that part holds. So the choice is real but it isn't "named permissions, each
+    narrow": grant the socket knowing it is container-wide, or grant `/dev/kvm` +
+    `/config/android-avd` and leave the socket out.
+
+    **Decided 2026-07-30: keep the socket.** The host boundary is the one that actually contains,
+    and it is intact; the monorepo's own work genuinely uses `docker build`/`docker compose` from the
+    agent's shell; and the reach that remains inside the container is bounded by the rootless uid
+    mapping rather than by convention. The cost accepted in exchange is that `ai-jail`'s restrictions
+    are advisory *within* this container — they bound the agent's own shell, not what it can reach
+    through the daemon. Recorded so this is a position someone took, not something rediscovered as a
+    surprise and reflexively narrowed later.
 - **`--cpuset-cpus` rather than `--cpus`, for the resource limits** — this one isn't about
   permissiveness but about the limit being *honest*. `--cpus` sets a CFS quota, which the guest
   cannot observe: under `--cpus=8` on a 16-thread host, `nproc` inside the container still reported
@@ -358,10 +384,14 @@ otherwise it creates it with `docker run` on the first run.
   from inside the sandbox). `android-avd` isn't among them, so the agent writing to
   `/config/android-avd` just writes to the throwaway tmpfs. Independently, `ai-jail` synthesizes a
   minimal `/dev` with no `kvm` node, so the host's `--device /dev/kvm` passthrough doesn't reach the
-  agent either. Two ways out, both valid: drive the emulator through `docker exec -u abc` (the
-  docker socket *is* passed into the sandbox, so this works today with no host change), or add
-  `--rw-map /dev/kvm --rw-map /config/android-avd` to the project's `.ai-jail` config and relaunch
-  the agent.
+  agent either. Two ways out. The narrow one: add `--rw-map /dev/kvm --rw-map /config/android-avd`
+  to the project's `.ai-jail` config and relaunch the agent. The other is the docker socket, where
+  `--rw-map /config/.docker` is granted — but it is **not** `docker exec -u abc` anymore. An earlier
+  version of this line said it was, carried over unchanged from the DooD design; under the nested
+  rootless daemon that command has nothing to act on, since the daemon doesn't manage this container
+  and `docker ps` against it is empty by design. The route that does work is `docker run` with this
+  container's own paths bind-mounted into a fresh container, which grants considerably more than the
+  emulator needs — see the nested-daemon bullet above for what it does and doesn't reach.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
