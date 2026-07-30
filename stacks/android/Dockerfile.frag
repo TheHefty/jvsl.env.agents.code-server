@@ -48,11 +48,48 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # cmdline-tools build number is pinned (Google doesn't publish a stable
 # "latest" URL) — bump this comment/URL together when a newer tools release
-# is needed. build-tools/NDK versions are likewise fixed, independent of the
-# platform API level selected above — bump these when a newer Android Gradle
-# Plugin (which enforces its own build-tools floor, ignoring whatever a
-# consuming project pins in its own build.gradle) or React Native template
-# (which pins its own NDK revision) needs a newer one than what's here.
+# is needed.
+#
+# Fetched in its own RUN, separate from the SDK install below, for one
+# reason: the two fail independently and the second one is expensive. This
+# download is ~175MB; the install below is several GB (the system image and
+# NDK dominate), so folding them into one layer means any hiccup in either
+# re-runs both.
+#
+# The retry flags aren't decoration — this exact line has already killed a
+# real build with `curl: (28) Failed to connect to dl.google.com port 443
+# after 134079 ms`, i.e. a transient connect failure that bare `-fsSL` turns
+# into a dead build several minutes in. Each flag covers a distinct half of
+# that:
+#   --connect-timeout 15  is what makes --retry useful at all. curl's default
+#                         connect timeout is ~2min (the 134s above), so
+#                         without it the retries mostly wait rather than
+#                         retry.
+#   --speed-limit/-time   catches the other failure mode --retry can't see: a
+#                         connection that opens and then stalls mid-transfer.
+#                         curl only retries what it considers a failure, and a
+#                         transfer moving at 0 B/s forever is not one. Abort
+#                         below 1KB/s for 30s, then let --retry do its job.
+# Deliberately *not* `--max-time`: a hard ceiling can't distinguish a stalled
+# transfer from an honestly slow link, so it would fail the very networks
+# this hardening exists for. --no-progress-meter rather than -s so retry
+# warnings still reach the build log — the next failure should be diagnosable
+# from the log alone.
+RUN mkdir -p $ANDROID_HOME/cmdline-tools \
+    && curl -fL --no-progress-meter --proto '=https' --tlsv1.2 \
+         --retry 5 --retry-all-errors --retry-delay 5 \
+         --connect-timeout 15 --speed-limit 1024 --speed-time 30 \
+         https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip \
+         -o /tmp/cmdline-tools.zip \
+    && unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools \
+    && mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest \
+    && rm /tmp/cmdline-tools.zip
+
+# build-tools/NDK versions are fixed, independent of the platform API level
+# selected above — bump these when a newer Android Gradle Plugin (which
+# enforces its own build-tools floor, ignoring whatever a consuming project
+# pins in its own build.gradle) or React Native template (which pins its own
+# NDK revision) needs a newer one than what's here.
 #
 # `cmake` belongs alongside the NDK rather than being treated as optional:
 # React Native drives its native build through CMake via the Android Gradle
@@ -111,15 +148,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # is a build whose result depends on what a given machine happened to
 # download. The fix belongs in the consuming project, pinning the versions
 # it needs to what the image provides.
-RUN mkdir -p $ANDROID_HOME/cmdline-tools \
-    && curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o /tmp/cmdline-tools.zip \
-    && unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools \
-    && mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest \
-    && rm /tmp/cmdline-tools.zip \
-    && android sdk install "platform-tools" "build-tools;36.0.0" "platforms;android-{{VERSION}}" "ndk;27.1.12297006" "cmake;3.22.1" "emulator" "system-images;android-{{VERSION}};google_apis;x86_64" \
-    && mkdir -p $ANDROID_HOME/avd \
-    && echo "no" | avdmanager create avd --name devcontainer --package "system-images;android-{{VERSION}};google_apis;x86_64" --path "$ANDROID_HOME/avd/devcontainer.avd" --force \
-    && chmod -R a+rX $ANDROID_HOME
+#
+# `android sdk install` gets the retry loop the curl above gets from --retry,
+# and for the same reason: it is by far the longest network operation in this
+# image (several GB from the same host that has already refused a connection
+# mid-build), and it has no retry of its own. `sleep 15` between attempts
+# rather than an immediate retry — the failure being covered is a host that
+# is briefly unreachable, so retrying instantly just spends the attempts.
+# The `ok` flag is load-bearing: a bare `for ... done` exits with the status
+# of its *last* command (the sleep, i.e. 0), which would let an exhausted
+# loop report success and bake a half-installed SDK into the image.
+#
+# --no-metrics because the `android` CLI otherwise phones analytics home on
+# every invocation and blocks on it — measured here at >2min for `android
+# --help` alone when that endpoint isn't reachable, which is pure build-time
+# risk for something the build doesn't need. It also keeps the template from
+# quietly opting its users into telemetry.
+#
+# The AVD creation and chmod stay in this same RUN rather than getting layers
+# of their own: both touch the whole SDK tree, and a separate layer would
+# carry a second copy of everything they modify (~all of $ANDROID_HOME) into
+# the image. They're also local work — no network, so nothing to retry.
+#
+# /root/.android holds the ~229MB bundle the `android` CLI downloads for
+# itself on first use. It's build-time-only weight: the launcher re-bootstraps
+# it per-user under $HOME at runtime, and $HOME there is abc's, never root's.
+RUN set -eu; \
+    ok=0; \
+    for attempt in 1 2 3; do \
+      if android --no-metrics sdk install \
+           "platform-tools" \
+           "build-tools;36.0.0" \
+           "platforms;android-{{VERSION}}" \
+           "ndk;27.1.12297006" \
+           "cmake;3.22.1" \
+           "emulator" \
+           "system-images;android-{{VERSION}};google_apis;x86_64"; then ok=1; break; fi; \
+      echo "android sdk install failed (attempt $attempt/3), retrying in 15s" >&2; \
+      sleep 15; \
+    done; \
+    [ "$ok" = 1 ]; \
+    mkdir -p $ANDROID_HOME/avd; \
+    echo "no" | avdmanager create avd --name devcontainer \
+      --package "system-images;android-{{VERSION}};google_apis;x86_64" \
+      --path "$ANDROID_HOME/avd/devcontainer.avd" --force; \
+    rm -rf /root/.android/cli /root/.android/bin; \
+    chmod -R a+rX $ANDROID_HOME
 
 # ANDROID_AVD_HOME (what `emulator` actually reads at lookup time) points at
 # /config, not the golden copy above under $ANDROID_HOME — /config is the
