@@ -85,15 +85,33 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         // pushed peak usage close to the host's own physical RAM. (The CPU
         // side of this limit is `--cpuset-cpus` below, not `--cpus` — see
         // cpuset_range() for why that distinction matters.)
-        // `--memory-swap` pinned equal to `--memory` (not left at Docker's
-        // default of 2x) disables swap for this container specifically:
-        // without the cap, a peak would spill into swap, which is host disk
-        // I/O shared with everything else running there — the whole host
-        // slows down, not just this container. Capping it trades that for a
-        // hard, contained OOM-kill inside the container when a peak exceeds
-        // 6g, which only affects the offending process here.
-        "--memory=6g",
-        "--memory-swap=6g",
+        //
+        // Then from 6g to 8g, because 6g could not hold the one workflow the
+        // android stack exists for: a React Native debug run needs Metro
+        // bundling *while* the emulator is up, and the emulator (~3g) plus
+        // Metro (~2g) plus the baseline code-server/agent processes (~1.5g)
+        // overruns the cap — observed as the emulator being OOM-killed
+        // mid-bundle at 88%. A release build sidesteps it by embedding the
+        // bundle, but "you may not run the debug workflow" is not a limit a
+        // dev environment should ship.
+        // `--memory-swap` is total memory + swap, so 10g against `--memory=8g`
+        // grants exactly 2g of swap. It used to be pinned equal to `--memory`,
+        // disabling swap outright, and the reasoning behind that still holds
+        // as far as it goes: swap is host disk I/O shared with everything else
+        // running there, so an unbounded spill slows the whole host down and
+        // not just this container. Docker's own default (`--memory-swap`
+        // unset, i.e. 2x memory) would grant 8g of it.
+        //
+        // What that reasoning left out is the other side of the trade. With
+        // swap off, every peak over the cap is an immediate OOM-kill — and the
+        // peaks here are short, bursty and bad at announcing themselves
+        // (ninja/clang fan-out, a Gradle daemon, the emulator and Metro
+        // overlapping for a few seconds), so the failure lands on whichever
+        // process happened to allocate last rather than on the greedy one. 2g
+        // buys those bursts somewhere to go while keeping the spill bounded to
+        // something the host can absorb.
+        "--memory=8g",
+        "--memory-swap=10g",
         "--cap-add=SYS_ADMIN",
         "--security-opt",
         "seccomp=unconfined",

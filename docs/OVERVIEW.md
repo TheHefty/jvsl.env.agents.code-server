@@ -323,10 +323,11 @@ otherwise it creates it with `docker run` on the first run.
   cannot observe: under `--cpus=8` on a 16-thread host, `nproc` inside the container still reported
   16. Every tool that self-tunes its parallelism from the CPU count — ninja, `make -j$(nproc)`,
   Gradle/Jest worker pools — therefore over-subscribes by 2x, and because `--memory` is capped with
-  swap disabled (see the `--memory-swap` note in `main.rs`), the result is an OOM-kill rather than
-  merely running slower. Observed end-to-end: a React Native native build spawned **36 concurrent
-  `clang` processes** and killed its own Gradle daemon at the 6g ceiling, while the same build
-  pinned to 4 CPUs peaked at roughly half the memory and succeeded. Note that Gradle's
+  only a small, bounded amount of swap behind it (`--memory=8g` with `--memory-swap=10g`, i.e. 2g —
+  see the note in `main.rs` for why that's neither unbounded nor zero), the result is an OOM-kill
+  rather than merely running slower. Observed end-to-end: a React Native native build spawned
+  **36 concurrent `clang` processes** and killed its own Gradle daemon at the then-6g ceiling, while
+  the same build pinned to 4 CPUs peaked at roughly half the memory and succeeded. Note that Gradle's
   `--max-workers` is *not* a fix — it never reaches ninja. `--cpuset-cpus` sets CPU affinity, which
   `sched_getaffinity` (and so `nproc`) does reflect, so guest tooling sizes itself correctly on its
   own. `start` derives the range from the host's CPU count (half of them, leaving the rest for the
