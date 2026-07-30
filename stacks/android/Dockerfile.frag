@@ -127,8 +127,10 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools \
 # the image — not the actual runtime ANDROID_AVD_HOME (see the ENV override
 # further down for why).
 #
-# The final `chmod -R a+rX` (rather than the `chown -R abc:abc` this used to
-# end with) is what makes the SDK usable as the runtime user at all. A
+# The `chmod -R a+rX` each install applies (rather than the `chown -R abc:abc`
+# this used to end with) is what makes the SDK usable as the runtime user at
+# all — it lives in stacks/android/sdk-install.sh now, scoped per package
+# rather than run once over the whole tree, see the note there for why. A
 # build-time `chown` to `abc` bakes in abc's *image* identity (911:1001),
 # but LinuxServer's init remaps abc to PUID/PGID at container start — so the
 # ownership ends up orphaned, abc falls into "other", and Google ships most
@@ -149,51 +151,78 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools \
 # download. The fix belongs in the consuming project, pinning the versions
 # it needs to what the image provides.
 #
-# `android sdk install` gets the retry loop the curl above gets from --retry,
-# and for the same reason: it is by far the longest network operation in this
-# image (several GB from the same host that has already refused a connection
-# mid-build), and it has no retry of its own. `sleep 15` between attempts
-# rather than an immediate retry — the failure being covered is a host that
-# is briefly unreachable, so retrying instantly just spends the attempts.
-# The `ok` flag is load-bearing: a bare `for ... done` exits with the status
-# of its *last* command (the sleep, i.e. 0), which would let an exhausted
-# loop report success and bake a half-installed SDK into the image.
+# The SDK is installed one package per RUN, not all seven in one, and that is
+# a deliberate trade of image layers for build resumability.
 #
-# --no-metrics because the `android` CLI otherwise phones analytics home on
-# every invocation and blocks on it — measured here at >2min for `android
-# --help` alone when that endpoint isn't reachable, which is pure build-time
-# risk for something the build doesn't need. It also keeps the template from
-# quietly opting its users into telemetry.
+# The failure this addresses is real and was measured rather than imagined:
+# connects to dl.google.com from here succeed about 80% of the time, while
+# other hosts (registry.npmjs.org, storage.googleapis.com) sit at 100% — so
+# there is genuine, hostname-correlated loss upstream of this container that
+# nothing in the image can configure away. Against that, one atomic install of
+# ~5GB has to win every coin flip in a row or discard everything it downloaded,
+# which is how a full day of rebuilds can produce nothing. Split per package,
+# Docker's own layer cache makes progress permanent: a build that dies on the
+# NDK re-uses the layers for every package before it, and the rebuild resumes
+# at the failure. Each RUN also carries its own retry loop (see
+# stacks/android/sdk-install.sh).
 #
-# The AVD creation and chmod stay in this same RUN rather than getting layers
-# of their own: both touch the whole SDK tree, and a separate layer would
-# carry a second copy of everything they modify (~all of $ANDROID_HOME) into
-# the image. They're also local work — no network, so nothing to retry.
+# Packages are ordered smallest-first for the same reason. The largest ones are
+# the likeliest to be interrupted, so putting them last means an interruption
+# preserves the most already-cached work.
 #
-# /root/.android holds the ~229MB bundle the `android` CLI downloads for
-# itself on first use. It's build-time-only weight: the launcher re-bootstraps
-# it per-user under $HOME at runtime, and $HOME there is abc's, never root's.
+# `sdkmanager` rather than the newer `android sdk install`, despite the latter
+# being the non-deprecated path: the `android` CLI is a launcher that fetches a
+# ~229MB bundle of its own on first use, from that same flaky host, with no
+# retry of its own and nothing this Dockerfile can wrap around it — the one
+# download in the whole stack that could not be hardened. sdkmanager is a plain
+# Java tool already present in cmdline-tools and needs no bundle at all.
+# Verified here: it installs against a clean SDK root with HOME empty.
+COPY stacks/android/sdk-install.sh /usr/local/bin/sdk-install
+RUN chmod +x /usr/local/bin/sdk-install
+
+RUN sdk-install "platform-tools" "platform-tools"
+RUN sdk-install "build-tools;36.0.0" "build-tools"
+RUN sdk-install "cmake;3.22.1" "cmake"
+RUN sdk-install "platforms;android-{{VERSION}}" "platforms"
+RUN sdk-install "emulator" "emulator"
+# The system image gets a higher ceiling than the shared default, set here
+# rather than in sdk-install.sh so raising it doesn't invalidate the package
+# layers above. It has earned it twice: 9 attempts to land when this package
+# set was populated by hand, and a real build lost at "attempt 5/5" after 2219
+# seconds. Attempts are only spent on failure, so a package that installs
+# first try costs nothing extra for the headroom.
+RUN SDK_INSTALL_ATTEMPTS=40 sdk-install "system-images;android-{{VERSION}};google_apis;x86_64" "system-images"
+
+# AVD creation is local work — no network, nothing to retry — and gets its own
+# layer only because it has to follow the system image above. It writes just
+# $ANDROID_HOME/avd, so the chmod here is scoped to that plus the licence
+# acknowledgements sdkmanager records, rather than re-walking the whole SDK
+# (which would duplicate the entire tree into this layer).
+#
+# Placed before the NDK rather than after all seven packages for cache
+# ordering alone: the AVD needs only the system image, so running it here
+# means an exhausted NDK download leaves a cached AVD layer behind instead of
+# forcing it to be recreated on the next attempt.
+#
+# It is deliberately *not* justified by scan cost, though an earlier version
+# of this comment claimed it was. `avdmanager` does walk the SDK tree with
+# stat() before writing anything (LocalRepoLoaderImpl.collectPackages), and it
+# was observed taking upwards of 45 minutes of straight CPU — but that was
+# against an SDK on a fuse-overlayfs named volume, in a validation harness,
+# not against an image layer. Hiding the NDK from that walk changed nothing:
+# still running after 14 minutes with the NDK absent. The tree is small
+# (23,619 files, 8,676 of them the NDK's, 36 symlinks, no loops), so file
+# count does not explain it either, and the cause was never established. What
+# is established is that it does not reproduce on a normal image build, where
+# this same step has always completed.
 RUN set -eu; \
-    ok=0; \
-    for attempt in 1 2 3; do \
-      if android --no-metrics sdk install \
-           "platform-tools" \
-           "build-tools;36.0.0" \
-           "platforms;android-{{VERSION}}" \
-           "ndk;27.1.12297006" \
-           "cmake;3.22.1" \
-           "emulator" \
-           "system-images;android-{{VERSION}};google_apis;x86_64"; then ok=1; break; fi; \
-      echo "android sdk install failed (attempt $attempt/3), retrying in 15s" >&2; \
-      sleep 15; \
-    done; \
-    [ "$ok" = 1 ]; \
     mkdir -p $ANDROID_HOME/avd; \
     echo "no" | avdmanager create avd --name devcontainer \
       --package "system-images;android-{{VERSION}};google_apis;x86_64" \
       --path "$ANDROID_HOME/avd/devcontainer.avd" --force; \
-    rm -rf /root/.android/cli /root/.android/bin; \
-    chmod -R a+rX $ANDROID_HOME
+    chmod -R a+rX $ANDROID_HOME/avd $ANDROID_HOME/licenses
+
+RUN sdk-install "ndk;27.1.12297006" "ndk"
 
 # ANDROID_AVD_HOME (what `emulator` actually reads at lookup time) points at
 # /config, not the golden copy above under $ANDROID_HOME — /config is the
