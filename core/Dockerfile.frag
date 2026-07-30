@@ -19,6 +19,21 @@ USER root
 # package (the usual source, which also ships `dockerd-rootless.sh`) is only
 # in Docker's own apt repo, which this template doesn't add, so the launcher
 # is written out by hand in core/services/ instead.
+#
+# `docker-buildx` is not optional decoration: current `docker compose build`
+# defaults to Bake, which needs buildx, and warns "Docker Compose is configured
+# to build using Bake, but buildx isn't installed" without it. Its predecessor
+# path is already deprecated ("support for internal compose builder will be
+# removed in next release"), so compose builds would simply stop working here.
+# Ubuntu ships it as a CLI plugin at /usr/libexec/docker/cli-plugins/, the same
+# place docker-compose-v2 lands, so `docker` finds it with no extra wiring.
+#
+# Note this does *not* by itself make `docker compose build` work for the
+# ai-jail'd agent: buildx wants to create a state directory under
+# $DOCKER_CONFIG, which defaults to /config/.docker — bind-mounted here and not
+# writable by the sandboxed agent, giving "mkdir /config/.docker/buildx:
+# permission denied". Pointing DOCKER_CONFIG at a writable path is what fixes
+# that side, and it is the agent's environment to set, not this image's.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -39,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcap2-bin \
     docker.io \
     docker-compose-v2 \
+    docker-buildx \
     uidmap \
     rootlesskit \
     slirp4netns \
