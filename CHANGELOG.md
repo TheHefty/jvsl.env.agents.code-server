@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.0...v1.0.1) (2026-08-03)
+
+
+### Documentation
+
+* correct the README's core layer and stack list ([4b18ead](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/4b18ead28239c1f26915a6535dbd45ef22d4fcce))
+
 ## 1.0.0 (2026-08-03)
 
 
