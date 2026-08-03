@@ -2,8 +2,8 @@
 
 Reusable template for a [code-server](https://github.com/coder/code-server)-based dev container,
 meant to be added to a monorepo as a git submodule at `.code-server/`. It ships code-server itself,
-the Claude Code CLI, `ai-jail`, and Docker-out-of-Docker already set up, plus a selectable set of
-tech stacks.
+the Claude Code CLI, `ai-jail`, and a nested rootless Docker daemon already set up, plus a
+selectable set of tech stacks.
 
 It is **not** an application — there's no product code here, only the tooling that builds and
 launches the dev environment.
@@ -43,7 +43,9 @@ libs (for `start` — see [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the exact p
    ```
    Opens a native window pointed at code-server, creating the container on first run and just
    starting it on subsequent ones. No configuration is needed as long as it stays inside the repo
-   structure it was built in.
+   structure it was built in. `docker` inside the container is a nested rootless daemon rather than
+   the host's socket, so it needs `/dev/fuse` and `/dev/net/tun`; `start` passes both through when
+   the host has them, and without `/dev/fuse` the daemon stays down instead of crash-looping.
 
 ## Available stacks
 
@@ -55,9 +57,14 @@ libs (for `start` — see [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the exact p
 - `ruby`
 - `php`
 - `node`
+- `rust`
+- `android` — needs `java` selected too (its SDK tooling runs on that JDK); `setup` refuses the
+  selection instead of adding `java` behind your back, since the JDK version is yours to pick. Its
+  headless emulator additionally needs the host to expose `/dev/kvm`.
 
 Select/change them by rerunning `setup`. None of them are mandatory — deselecting everything builds
-an image with just the core layer (code-server, Claude Code CLI, `ai-jail`, Docker-out-of-Docker).
+an image with just the core layer (code-server, Claude Code CLI, `ai-jail`, the GitHub CLI, and the
+nested rootless Docker daemon).
 
 ## Versioning
 
