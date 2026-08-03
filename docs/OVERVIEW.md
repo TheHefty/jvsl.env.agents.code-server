@@ -557,9 +557,14 @@ code-server to respond, and opens the window correctly.
   `core/`/`stacks/` it launches — so two independent numbers would only raise the question of which
   template version a given binary came from. `start/Cargo.toml` (via an
   `# x-release-please-version` annotation) and `start/tauri.conf.json` (via a `jsonpath`) are
-  therefore listed as `extra-files` and carry the tag's version. `start/Cargo.lock` is deliberately
-  left out: the version appears there too, but an annotation can't survive in a file cargo
-  rewrites, and the drift is repaired by the next `cargo build`. Dropping the `version` field from
+  therefore listed as `extra-files` and carry the tag's version, and so is `start/Cargo.lock` —
+  through a `toml` jsonpath (`$.package[?(@.name=='start')].version`) rather than an annotation
+  comment, which is what had ruled the lock out at first: a comment can't survive in a file cargo
+  rewrites, but an updater that addresses the value by path doesn't need one. Leaving it out left
+  the lock a version behind after every release until someone ran `cargo build`, and that repair
+  showed up as a dirty submodule in whichever monorepo had vendored the template. CI's `cargo check
+  --release --locked` is the backstop: with the flag, a stale lock fails the release PR instead of
+  surfacing in a consumer's worktree. Dropping the `version` field from
   `tauri.conf.json` altogether would remove one of the two sync points — Tauri falls back to
   `Cargo.toml` when it's absent — and is worth doing the next time `start` is rebuilt, which is
   when that fallback can actually be verified rather than trusted from the docs.

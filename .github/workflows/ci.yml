@@ -39,7 +39,9 @@ jobs:
           workspaces: start
       - name: cargo check
         working-directory: start
-        run: cargo check --release
+        # --locked so a Cargo.lock left behind by a release bump fails here, on the release
+        # PR itself, instead of turning up as a dirty submodule in a consuming monorepo.
+        run: cargo check --release --locked
 
   core-build:
     runs-on: ubuntu-latest
