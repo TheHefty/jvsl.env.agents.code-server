@@ -78,3 +78,21 @@ jobs:
         run: |
           core/compose-dockerfile.sh "${{ matrix.stack }}" > /tmp/Dockerfile
           docker build -f /tmp/Dockerfile -t "stack-ci-${{ matrix.stack }}" .
+
+  # The one check branch protection requires, and the only reason this job exists.
+  # stack-build's job names come from a matrix built by `ls stacks`, so they change
+  # whenever a stack is added or removed: naming them individually would leave a
+  # required check that stops reporting (blocking every merge) and would not cover a
+  # newly added stack. This name never changes and stands for all of them.
+  ci-green:
+    if: always()
+    needs: [bash-syntax, cargo-check, core-build, discover-stacks, stack-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: fail unless every job above succeeded
+        run: |
+          results='${{ join(needs.*.result, " ") }}'
+          echo "results: $results"
+          for r in $results; do
+            [ "$r" = "success" ] || exit 1
+          done
