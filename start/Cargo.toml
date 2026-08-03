@@ -1,6 +1,6 @@
 [package]
 name = "start"
-version = "1.0.1" # x-release-please-version
+version = "1.0.2" # x-release-please-version
 edition = "2021"
 description = "Brings up the dev environment container and opens code-server in a native window"
 
