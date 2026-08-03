@@ -59,6 +59,13 @@ libs (for `start` — see [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the exact p
 Select/change them by rerunning `setup`. None of them are mandatory — deselecting everything builds
 an image with just the core layer (code-server, Claude Code CLI, `ai-jail`, Docker-out-of-Docker).
 
+## Versioning
+
+Releases are cut by [release-please](https://github.com/googleapis/release-please) from the
+conventional commits on `main`: it keeps a release PR open, and merging it tags the commit and
+publishes the notes. A consuming monorepo can pin the submodule to a tag (`v1.0.0`) instead of a
+bare commit. `start`'s own version is kept in lockstep with the tag.
+
 ## Docs
 
 [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — full design rationale: every decision made, the

@@ -539,3 +539,35 @@ Errors already hit and fixed:
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
+
+## Versioning and releases
+
+- **release-please, driven by the commit history.** Tags and GitHub releases come from
+  `.github/workflows/release-please.yml`: it keeps a release PR open with the next version and the
+  accumulated changelog, and cuts the tag when that PR is merged. The history was already written
+  in conventional commits from the first commit, so nothing had to change about how commits are
+  written — the changelog is derived from what was already there. Chosen over tagging by hand
+  because of how this repo is consumed: a monorepo vendors it as a submodule and pins a commit, and
+  pinning a tag instead is only an improvement if the tag reliably exists and carries notes.
+- **`release-type: simple`** — this isn't a package on any registry (no root crate, no
+  `package.json`), so the strategy that only maintains `version.txt` + `CHANGELOG.md` and tags is
+  the one that fits. `.release-please-manifest.json` is the version's source of truth.
+- **`start` is versioned in lockstep with the template, not on its own.** The launcher isn't
+  published anywhere — it's built from this repo and only means anything next to the
+  `core/`/`stacks/` it launches — so two independent numbers would only raise the question of which
+  template version a given binary came from. `start/Cargo.toml` (via an
+  `# x-release-please-version` annotation) and `start/tauri.conf.json` (via a `jsonpath`) are
+  therefore listed as `extra-files` and carry the tag's version. `start/Cargo.lock` is deliberately
+  left out: the version appears there too, but an annotation can't survive in a file cargo
+  rewrites, and the drift is repaired by the next `cargo build`. Dropping the `version` field from
+  `tauri.conf.json` altogether would remove one of the two sync points — Tauri falls back to
+  `Cargo.toml` when it's absent — and is worth doing the next time `start` is rebuilt, which is
+  when that fallback can actually be verified rather than trusted from the docs.
+- **The first tag is `1.0.0`, forced with a `Release-As: 1.0.0` footer** on the commit that added
+  the workflow. Left alone the first release PR would have proposed `0.1.0`: the seeded manifest is
+  `0.0.0` and the history is all `feat`/`fix`, which never produces a major on its own. The
+  template had been in real use across projects well before this point, so naming the first tag
+  `1.0.0` describes its actual state rather than what the commit history could infer.
+- **Depends on a repo setting**: "Allow GitHub Actions to create and approve pull requests"
+  (Settings → Actions → General). The workflow uses the default `GITHUB_TOKEN` rather than a PAT,
+  and without that setting the action fails at the point of opening the release PR.
