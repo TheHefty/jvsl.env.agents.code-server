@@ -63,8 +63,8 @@ libs (for `start` — see [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the exact p
   headless emulator additionally needs the host to expose `/dev/kvm`.
 
 Select/change them by rerunning `setup`. None of them are mandatory — deselecting everything builds
-an image with just the core layer (code-server, Claude Code CLI, `ai-jail`, the GitHub CLI, and the
-nested rootless Docker daemon).
+an image with just the core layer (code-server, Claude Code CLI, `ai-jail`, the GitHub CLI, Git LFS,
+and the nested rootless Docker daemon).
 
 ## Versioning
 
