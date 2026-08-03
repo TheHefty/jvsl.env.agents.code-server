@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.2...v1.1.0) (2026-08-03)
+
+
+### Features
+
+* **core:** install git-lfs and register its filters system-wide ([#10](https://github.com/TheHefty/jvsl.env.agents.code-server/issues/10)) ([55ea5ee](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/55ea5ee02cd68ce17a3b0ff9a250d8465749fe5a))
+
 ## [1.0.2](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.1...v1.0.2) (2026-08-03)
 
 
