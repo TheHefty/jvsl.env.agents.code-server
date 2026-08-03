@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.1...v1.0.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* keep start/Cargo.lock in sync with the released version ([9f2d73f](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/9f2d73fc904ec1c690950349084d6ed7eba6f537))
+
 ## [1.0.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.0...v1.0.1) (2026-08-03)
 
 
