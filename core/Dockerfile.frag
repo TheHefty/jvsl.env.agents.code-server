@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     git \
+    git-lfs \
     gnupg \
     htop \
     jq \
@@ -88,6 +89,17 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --profile minimal --default-toolchain stable \
     && chmod -R a+w $RUSTUP_HOME $CARGO_HOME
+
+# 1.2 Registers Git LFS's filters system-wide rather than per-repo. The
+# `git-lfs` package above only provides the binary; without this the filters
+# live in a repo's own .git/config, which for a bind-mounted workspace was
+# written on the host, before this image existed. A repo that already tracks
+# LFS files then checks out as bare pointer stubs and `git worktree add` fails
+# in post-checkout — both silently, since git treats a missing filter as a
+# no-op rather than an error. `--system` writes to /etc/gitconfig, so every
+# repo mounted in gets working smudge/clean/pre-push/post-checkout filters
+# with no per-project step.
+RUN git lfs install --system
 
 # 2. Installs Node.js 22 (LTS) — required by the Claude Code CLI
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
