@@ -575,9 +575,14 @@ code-server to respond, and opens the window correctly.
   `0.0.0` and the history is all `feat`/`fix`, which never produces a major on its own. The
   template had been in real use across projects well before this point, so naming the first tag
   `1.0.0` describes its actual state rather than what the commit history could infer.
-- **Depends on a repo setting**: "Allow GitHub Actions to create and approve pull requests"
-  (Settings → Actions → General). The workflow uses the default `GITHUB_TOKEN` rather than a PAT,
-  and without that setting the action fails at the point of opening the release PR.
+- **Runs under a PAT, not the default `GITHUB_TOKEN`** — the `RELEASE_PLEASE_TOKEN` secret, needing
+  Contents and Pull requests (read/write) on this repo only. The reason is the next point. Two
+  consequences worth keeping in mind: the repo setting "Allow GitHub Actions to create and approve
+  pull requests" no longer matters here, because the PR does not come from Actions; and the token
+  expires, at which point releases silently stop being proposed until it is rotated. Going back to
+  the `GITHUB_TOKEN` means deleting the `token:` line, not just the secret: the action's default is
+  `${{ github.token }}`, but a default only applies to an *omitted* input, and a deleted secret
+  leaves `token:` present and empty.
 - **`main` is protected**, which is also why the repo is public — branch protection is a paid
   feature on private repos. Every change lands through a pull request; no approvals are required
   (single maintainer) but the rule applies to administrators too, and force-pushes and branch
@@ -586,12 +591,12 @@ code-server to respond, and opens the window correctly.
   that stops reporting blocks every merge forever. "Require branches to be up to date before
   merging" is deliberately **off** — see the next point for why turning it on would deadlock every
   release.
-- **A release PR needs one manual step, and it is not obvious.** Workflows are not triggered by
-  events that the `GITHUB_TOKEN` causes, so the PR release-please opens gets no CI run at all —
-  `ci-green` never reports, and a required check that never reports leaves the PR `BLOCKED` with
-  zero failures to look at. Closing and reopening the PR from a normal account produces the run,
-  because the `reopened` event then comes from a user. Giving release-please a PAT instead would
-  remove the step permanently, at the cost of a secret to rotate. Two related traps sit next to
+- **Why the PAT: a `GITHUB_TOKEN` release PR can never satisfy a required check.** Workflows are not
+  triggered by events that the `GITHUB_TOKEN` causes, so the PR release-please opened got no CI run
+  at all — `ci-green` never reported, and a required check that never reports leaves the PR
+  `BLOCKED` with zero failures to look at. Closing and reopening the PR from a normal account is
+  the manual way out, since the `reopened` event then comes from a user; that is what 1.0.2 needed,
+  twice, before the PAT replaced it. Two related traps sit next to
   this one: a `pull_request` run uses the workflow file **from the head branch**, not from the
   merge commit, so a check added to `main` after the release branch was cut will never appear on
   that PR (the branch has to be recreated: close the PR, delete the branch, re-run the workflow);

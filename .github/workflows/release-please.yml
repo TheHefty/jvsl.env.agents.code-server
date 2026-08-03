@@ -5,10 +5,20 @@ on:
     branches:
       - main
 
-# The default GITHUB_TOKEN is enough for both steps the action performs, as
-# long as the repo has "Allow GitHub Actions to create and approve pull
-# requests" enabled (Settings -> Actions -> General) — without it, opening the
-# release PR fails.
+# Runs under a PAT (RELEASE_PLEASE_TOKEN), not the default GITHUB_TOKEN. Workflows
+# are not triggered by events a GITHUB_TOKEN causes, so a release PR opened with it
+# gets no CI run at all: `ci-green`, the check branch protection requires, never
+# reports, and the PR sits blocked with nothing failing to explain it. Opening the
+# PR as a user instead makes CI run on it like on any other PR. The token needs
+# Contents and Pull requests, both read/write, on this repo only — and it expires,
+# at which point releases stop being proposed until it is rotated.
+#
+# This also makes "Allow GitHub Actions to create and approve pull requests"
+# (Settings -> Actions -> General) irrelevant here: the PR no longer comes from
+# Actions. The permissions block below only covers the GITHUB_TOKEN, which the
+# action stops using once `token:` is set; it is kept for whoever goes back to it,
+# which means deleting the `token:` line — deleting only the secret leaves the
+# input present and empty, and a default only applies to an omitted input.
 permissions:
   contents: write
   pull-requests: write
@@ -19,5 +29,6 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
