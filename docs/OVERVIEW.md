@@ -578,3 +578,24 @@ code-server to respond, and opens the window correctly.
 - **Depends on a repo setting**: "Allow GitHub Actions to create and approve pull requests"
   (Settings → Actions → General). The workflow uses the default `GITHUB_TOKEN` rather than a PAT,
   and without that setting the action fails at the point of opening the release PR.
+- **`main` is protected**, which is also why the repo is public — branch protection is a paid
+  feature on private repos. Every change lands through a pull request; no approvals are required
+  (single maintainer) but the rule applies to administrators too, and force-pushes and branch
+  deletion are blocked. The one required check is `ci-green`: the per-stack jobs are a matrix built
+  from `ls stacks`, so their names change whenever a stack is added or removed, and a required check
+  that stops reporting blocks every merge forever. "Require branches to be up to date before
+  merging" is deliberately **off** — see the next point for why turning it on would deadlock every
+  release.
+- **A release PR needs one manual step, and it is not obvious.** Workflows are not triggered by
+  events that the `GITHUB_TOKEN` causes, so the PR release-please opens gets no CI run at all —
+  `ci-green` never reports, and a required check that never reports leaves the PR `BLOCKED` with
+  zero failures to look at. Closing and reopening the PR from a normal account produces the run,
+  because the `reopened` event then comes from a user. Giving release-please a PAT instead would
+  remove the step permanently, at the cost of a secret to rotate. Two related traps sit next to
+  this one: a `pull_request` run uses the workflow file **from the head branch**, not from the
+  merge commit, so a check added to `main` after the release branch was cut will never appear on
+  that PR (the branch has to be recreated: close the PR, delete the branch, re-run the workflow);
+  and release-please compares release *notes*, not files, so a `chore`/`ci`/`docs` commit landing
+  on `main` leaves the existing release branch untouched (`PR remained the same` in the log). That
+  is harmless unless the stale branch and `main` changed the same lines, which is exactly how the
+  1.0.2 release PR ended up carrying a `Cargo.toml` bump that no longer belonged in it.
