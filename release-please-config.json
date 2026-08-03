@@ -5,16 +5,10 @@
   "packages": {
     ".": {
       "extra-files": [
-        "start/Cargo.toml",
         {
           "type": "json",
           "path": "start/tauri.conf.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "toml",
-          "path": "start/Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='start')].version"
         }
       ]
     }
