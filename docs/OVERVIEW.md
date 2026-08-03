@@ -533,7 +533,7 @@ Errors already hit and fixed:
   terminal content itself, not GTK chrome, so `GTK_IM_MODULE` doesn't reach it. Likely cause: the
   terminal's canvas/WebGL-accelerated renderer redrawing asynchronously while dead-key/IME
   composition is in flight, replaying part of the composition buffer. Mitigated by setting
-  `"terminal.integrated.gpuAcceleration": "off"` in the default `settings.json` (core's 6.1 step).
+  `"terminal.integrated.gpuAcceleration": "off"` in the default `settings.json` (core's 6.2 step).
   Not yet confirmed fixed on the user's host as of this entry — try this before reaching for a
   `GTK_IM_MODULE` variant if the symptom is terminal-only.
 

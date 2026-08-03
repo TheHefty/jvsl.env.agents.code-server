@@ -145,12 +145,25 @@ RUN chmod +x /custom-cont-init.d/20-kvm-gid.sh
 # 6. Installs the Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
+# 6.1 Keeps the CLI's whole state inside /config/.claude — the directory
+# `start` bind-mounts from the host — instead of only its credentials. By
+# default the credentials land in ~/.claude (mounted, so they survive) but
+# ~/.claude.json (onboarding state, preferences, OAuth account) sits one
+# level up in a path nothing mounts, so it never persisted. Worse in
+# combination with ai-jail: it maps into the sandbox only the paths that
+# already exist, so the missing ~/.claude.json was never mapped, every
+# `ai-jail claude` wrote a fresh one inside the sandbox's ephemeral home,
+# and the full onboarding came back on every single run. Pointing
+# CLAUDE_CONFIG_DIR at the mounted directory puts both files in the same
+# place and closes that loop.
+ENV CLAUDE_CONFIG_DIR=/config/.claude
+
 RUN /app/code-server/bin/code-server \
     --extensions-dir /config/extensions \
     --user-data-dir /config/data \
     --install-extension file-icons.file-icons || true
 
-# 6.1 Default editor settings: Dark Modern theme, .md files open as preview
+# 6.2 Default editor settings: Dark Modern theme, .md files open as preview
 # by default (not the raw source editor), GPU-accelerated terminal rendering
 # off (the canvas/WebGL renderer's async redraw races with dead-key/IME
 # composition, replaying parts of the composition buffer into the terminal —
