@@ -66,15 +66,25 @@ fi
 
 export HOME=/config
 
+# --port-driver is what makes `docker run -p` mean anything. RootlessKit
+# defaults it to `none`, and with `none` a published port is mapped inside
+# RootlessKit's namespace and forwarded nowhere: `docker port` reports
+# 0.0.0.0:<port> and nothing listens, even from this container. The usual source
+# of the flag is `dockerd-rootless.sh`, which passes it explicitly and which this
+# image cannot use (docker-ce-rootless-extras is unavailable — see
+# core/Dockerfile.frag section 1), so reimplementing the invocation by hand
+# dropped it. `builtin` is what that script defaults to and is the faster of the
+# two; `slirp4netns` is the fallback if a workload needs the source IP preserved.
+#
 # --disable-host-loopback stops containers created by this daemon from reaching
 # 127.0.0.1 in *this* container's network namespace (rootlesskit warns if it's
-# left off). Publishing still works in the direction that's actually needed —
-# a nested container's published port lands on this container's loopback, which
-# is how Testcontainers and compose consumers reach it — this only blocks the
-# reverse, a nested container dialling back into its parent.
+# left off). It is orthogonal to the above and stays: it blocks a nested
+# container dialling back into its parent, not the parent reaching a published
+# port.
 exec s6-setuidgid abc \
     rootlesskit \
         --net=slirp4netns \
+        --port-driver=builtin \
         --mtu=65520 \
         --disable-host-loopback \
         --copy-up=/etc \
