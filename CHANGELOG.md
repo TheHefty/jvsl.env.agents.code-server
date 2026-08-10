@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.1.0...v1.1.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **docker:** give rootlesskit a port driver, so -p means something ([ec6684b](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/ec6684b9fe20ff5bfc411d576968246de5ad5286))
+
 ## [1.1.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.0.2...v1.1.0) (2026-08-03)
 
 
