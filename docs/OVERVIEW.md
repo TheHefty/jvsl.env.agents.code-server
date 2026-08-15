@@ -238,6 +238,24 @@ below), both in versions that were already listed in `versions.json` before this
 - **Execution flow**: ensures the environment's container is running → reads back the host port
   Docker published for it → waits for code-server to respond on it → opens a WebView window
   pointing at `http://127.0.0.1:<port>`.
+- **No system title bar; the window's buttons go in the one code-server already draws.** The
+  default decoration was a row saying "Dev Environment" and nothing else, directly above the row
+  with File/Edit/View — the same strip of screen twice. The window is built with
+  `decorations(false)` and an initialization script (`start/src/title_bar.js`) puts minimise,
+  maximise and close at the right of VS Code's own title bar.
+  - **The drag region is that bar's background and not its children.** Tauri starts a drag when the
+    element that *received* the mousedown carries `data-tauri-drag-region`, and the attribute is
+    not inherited — so grabbing the empty part moves the window while every menu, breadcrumb and
+    command-centre click is untouched. Double-clicking a drag region toggles maximise natively.
+  - **The page is remote**, so the capability in `start/capabilities/default.json` declares
+    `remote.urls` and the window commands the bar calls; `withGlobalTauri` is what puts the API in
+    that page at all. Without either, the script injects nothing.
+  - **It couples to somebody else's DOM and fails quietly**: if code-server stops calling its title
+    bar `.part.titlebar`, nothing is injected, nothing complains, and the window is still usable
+    through the window manager. Silence is right there and is also why `start/src/title_bar.js` has
+    tests of its own in CI — the failure is otherwise invisible until somebody opens the window and
+    wonders where the buttons went. The script is a file rather than a Rust string so that what the
+    tests read is what the binary embeds.
 - **Orchestrating the application's own services (the monorepo's `docker-compose.yml`) is out of
   scope** — `setup`/`start` only handle the dev container. Bringing up the project's services
   (database, other microservices, etc.) is the responsibility of each monorepo instantiated from

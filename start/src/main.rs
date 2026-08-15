@@ -152,6 +152,34 @@ fn cpuset_range() -> String {
     format!("0-{}", container_cpus - 1)
 }
 
+
+/// The window's own title bar, put inside the one code-server already draws.
+///
+/// The window shows a **remote page** — code-server's — so there is no markup of
+/// ours to put a title bar in. Two shapes were considered: a bar of our own
+/// stacked above the workbench, which is what the default decoration already
+/// was and wastes the same row twice; and this, which borrows the row VS Code
+/// already has for File/Edit/View and adds the three buttons to its right.
+///
+/// **The drag region is the bar's own background, and deliberately not its
+/// children.** Tauri starts a drag when the element that *received* the
+/// mousedown carries `data-tauri-drag-region`; the attribute is not inherited.
+/// Putting it on the title bar therefore drags when you grab the empty part and
+/// leaves every menu, breadcrumb and command-centre click alone — which is the
+/// behaviour we would have had to write by hand under any other arrangement.
+/// Double-clicking a drag region toggles maximise, which Tauri also does
+/// natively.
+///
+/// **It couples to somebody else's DOM, and it fails quietly.** If code-server
+/// stops calling its title bar `.part.titlebar`, this adds nothing: no bar, no
+/// buttons, no error — a window that is still perfectly usable through the
+/// window manager. That is the trade for not stacking a second bar, and the
+/// reason the observer gives up after a while rather than watching forever.
+/// Kept in its own file so that what the tests exercise is byte-for-byte what
+/// the binary embeds. Inline in a Rust string it could only be tested by a copy,
+/// and a copy of a script that fails silently is worse than no test at all.
+const TITLE_BAR: &str = include_str!("title_bar.js");
+
 /// What this file used before the manifest could say anything.
 const DEFAULT_MEMORY: &str = "6g";
 
@@ -409,6 +437,12 @@ fn main() {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(code_server_url.parse()?))
                 .title("Dev Environment")
                 .inner_size(1280.0, 800.0)
+                // No system title bar: the row it drew said "Dev Environment"
+                // and nothing else, directly above the row code-server draws
+                // for File/Edit/View. See TITLE_BAR, which puts the window's
+                // buttons in that second row and makes it draggable.
+                .decorations(false)
+                .initialization_script(TITLE_BAR)
                 .enable_clipboard_access()
                 .build()?;
 

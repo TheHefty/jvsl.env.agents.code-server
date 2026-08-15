@@ -42,6 +42,27 @@ jobs:
         # --locked so a Cargo.lock left behind by a release bump fails here, on the release
         # PR itself, instead of turning up as a dirty submodule in a consuming monorepo.
         run: cargo check --release --locked
+      - name: cargo test
+        working-directory: start
+        run: cargo test --release --locked
+
+  title-bar:
+    # The one piece of this launcher that runs inside somebody else's page, and the
+    # one written to fail quietly: if code-server stops calling its title bar
+    # `.part.titlebar`, nothing is injected and nothing complains. Silence is the
+    # right behaviour there and the reason this job exists — the failure is
+    # otherwise invisible until somebody opens the window and wonders where the
+    # buttons went.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No package.json and no dependencies: the runner is node's own, and the
+      # script under test is read from disk as the binary embeds it.
+      - name: node --test
+        run: node --test start/src/title_bar.test.mjs
 
   core-build:
     runs-on: ubuntu-latest
@@ -86,7 +107,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
