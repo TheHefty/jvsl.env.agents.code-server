@@ -39,6 +39,16 @@ which rebuilds the launcher when its source has changed and opens the environmen
 crates and says so only as a compile error inside a dependency, so it points you at `rustup`
 instead.
 
+### Working on the template itself
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Runs the fast half of CI before every push — shell syntax, the package table, the settings merge,
+the title bar, the launcher's tests — and refuses a push straight to `main`. The image builds stay
+in CI, where they cannot be skipped.
+
 ### The same thing by hand
 
 Prerequisites on the host: `jq`, `whiptail`, `docker` (for `setup`); Rust/`cargo` + the Tauri Linux
