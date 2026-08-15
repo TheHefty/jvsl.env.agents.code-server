@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.1.1...v1.2.0) (2026-08-15)
+
+
+### Features
+
+* a pre-push hook, running the half of CI that is cheap ([e840628](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/e840628d27b4fe2f2898a400ca64f5a0f1fd28ff))
+* **core:** the menu bar, two extensions, and defaults that reach an environment already running ([0ed85a3](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/0ed85a3689f09df5e6ac9e434e85ca235e4c4b65))
+* init prepares the host, dev opens the environment ([2770865](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/27708652b61ec9009283a7aea31650eb9b581965))
+* the container's limits are the project's, in the manifest ([57d0ebd](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/57d0ebd36a8397b57161e86ad2a6e7750030b453))
+* the window's buttons go in the bar code-server already draws ([e459527](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/e459527a80d6aad151031d8483a18e3b9a890d85))
+
+
+### Bug Fixes
+
+* **python:** add the PPA without asking the Launchpad API ([a74990e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/a74990ef0f58bc89e589cc7a8330f52f0a8a9db8))
+
 ## [1.1.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.1.0...v1.1.1) (2026-08-10)
 
 
