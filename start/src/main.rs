@@ -61,6 +61,89 @@ fn container_exists(name: &str) -> bool {
 /// `nproc` — does reflect, making the limit observable to guest tooling
 /// instead of a trap. The tradeoff accepted: the container is pinned to
 /// specific cores and can't migrate off them when the host is busy there.
+/// What the project asks of the container, from `.code-server.stack.json`.
+///
+/// The manifest lives at the consuming repo's root and is the versioned record
+/// of intent — the same file `setup` writes the stack selection into. Limits
+/// belong there for the reason the selection does: the value depends on the
+/// project and on the machine it is checked out on, and anything kept inside
+/// `.code-server/` is the submodule's own tree, so a project editing it would
+/// either lose the edit or dirty the submodule.
+///
+/// Every field is optional and every default is what this file used before the
+/// manifest could say anything, so a project that has never heard of `limits`
+/// gets exactly what it got yesterday.
+///
+/// ```json
+/// { "java": "21", "limits": { "memory": "6g", "memorySwap": "8g", "cpus": 4 } }
+/// ```
+///
+/// A malformed manifest falls back to the defaults rather than refusing to
+/// start: this is a launcher, and a project whose JSON is broken has better
+/// things to be told than that its window will not open. `setup` is where a bad
+/// value is caught, because that is where somebody is looking at a prompt.
+struct Limits {
+    memory: String,
+    memory_swap: String,
+    /// How many cores to pin — **not** a CFS quota. See cpuset_range().
+    cpus: Option<usize>,
+}
+
+fn limits(workspace: &str) -> Limits {
+    let manifest = std::path::Path::new(workspace).join(".code-server.stack.json");
+    let limits = std::fs::read_to_string(manifest)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|json| json.get("limits").cloned());
+
+    let memory = limits
+        .as_ref()
+        .and_then(|l| l.get("memory"))
+        .and_then(|m| m.as_str())
+        .unwrap_or(DEFAULT_MEMORY)
+        .to_owned();
+
+    // Swap is *total* memory + swap, so it can never be below memory: Docker
+    // refuses the pair outright, and the message names neither value. Derived
+    // as memory + 2g when the manifest is silent, which is the ratio the
+    // paragraph in run_container settled on.
+    let memory_swap = limits
+        .as_ref()
+        .and_then(|l| l.get("memorySwap"))
+        .and_then(|m| m.as_str())
+        .map(|m| m.to_owned())
+        .unwrap_or_else(|| plus_two_gigabytes(&memory));
+
+    let cpus = limits
+        .as_ref()
+        .and_then(|l| l.get("cpus"))
+        .and_then(|c| c.as_u64())
+        .map(|c| c as usize);
+
+    Limits { memory, memory_swap, cpus }
+}
+
+/// `6g` → `8g`, `4096m` → `6144m`. A unit this does not understand is handed
+/// back unchanged, which produces `--memory-swap` equal to `--memory`: swap
+/// disabled, which is what this launcher did for most of its life and is a safe
+/// place to land rather than a guess at what was meant.
+fn plus_two_gigabytes(memory: &str) -> String {
+    let (digits, unit) = memory.split_at(memory.find(|c: char| !c.is_ascii_digit()).unwrap_or(memory.len()));
+    match (digits.parse::<u64>(), unit) {
+        (Ok(n), "g") => format!("{}g", n + 2),
+        (Ok(n), "m") => format!("{}m", n + 2048),
+        _ => memory.to_owned(),
+    }
+}
+
+/// The project's choice, or half the host's — see cpuset_range().
+fn cpuset_range_for(cores: Option<usize>) -> String {
+    match cores {
+        Some(n) if n >= 1 => format!("0-{}", n - 1),
+        _ => cpuset_range(),
+    }
+}
+
 fn cpuset_range() -> String {
     let host_cpus = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -69,8 +152,12 @@ fn cpuset_range() -> String {
     format!("0-{}", container_cpus - 1)
 }
 
+/// What this file used before the manifest could say anything.
+const DEFAULT_MEMORY: &str = "6g";
+
 fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
     let home = env::var("HOME").expect("HOME not set");
+    let limits = limits(workspace);
 
     let mut cmd = Command::new("docker");
     cmd.args([
@@ -110,8 +197,31 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         // process happened to allocate last rather than on the greedy one. 2g
         // buys those bursts somewhere to go while keeping the spill bounded to
         // something the host can absorb.
-        "--memory=8g",
-        "--memory-swap=10g",
+        //
+        // Both of these are the project's now, read from
+        // `.code-server.stack.json` — see limits(). What is written below is
+        // why the defaults are what they are, and it is the reason the value
+        // became configurable rather than being raised once more.
+        //
+        // 8g was tried and is a promise a 15.5g host cannot keep. Measured
+        // there with ~7.5g held outside this container: 3.3g available while
+        // the container itself sat at 2.7g, so the real ceiling was around 6g
+        // and the configured one was 8. **A cap above what the host can supply
+        // does not fail as a refusal** — the container never reaches its own
+        // limit, so the cgroup records no OOM at all, and the host kills
+        // whichever process allocated last. There that was a Chrome renderer:
+        // 33 `tab crashed` in one run, `oom_kill 0`, memory pressure zero, and
+        // a browser suite that looked flaky for weeks while five explanations
+        // were tried and discarded.
+        //
+        // So the number cannot be one this file picks: it depends on the host,
+        // and picking it wrong is silent in both directions. What this file
+        // still owns is the shape of the failure — a value the host can supply
+        // fails as an OOM the cgroup records, which is legible.
+        //
+        // The swap grant is void on a host with no swap configured. Where
+        // `SwapTotal: 0`, every peak over the cap is an immediate kill whatever
+        // this asks for.
         "--cap-add=SYS_ADMIN",
         "--security-opt",
         "seccomp=unconfined",
@@ -124,8 +234,12 @@ fn run_container(name: &str, image: &str, volume: &str, workspace: &str) {
         "-e",
         "PASSWORD=",
     ])
+    .arg("--memory")
+    .arg(&limits.memory)
+    .arg("--memory-swap")
+    .arg(&limits.memory_swap)
     .arg("--cpuset-cpus")
-    .arg(cpuset_range());
+    .arg(cpuset_range_for(limits.cpus));
 
     // The host's Docker socket is deliberately NOT mounted (it used to be).
     // Mounting it made anything inside the container root-equivalent on the
@@ -302,4 +416,41 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error running the Tauri application");
+}
+
+/// The first tests in this crate, and deliberately only over the one thing here
+/// that is arithmetic rather than a call into Docker or Tauri. What the rest of
+/// this file does is observable by running it; what this does is silently wrong
+/// on an input nobody thought about.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn two_gigabytes_more_than_the_memory() {
+        assert_eq!(plus_two_gigabytes("6g"), "8g");
+        assert_eq!(plus_two_gigabytes("4096m"), "6144m");
+    }
+
+    /// Handed back unchanged, which makes `--memory-swap` equal `--memory`:
+    /// swap disabled. That is what this launcher did for most of its life, and
+    /// it is a safe place to land — the alternative is guessing a number from
+    /// a unit we did not recognise and handing Docker a pair it refuses.
+    #[test]
+    fn a_unit_it_does_not_know_disables_swap_rather_than_guessing() {
+        assert_eq!(plus_two_gigabytes("6gb"), "6gb");
+        assert_eq!(plus_two_gigabytes("lots"), "lots");
+        assert_eq!(plus_two_gigabytes(""), "");
+    }
+
+    /// A count of cores becomes an inclusive range from zero; anything absent
+    /// falls back to half the host's, which is what this did before the
+    /// manifest could say anything.
+    #[test]
+    fn cores_become_an_inclusive_range() {
+        assert_eq!(cpuset_range_for(Some(4)), "0-3");
+        assert_eq!(cpuset_range_for(Some(1)), "0-0");
+        assert_eq!(cpuset_range_for(Some(0)), cpuset_range());
+        assert_eq!(cpuset_range_for(None), cpuset_range());
+    }
 }

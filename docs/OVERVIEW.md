@@ -95,7 +95,7 @@ root — see "Manifest" below for why).
     policy/legal trade-off rather than a technical one, so Open VSX + closest maintained
     equivalent stays the default.
 - **Manifest `.code-server.stack.json`** — a `{ stack: version }` object with the current
-  selection, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
+  selection **plus an optional `limits` object**, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
   because it's easier to extend (e.g. something more per stack in the future) and for other tools
   (e.g. the Rust `start`) to read without a hand-rolled parser; the cost is depending on `jq` in
   `core/`. **Lives at the consuming repo's own root, not inside `.code-server/`** — since the
@@ -108,6 +108,33 @@ root — see "Manifest" below for why).
   already made independently.
 - **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
   in the manifest; each selected stack's version is then asked in turn.
+- **`limits`** — what the *container* runs under, read by `start` and by nothing in the image, so a
+  change needs the container recreated rather than the image rebuilt. Asked after the stacks
+  because it is usually left alone. All three fields are optional and every default is what `start`
+  used before the manifest could say anything, so a project that has never heard of `limits` gets
+  what it got before.
+
+  ```json
+  { "java": "21", "limits": { "memory": "6g", "memorySwap": "8g", "cpus": 4 } }
+  ```
+
+  - `memory` → `--memory`. Default `6g`. **A value the host cannot actually supply does not fail
+    as a refusal**: the container never reaches its own limit, so the cgroup records no OOM and the
+    host kills whichever process allocated last — a Chrome renderer, in the case that produced this
+    field, with `oom_kill 0` and a browser suite that read as flaky for weeks. There is no value
+    this template can pick for somebody else's machine, which is why it is asked rather than
+    shipped.
+  - `memorySwap` → `--memory-swap`, which is memory **plus** swap and can therefore never be below
+    `memory`; Docker refuses the pair and names neither value in its message. Omitted, `start`
+    derives memory + 2g. On a host with `SwapTotal: 0` it grants nothing whatever it says.
+  - `cpus` → `--cpuset-cpus=0-(n-1)`, **affinity and not a quota**. Omitted, half the host's logical
+    CPUs. `--cpus` sets a CFS quota the guest cannot observe — `nproc` still reports the host's
+    count — so anything sizing its own parallelism from it oversubscribes and gets OOM-killed
+    rather than merely running slowly. Affinity is what `sched_getaffinity` reflects, which makes
+    the limit visible to guest tooling.
+
+  A malformed manifest falls back to the defaults instead of refusing to start: `setup` is where a
+  bad value is caught, because that is where somebody is looking at a prompt.
 - **Execution flow**: reads the current manifest → shows the menu → writes the new manifest →
   calls `core/compose-dockerfile.sh` to concatenate `core/Dockerfile.frag` + the `Dockerfile.frag`
   of each selected stack (dependencies first, `{{VERSION}}` substituted) into
