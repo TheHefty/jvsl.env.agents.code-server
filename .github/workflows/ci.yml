@@ -46,6 +46,17 @@ jobs:
         working-directory: start
         run: cargo test --release --locked
 
+  editor-defaults:
+    # The merge that puts the image's default settings into an environment that
+    # already exists. Its direction is the thing worth guarding: inverted, it is
+    # silent and it quietly puts a setting back on every restart, which is the
+    # kind of bug the reader blames on the editor.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the merge honours what is already there
+        run: bash core/cont-init/30-editor-defaults.test.sh
+
   title-bar:
     # The one piece of this launcher that runs inside somebody else's page, and the
     # one written to fail quietly: if code-server stops calling its title bar
@@ -107,7 +118,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, editor-defaults, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

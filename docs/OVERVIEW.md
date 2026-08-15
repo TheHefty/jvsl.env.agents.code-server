@@ -27,6 +27,36 @@ root — see "Manifest" below for why).
   socket (see "Why the container is this permissive" under `start` below for why the host socket
   was removed) — it doesn't change how the dev environment itself is brought up, which stays
   `start`'s `docker run` on the host.
+- **Default editor settings reach environments that already exist.** The values live in
+  `core/settings-defaults.json` — one file, read both by the build-time seeding and by
+  `core/cont-init/30-editor-defaults.sh`, because two copies of a default list is two lists that
+  disagree the first time somebody edits one. Seeding alone only ever reached **new** environments:
+  Docker copies an image directory into a named volume once, when the volume is empty, so every
+  default added after somebody's volume was created never arrived. Not hypothetical —
+  `chat.disableAIFeatures` shipped on 2026-07-30 and an environment older than that still had the
+  chat button, with nothing anywhere saying why.
+  - **Absent keys only.** A value already in `settings.json` is the reader's, whether they typed it
+    or an older image wrote it; `jq '.[0] * .[1]'` with the defaults first gives the existing file
+    priority on every key it has. `false` is a value and not a gap.
+  - **A file `jq` cannot read is left exactly as it is.** VS Code accepts comments and trailing
+    commas in `settings.json` and `jq` accepts neither, so a reader who has commented theirs simply
+    stops receiving new defaults — better than truncating something they have kept for a year.
+    There is no separate check for it: the merge fails and its failure path already leaves the file
+    alone. A guard in front of that read as prudence and was removed once no test could tell the
+    two apart.
+  - Tested in CI (`core/cont-init/30-editor-defaults.test.sh`, driving the real script through
+    `EDITOR_DEFAULTS`/`EDITOR_SETTINGS`). The direction of the merge is what the tests exist for:
+    inverted, it is silent and it puts a setting back on every restart, which the reader blames on
+    the editor.
+- **`window.menuBarVisibility: "classic"`** draws the menus as a row instead of the web build's
+  single hamburger. It is also load-bearing for `start`: the window's own buttons are injected into
+  that row, and with the menu bar hidden there is no `.part.titlebar` to inject into — so the
+  window would lose its close button. See `start` below.
+- **Core extensions** — `file-icons`, `alexkrechik.cucumberautocomplete` (feature files are how a
+  project's acceptance criteria are written and reviewed, whatever language it is written in) and
+  `cweijan.vscode-database-client2` (the services a dev environment brings up nearly always include
+  a database, and reaching it otherwise means a client installed by hand in every project). Every
+  id verified against `open-vsx.org`'s API before being added, as the per-stack ones are.
 - **Default editor settings** — `core/Dockerfile.frag` writes `/config/data/User/settings.json`
   with `workbench.colorTheme: "Dark Modern"` and `workbench.editorAssociations: {"*.md":
   "vscode.markdown.preview.editor"}` (`.md` files open in preview, not the raw source editor).

@@ -1,0 +1,8 @@
+{
+  "workbench.colorTheme": "Dark Modern",
+  "workbench.iconTheme": "file-icons",
+  "workbench.editorAssociations": { "*.md": "vscode.markdown.preview.editor" },
+  "terminal.integrated.gpuAcceleration": "off",
+  "chat.disableAIFeatures": true,
+  "window.menuBarVisibility": "classic"
+}
