@@ -1,0 +1,66 @@
+#!/bin/sh
+# The gate before a push: everything CI checks that does not need a Docker build.
+#
+# What is left out is deliberate and is the expensive half — `core-build` and
+# `stack-build` build images, take minutes, and are exactly what a hook people
+# skip with `--no-verify` looks like. CI runs them and cannot be skipped.
+#
+# What is in is what breaks by accident and is cheap to notice: shell syntax
+# across scripts that no longer all end in `.sh`, the package table `init`
+# offers to install from, the settings merge whose direction is silent when
+# inverted, the injected title bar that fails quietly by design, and the Rust.
+#
+# Enable it once per clone (git config is not versioned):
+#
+#     git config core.hooksPath .githooks
+#
+# `git push --no-verify` skips it.
+
+set -e
+
+root=$(git rev-parse --show-toplevel)
+refs=$(cat)
+
+# A push straight to `main`, refused before anything runs.
+#
+# **This is not branch protection.** Nothing on the server refuses it; what
+# refuses it is a hook that has to be installed by hand, that a fresh clone does
+# not have, that `--no-verify` skips, and that the web UI, the API, `gh` and
+# Actions never run at all. What it buys is catching a slip — and a slip is the
+# failure mode that actually happens: merging with `--delete-branch` puts the
+# checkout back on `main`, which is where the next piece of work then lands.
+#
+# The ref is checked rather than the sha, so a force-push and a deletion of
+# `main` are refused too.
+printf '%s\n' "$refs" | while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "pre-push: refusing to push straight to main. Open a pull request instead." >&2
+    echo "          If this is deliberate: git push --no-verify" >&2
+    exit 1
+  fi
+done || exit 1
+
+cd "$root"
+
+echo "pre-push: shell syntax"
+# `init` and `dev` end in no extension, which is how they went unchecked until
+# CI was told about them by name. The list is the same one ci.yml uses.
+find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \) \
+  -not -path './start/target/*' -print0 | xargs -0 -n1 bash -n
+
+echo "pre-push: the host package table"
+bash packages.test.sh
+
+echo "pre-push: the editor defaults merge"
+bash core/cont-init/30-editor-defaults.test.sh
+
+echo "pre-push: the injected title bar"
+node --test start/src/title_bar.test.mjs
+
+echo "pre-push: the launcher"
+# --locked for the same reason CI uses it: a Cargo.lock left behind by a version
+# bump fails here rather than turning up as a dirty submodule in a consuming
+# monorepo.
+(cd start && cargo test --release --locked)
+
+echo "pre-push: ok"

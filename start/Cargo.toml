@@ -13,3 +13,6 @@ tauri-build = "2"
 [dependencies]
 tauri = { version = "2", features = [] }
 ureq = "2"
+# Already in the tree via tauri; named here because this crate reads the
+# project manifest itself. See limits() in src/main.rs.
+serde_json = "1"

@@ -102,6 +102,71 @@ for name in "${SELECTED_STACKS[@]}"; do
     NEW_MANIFEST=$(jq --arg s "$name" --arg v "$VERSION" '. + {($s): $v}' <<<"$NEW_MANIFEST")
 done
 
+# The limits the container runs under. Asked after the stacks because they are
+# usually left alone: the defaults offered are whatever the manifest already
+# says, and whatever `start` would use on its own the first time round.
+#
+# They live in the same manifest for the same reason the stack selection does —
+# they are per-project intent, they depend on the machine this is checked out
+# on, and anything kept inside `.code-server/` is the submodule's own tree.
+#
+# `start` reads them; nothing in the image does, so changing one needs the
+# container recreated, not rebuilt.
+CURRENT_MEMORY="$(jq -r '.limits.memory // "6g"' <<<"$CURRENT")"
+CURRENT_SWAP="$(jq -r '.limits.memorySwap // empty' <<<"$CURRENT")"
+CURRENT_CPUS="$(jq -r '.limits.cpus // empty' <<<"$CURRENT")"
+
+if ! MEMORY=$(whiptail --title "setup" --inputbox \
+        "Memory the container may use, e.g. 6g or 4096m.\n\nA value the host cannot actually supply does not fail as a refusal: the container never reaches its own limit, so the host kills whichever process allocated last and nothing records why." \
+        14 70 "$CURRENT_MEMORY" 3>&1 1>&2 2>&3); then
+    echo "setup: cancelled." >&2
+    exit 1
+fi
+
+if ! [[ "$MEMORY" =~ ^[0-9]+[mg]$ ]]; then
+    echo "setup: memory must be a number followed by m or g, e.g. 6g. Got: $MEMORY" >&2
+    exit 1
+fi
+
+# Total memory *plus* swap, which is why it can never be below memory — Docker
+# refuses the pair and its message names neither value. Left empty, `start`
+# derives memory + 2g.
+if ! SWAP=$(whiptail --title "setup" --inputbox \
+        "Memory plus swap, e.g. 8g against 6g of memory. Never below the memory above.\n\nLeave empty to let it derive memory + 2g. On a host with no swap configured this grants nothing whatever it says." \
+        13 70 "$CURRENT_SWAP" 3>&1 1>&2 2>&3); then
+    echo "setup: cancelled." >&2
+    exit 1
+fi
+
+if [ -n "$SWAP" ] && ! [[ "$SWAP" =~ ^[0-9]+[mg]$ ]]; then
+    echo "setup: memory-swap must be a number followed by m or g, or empty. Got: $SWAP" >&2
+    exit 1
+fi
+
+# How many cores to pin, and pinning is the point: this becomes
+# `--cpuset-cpus`, which `nproc` inside the container reflects, and not
+# `--cpus`, which it does not. Anything that sizes its own parallelism from the
+# CPU count oversubscribes under a quota it cannot see.
+if ! CPUS=$(whiptail --title "setup" --inputbox \
+        "How many CPU cores to pin the container to.\n\nLeave empty for half the host's. This sets affinity rather than a quota, so tools that read nproc size themselves correctly instead of oversubscribing." \
+        13 70 "$CURRENT_CPUS" 3>&1 1>&2 2>&3); then
+    echo "setup: cancelled." >&2
+    exit 1
+fi
+
+if [ -n "$CPUS" ] && ! [[ "$CPUS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "setup: cpus must be a whole number of cores, or empty. Got: $CPUS" >&2
+    exit 1
+fi
+
+NEW_MANIFEST=$(jq --arg m "$MEMORY" '. + {limits: {memory: $m}}' <<<"$NEW_MANIFEST")
+if [ -n "$SWAP" ]; then
+    NEW_MANIFEST=$(jq --arg s "$SWAP" '.limits += {memorySwap: $s}' <<<"$NEW_MANIFEST")
+fi
+if [ -n "$CPUS" ]; then
+    NEW_MANIFEST=$(jq --argjson c "$CPUS" '.limits += {cpus: $c}' <<<"$NEW_MANIFEST")
+fi
+
 echo "$NEW_MANIFEST" | jq '.' > "$MANIFEST"
 
 # Composes the Dockerfile: core + each selected stack (dependencies first),

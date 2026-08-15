@@ -27,6 +27,36 @@ root — see "Manifest" below for why).
   socket (see "Why the container is this permissive" under `start` below for why the host socket
   was removed) — it doesn't change how the dev environment itself is brought up, which stays
   `start`'s `docker run` on the host.
+- **Default editor settings reach environments that already exist.** The values live in
+  `core/settings-defaults.json` — one file, read both by the build-time seeding and by
+  `core/cont-init/30-editor-defaults.sh`, because two copies of a default list is two lists that
+  disagree the first time somebody edits one. Seeding alone only ever reached **new** environments:
+  Docker copies an image directory into a named volume once, when the volume is empty, so every
+  default added after somebody's volume was created never arrived. Not hypothetical —
+  `chat.disableAIFeatures` shipped on 2026-07-30 and an environment older than that still had the
+  chat button, with nothing anywhere saying why.
+  - **Absent keys only.** A value already in `settings.json` is the reader's, whether they typed it
+    or an older image wrote it; `jq '.[0] * .[1]'` with the defaults first gives the existing file
+    priority on every key it has. `false` is a value and not a gap.
+  - **A file `jq` cannot read is left exactly as it is.** VS Code accepts comments and trailing
+    commas in `settings.json` and `jq` accepts neither, so a reader who has commented theirs simply
+    stops receiving new defaults — better than truncating something they have kept for a year.
+    There is no separate check for it: the merge fails and its failure path already leaves the file
+    alone. A guard in front of that read as prudence and was removed once no test could tell the
+    two apart.
+  - Tested in CI (`core/cont-init/30-editor-defaults.test.sh`, driving the real script through
+    `EDITOR_DEFAULTS`/`EDITOR_SETTINGS`). The direction of the merge is what the tests exist for:
+    inverted, it is silent and it puts a setting back on every restart, which the reader blames on
+    the editor.
+- **`window.menuBarVisibility: "classic"`** draws the menus as a row instead of the web build's
+  single hamburger. It is also load-bearing for `start`: the window's own buttons are injected into
+  that row, and with the menu bar hidden there is no `.part.titlebar` to inject into — so the
+  window would lose its close button. See `start` below.
+- **Core extensions** — `file-icons`, `alexkrechik.cucumberautocomplete` (feature files are how a
+  project's acceptance criteria are written and reviewed, whatever language it is written in) and
+  `cweijan.vscode-database-client2` (the services a dev environment brings up nearly always include
+  a database, and reaching it otherwise means a client installed by hand in every project). Every
+  id verified against `open-vsx.org`'s API before being added, as the per-stack ones are.
 - **Default editor settings** — `core/Dockerfile.frag` writes `/config/data/User/settings.json`
   with `workbench.colorTheme: "Dark Modern"` and `workbench.editorAssociations: {"*.md":
   "vscode.markdown.preview.editor"}` (`.md` files open in preview, not the raw source editor).
@@ -95,7 +125,7 @@ root — see "Manifest" below for why).
     policy/legal trade-off rather than a technical one, so Open VSX + closest maintained
     equivalent stays the default.
 - **Manifest `.code-server.stack.json`** — a `{ stack: version }` object with the current
-  selection, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
+  selection **plus an optional `limits` object**, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
   because it's easier to extend (e.g. something more per stack in the future) and for other tools
   (e.g. the Rust `start`) to read without a hand-rolled parser; the cost is depending on `jq` in
   `core/`. **Lives at the consuming repo's own root, not inside `.code-server/`** — since the
@@ -108,6 +138,33 @@ root — see "Manifest" below for why).
   already made independently.
 - **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
   in the manifest; each selected stack's version is then asked in turn.
+- **`limits`** — what the *container* runs under, read by `start` and by nothing in the image, so a
+  change needs the container recreated rather than the image rebuilt. Asked after the stacks
+  because it is usually left alone. All three fields are optional and every default is what `start`
+  used before the manifest could say anything, so a project that has never heard of `limits` gets
+  what it got before.
+
+  ```json
+  { "java": "21", "limits": { "memory": "6g", "memorySwap": "8g", "cpus": 4 } }
+  ```
+
+  - `memory` → `--memory`. Default `6g`. **A value the host cannot actually supply does not fail
+    as a refusal**: the container never reaches its own limit, so the cgroup records no OOM and the
+    host kills whichever process allocated last — a Chrome renderer, in the case that produced this
+    field, with `oom_kill 0` and a browser suite that read as flaky for weeks. There is no value
+    this template can pick for somebody else's machine, which is why it is asked rather than
+    shipped.
+  - `memorySwap` → `--memory-swap`, which is memory **plus** swap and can therefore never be below
+    `memory`; Docker refuses the pair and names neither value in its message. Omitted, `start`
+    derives memory + 2g. On a host with `SwapTotal: 0` it grants nothing whatever it says.
+  - `cpus` → `--cpuset-cpus=0-(n-1)`, **affinity and not a quota**. Omitted, half the host's logical
+    CPUs. `--cpus` sets a CFS quota the guest cannot observe — `nproc` still reports the host's
+    count — so anything sizing its own parallelism from it oversubscribes and gets OOM-killed
+    rather than merely running slowly. Affinity is what `sched_getaffinity` reflects, which makes
+    the limit visible to guest tooling.
+
+  A malformed manifest falls back to the defaults instead of refusing to start: `setup` is where a
+  bad value is caught, because that is where somebody is looking at a prompt.
 - **Execution flow**: reads the current manifest → shows the menu → writes the new manifest →
   calls `core/compose-dockerfile.sh` to concatenate `core/Dockerfile.frag` + the `Dockerfile.frag`
   of each selected stack (dependencies first, `{{VERSION}}` substituted) into
@@ -199,6 +256,50 @@ below), both in versions that were already listed in `versions.json` before this
   too, hence `--break-system-packages`), which works uniformly across all three versions instead of
   branching the fragment per-version.
 
+## `.githooks/pre-push`
+
+- **Everything CI checks that does not need a Docker build**: shell syntax, the host package table,
+  the editor-defaults merge, the injected title bar, and `cargo test --release --locked`. Enabled
+  per clone with `git config core.hooksPath .githooks`, because git config is not versioned.
+- **What is left out is the point.** `core-build` and `stack-build` build images and take minutes,
+  and a hook that takes minutes is a hook people skip with `--no-verify` — at which point it checks
+  nothing at all. CI runs those and cannot be skipped.
+- **It refuses a push straight to `main`**, before running anything. This is **not** branch
+  protection and must not be read as one: nothing on the server refuses it, a fresh clone does not
+  have the hook, `--no-verify` skips it, and the web UI, the API, `gh` and Actions never run it.
+  What it buys is catching a slip, which is the failure that actually happens — merging with
+  `--delete-branch` puts the checkout back on `main`, which is where the next piece of work then
+  lands. The ref is checked rather than the sha, so a force-push and a deletion are refused too.
+
+## `init` and `dev`
+
+- **`init`** — the host side, once. It exists because each of the manual steps fails in a way that
+  does not name its own cause: a missing `libwebkit2gtk-4.1-dev` surfaces forty seconds into
+  `cargo build` as `cannot find -lwebkit2gtk-4.1`, a missing `whiptail` surfaces as `setup` exiting
+  with nothing on screen, and on WSL without WSLg everything succeeds and no window ever appears.
+- **It checks the display before anything else**, because that is the failure that costs the most
+  to diagnose afterwards. On WSL it also requires the X socket WSLg serves — present but not
+  running is `wsl --shutdown` from Windows, not a package — and checks the X client libraries,
+  which a desktop has by definition and a WSL distribution routinely does not. Their absence shows
+  up as a **blank window** with nothing logged and nothing exiting.
+- **It offers to install what is missing**, mapping each dependency to its name per package manager
+  in `packages.sh` — a separate file so `init` and `packages.test.sh` read the same table. The
+  risk being guarded is specific: a wrong name installs the wrong thing on somebody's host, and an
+  absent one is worse, because `init` drops an empty result and the install then succeeds while
+  fixing nothing. CI checks that every dependency `init` looks for is named in all three managers.
+- **`cargo` is the exception it will not install.** A distribution's Rust is routinely older than
+  the Tauri crates require and the failure it produces is a compile error deep in a dependency; the
+  supported path is `rustup`, and `init` prints it rather than choosing for you.
+- **`dev`** — build if stale, then run. Staleness is `find -newer` against the crate's sources
+  rather than a timestamp kept somewhere, because a file we keep is a file that goes stale itself.
+  It is versioned rather than generated: it locates its own directory, so there is nothing about a
+  particular checkout to bake in, and a generated file inside `.code-server/` would leave the
+  submodule dirty in every consuming repo — the same reason the stack manifest lives one level up.
+  It cannot be called `start`, which is the crate's directory beside it.
+- **On WSL `dev` sets `WEBKIT_DISABLE_COMPOSITING_MODE=1`.** WSLg's compositor and WebKit disagree
+  in a way that opens the window and leaves it blank, with nothing logged. The variable is WebKit's
+  own switch for that path and costs a desktop nothing, so it is set rather than asked about.
+
 ## `start`
 
 - **Tauri** app, with only the source code versioned in the repo (no pre-built binaries) — whoever
@@ -211,6 +312,24 @@ below), both in versions that were already listed in `versions.json` before this
 - **Execution flow**: ensures the environment's container is running → reads back the host port
   Docker published for it → waits for code-server to respond on it → opens a WebView window
   pointing at `http://127.0.0.1:<port>`.
+- **No system title bar; the window's buttons go in the one code-server already draws.** The
+  default decoration was a row saying "Dev Environment" and nothing else, directly above the row
+  with File/Edit/View — the same strip of screen twice. The window is built with
+  `decorations(false)` and an initialization script (`start/src/title_bar.js`) puts minimise,
+  maximise and close at the right of VS Code's own title bar.
+  - **The drag region is that bar's background and not its children.** Tauri starts a drag when the
+    element that *received* the mousedown carries `data-tauri-drag-region`, and the attribute is
+    not inherited — so grabbing the empty part moves the window while every menu, breadcrumb and
+    command-centre click is untouched. Double-clicking a drag region toggles maximise natively.
+  - **The page is remote**, so the capability in `start/capabilities/default.json` declares
+    `remote.urls` and the window commands the bar calls; `withGlobalTauri` is what puts the API in
+    that page at all. Without either, the script injects nothing.
+  - **It couples to somebody else's DOM and fails quietly**: if code-server stops calling its title
+    bar `.part.titlebar`, nothing is injected, nothing complains, and the window is still usable
+    through the window manager. Silence is right there and is also why `start/src/title_bar.js` has
+    tests of its own in CI — the failure is otherwise invisible until somebody opens the window and
+    wonders where the buttons went. The script is a file rather than a Rust string so that what the
+    tests read is what the binary embeds.
 - **Orchestrating the application's own services (the monorepo's `docker-compose.yml`) is out of
   scope** — `setup`/`start` only handle the dev container. Bringing up the project's services
   (database, other microservices, etc.) is the responsibility of each monorepo instantiated from

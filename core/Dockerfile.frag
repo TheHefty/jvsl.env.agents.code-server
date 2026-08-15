@@ -170,10 +170,25 @@ RUN npm install -g @anthropic-ai/claude-code
 # place and closes that loop.
 ENV CLAUDE_CONFIG_DIR=/config/.claude
 
+# The core extensions, which are the ones that are not about a language: file
+# icons, Gherkin (feature files are how a project's acceptance criteria are
+# written and reviewed, whatever it is written in), and a database client (the
+# services a dev environment brings up nearly always include one, and reaching
+# it otherwise means a terminal client installed by hand in every project).
+#
+# Every id verified against open-vsx.org's API before being added, as the
+# per-stack ones already are: code-server's marketplace is the **Open VSX
+# Registry** and not Microsoft's, so a popular `publisher.name` from the real
+# Marketplace is not evidence that it resolves here. Checked:
+# `alexkrechik.cucumberautocomplete` and `cweijan.vscode-database-client2` both
+# publish there directly.
+
 RUN /app/code-server/bin/code-server \
     --extensions-dir /config/extensions \
     --user-data-dir /config/data \
-    --install-extension file-icons.file-icons || true
+    --install-extension file-icons.file-icons \
+    --install-extension alexkrechik.cucumberautocomplete \
+    --install-extension cweijan.vscode-database-client2 || true
 
 # 6.2 Default editor settings: Dark Modern theme, .md files open as preview
 # by default (not the raw source editor), GPU-accelerated terminal rendering
@@ -192,13 +207,36 @@ RUN /app/code-server/bin/code-server \
 # than additive. Key name verified against the VS Code build this image
 # actually ships (1.129.0 via code-server 4.129.0), not assumed.
 #
-# Written into user-data-dir now (not hand-edited later) so it lands in the
-# initial content Docker copies into the named /config volume on first mount —
-# same reasoning as the extension install above. Note the consequence: Docker
-# only seeds a volume that's *empty*, so this default reaches new environments
-# only. An already-running one keeps whatever settings.json its volume already
-# has, and needs the key added there directly.
-RUN mkdir -p /config/data/User && printf '%s' '{"workbench.colorTheme": "Dark Modern", "workbench.iconTheme": "file-icons", "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}, "terminal.integrated.gpuAcceleration": "off", "chat.disableAIFeatures": true}' > /config/data/User/settings.json
+# `window.menuBarVisibility: "classic"` draws the menus as a row — File, Edit,
+# Selection and the rest — instead of the single hamburger the web build shows
+# by default. Two reasons, and the second is the load-bearing one: the menus are
+# how anything without a keybinding is reached in a window with no browser
+# chrome around it, and **`start` puts the window's own buttons in that row**
+# (see start/src/title_bar.js). Hidden, there is no `.part.titlebar` for the
+# script to find, so it injects nothing and the window loses its close button.
+# The setting therefore belongs to the image and not to a preference somebody
+# sets later.
+#
+# The values live in core/settings-defaults.json — one file, read both by the
+# seeding below and by the cont-init script in 6.3, because two copies of a
+# default list is two lists that disagree the first time somebody edits one.
+#
+# Seeding still happens at build time so a brand-new volume arrives complete;
+# 6.3 is what reaches every environment that already exists, which the seeding
+# alone never could.
+COPY core/settings-defaults.json /etc/code-server/settings-defaults.json
+RUN mkdir -p /config/data/User \
+    && cp /etc/code-server/settings-defaults.json /config/data/User/settings.json
+
+# 6.3 And puts them into an environment that already exists, on every start.
+# Seeding /config/data at build time reaches new environments only — Docker
+# seeds a named volume from the image just once, when the volume is empty — so
+# every default added after somebody's volume was created never arrived. Not
+# hypothetical: `chat.disableAIFeatures` shipped on 2026-07-30 and an
+# environment older than that still had the chat button, with nothing anywhere
+# saying why. Absent keys only, so nothing the reader chose is undone.
+COPY core/cont-init/30-editor-defaults.sh /custom-cont-init.d/30-editor-defaults.sh
+RUN chmod +x /custom-cont-init.d/30-editor-defaults.sh
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
 RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/ai-jail-linux-x86_64.tar.gz \

@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: bash -n on all shell scripts
         run: |
-          find . -type f \( -name '*.sh' -o -name 'setup' \) -print0 \
+          find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \) -print0 \
             | xargs -0 -n1 bash -n
 
   cargo-check:
@@ -42,6 +42,49 @@ jobs:
         # --locked so a Cargo.lock left behind by a release bump fails here, on the release
         # PR itself, instead of turning up as a dirty submodule in a consuming monorepo.
         run: cargo check --release --locked
+      - name: cargo test
+        working-directory: start
+        run: cargo test --release --locked
+
+  host-packages:
+    # `init` offers to install what the table in packages.sh names, so a wrong
+    # name puts the wrong thing on somebody's host and a missing one is worse:
+    # the package drops out of the list silently, the install succeeds, and the
+    # dependency is still missing.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: every dependency is named in every package manager
+        run: bash packages.test.sh
+
+  editor-defaults:
+    # The merge that puts the image's default settings into an environment that
+    # already exists. Its direction is the thing worth guarding: inverted, it is
+    # silent and it quietly puts a setting back on every restart, which is the
+    # kind of bug the reader blames on the editor.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the merge honours what is already there
+        run: bash core/cont-init/30-editor-defaults.test.sh
+
+  title-bar:
+    # The one piece of this launcher that runs inside somebody else's page, and the
+    # one written to fail quietly: if code-server stops calling its title bar
+    # `.part.titlebar`, nothing is injected and nothing complains. Silence is the
+    # right behaviour there and the reason this job exists — the failure is
+    # otherwise invisible until somebody opens the window and wonders where the
+    # buttons went.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No package.json and no dependencies: the runner is node's own, and the
+      # script under test is read from disk as the binary embeds it.
+      - name: node --test
+        run: node --test start/src/title_bar.test.mjs
 
   core-build:
     runs-on: ubuntu-latest
@@ -86,7 +129,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
