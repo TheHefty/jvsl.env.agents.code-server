@@ -22,8 +22,36 @@
 # into the isolated build env itself when a project actually needs it.
 # Verified against all three versions this stack offers, not just the 3.11
 # that CI builds.
-RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository -y ppa:deadsnakes/ppa \
+# The PPA is added by writing its list file and its key, and **not** with
+# `add-apt-repository`. That command is not a line in sources.list: it pulls in
+# `software-properties-common` (packagekit, dbus, a systemd unit — all visible
+# in the build log and none of it wanted in this image), then uses launchpadlib
+# to ask **api.launchpad.net** which PPA is meant before writing anything. That
+# API call is a second network dependency in the middle of a build, and it is
+# the one that failed: `TimeoutError: [Errno 110] Connection timed out` after
+# 146 seconds, as a Python traceback, from a step whose actual job is to append
+# one line to a file.
+#
+# Writing it directly needs the archive host, which apt needs anyway, and the
+# signing key, whose fingerprint is pinned here and was checked against the key
+# the server actually serves rather than copied from a blog:
+#
+#     F23C 5A6C F475 9775 95C8  9F51 BA69 3236 6A75 5776
+#     uid: Launchpad PPA for deadsnakes
+#
+# `signed-by` scopes that key to this one repository, so a compromise of it
+# cannot sign packages for the rest of the system — which `add-apt-repository`
+# also does now, and is the only part of it worth keeping.
+#
+# The codename comes from the base image rather than being pinned: this
+# fragment is composed onto whatever `core` is FROM, and hardcoding `noble`
+# would break silently on the next base bump — apt would 404 on a dists path
+# that does not exist and say nothing about why.
+RUN . /etc/os-release \
+    && curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
+        | gpg --dearmor -o /usr/share/keyrings/deadsnakes.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/deadsnakes.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu $VERSION_CODENAME main" \
+        > /etc/apt/sources.list.d/deadsnakes.list \
     && apt-get update && apt-get install -y --no-install-recommends \
     python{{VERSION}} \
     python{{VERSION}}-venv \
