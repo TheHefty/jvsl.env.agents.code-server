@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: bash -n on all shell scripts
         run: |
-          find . -type f \( -name '*.sh' -o -name 'setup' \) -print0 \
+          find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \) -print0 \
             | xargs -0 -n1 bash -n
 
   cargo-check:
@@ -45,6 +45,17 @@ jobs:
       - name: cargo test
         working-directory: start
         run: cargo test --release --locked
+
+  host-packages:
+    # `init` offers to install what the table in packages.sh names, so a wrong
+    # name puts the wrong thing on somebody's host and a missing one is worse:
+    # the package drops out of the list silently, the install succeeds, and the
+    # dependency is still missing.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: every dependency is named in every package manager
+        run: bash packages.test.sh
 
   editor-defaults:
     # The merge that puts the image's default settings into an environment that
@@ -118,7 +129,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, editor-defaults, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

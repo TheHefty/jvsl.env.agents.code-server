@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Everything the host needs, once: check where we are, check what is missing,
+# offer to install it, build the image, build the launcher, and leave a `dev`
+# that opens the environment.
+#
+# It exists because the README's three steps each fail in a way that does not
+# name its own cause. A missing `libwebkit2gtk-4.1-dev` surfaces forty seconds
+# into `cargo build` as `cannot find -lwebkit2gtk-4.1`; a missing `whiptail`
+# surfaces as `setup` exiting with nothing on screen; and on WSL without WSLg
+# everything succeeds and no window ever appears.
+#
+# Safe to run again. Every step here is either a check or something that was
+# already idempotent — `setup` rewrites the manifest and rebuilds the image,
+# `cargo build` is a no-op when nothing changed.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+say() { printf 'init: %s\n' "$1"; }
+die() { printf 'init: %s\n' "$1" >&2; exit 1; }
+
+# --- where we are ------------------------------------------------------------
+#
+# The launcher opens a native window, so what matters is not the distribution
+# but whether anything can draw. WSL is called out separately because it is the
+# one environment where every command below succeeds and the window still never
+# appears — WSLg is what provides the display, and a WSL 1 or a stripped WSL 2
+# has none.
+
+case "$(uname -s)" in
+    Linux) ;;
+    *) die "this expects Linux, or WSL. Found $(uname -s)." ;;
+esac
+
+IS_WSL=no
+if grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; then
+    IS_WSL=yes
+fi
+
+WSL_LIBRARIES=()
+if [ "$IS_WSL" = yes ]; then
+    say "WSL detected."
+    if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && [ ! -d /mnt/wslg ]; then
+        die "no display: this needs WSLg (Windows 11, or Windows 10 with WSLg installed).
+      Everything below would build and the window would never open."
+    fi
+
+    # WSLg serves X through a socket bind-mounted from the host side. Present
+    # but empty means WSLg is installed and not running, which is a restart of
+    # the distribution (`wsl --shutdown` from Windows) and not anything to
+    # install.
+    if [ -n "${DISPLAY:-}" ] && [ ! -e /tmp/.X11-unix/X0 ] && [ ! -d /mnt/wslg ]; then
+        die "DISPLAY is set to '$DISPLAY' and there is no X socket at /tmp/.X11-unix/X0.
+      WSLg is not running. From Windows: wsl --shutdown, then start the distribution again."
+    fi
+
+    # The X client libraries, checked here and not on a desktop for a reason: a
+    # desktop has them because something is already drawing on it, while a WSL
+    # distribution is routinely installed with no graphical stack at all. They
+    # are what a GTK application links against to talk to WSLg, and without them
+    # this fails as a **blank window**, which is the worst kind of failure to
+    # inherit — nothing is logged, nothing exits, and the launcher looks broken.
+    WSL_LIBRARIES=(x11 gl)
+fi
+
+if [ "$IS_WSL" = no ] &&  [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    die "no display found (DISPLAY and WAYLAND_DISPLAY are both empty).
+      The launcher opens a native window; over plain SSH there is nothing to open it on."
+fi
+
+# --- what is missing ---------------------------------------------------------
+#
+# Commands are checked by name and the Tauri libraries through pkg-config,
+# because a library is present as a .so that no `command -v` will find. The
+# package names differ per distribution and are listed rather than guessed from
+# the command name: `whiptail` comes from `newt` on Fedora and `libnewt` on
+# Arch, and getting that wrong installs something else entirely.
+
+MISSING_COMMANDS=()
+for command_ in jq whiptail docker curl wget file pkg-config; do
+    command -v "$command_" >/dev/null 2>&1 || MISSING_COMMANDS+=("$command_")
+done
+
+MISSING_LIBRARIES=()
+for library in webkit2gtk-4.1 libxdo openssl librsvg-2.0 ayatana-appindicator3-0.1 \
+    "${WSL_LIBRARIES[@]+"${WSL_LIBRARIES[@]}"}"; do
+    pkg-config --exists "$library" 2>/dev/null || MISSING_LIBRARIES+=("$library")
+done
+
+if ! command -v cc >/dev/null 2>&1; then
+    MISSING_COMMANDS+=(cc)
+fi
+
+# --- offering to install it --------------------------------------------------
+
+# shellcheck source=packages.sh
+. "$HERE/packages.sh"
+
+
+if [ "${#MISSING_COMMANDS[@]}" -gt 0 ] || [ "${#MISSING_LIBRARIES[@]}" -gt 0 ]; then
+    if command -v apt-get >/dev/null 2>&1; then
+        MANAGER=apt
+        INSTALL=(sudo apt-get install -y --no-install-recommends)
+    elif command -v dnf >/dev/null 2>&1; then
+        MANAGER=dnf
+        INSTALL=(sudo dnf install -y)
+    elif command -v pacman >/dev/null 2>&1; then
+        MANAGER=pacman
+        INSTALL=(sudo pacman -S --needed --noconfirm)
+    else
+        die "missing: ${MISSING_COMMANDS[*]} ${MISSING_LIBRARIES[*]}
+      No apt, dnf or pacman here, so this cannot name the packages for you.
+      Install the equivalents and run this again."
+    fi
+
+    PACKAGES=()
+    for want in "${MISSING_COMMANDS[@]+"${MISSING_COMMANDS[@]}"}" "${MISSING_LIBRARIES[@]+"${MISSING_LIBRARIES[@]}"}"; do
+        package="$(packages_for "$MANAGER" "$want")"
+        [ -n "$package" ] && PACKAGES+=("$package")
+    done
+
+    say "missing on this host: ${MISSING_COMMANDS[*]+${MISSING_COMMANDS[*]}} ${MISSING_LIBRARIES[*]+${MISSING_LIBRARIES[*]}}"
+    printf 'init: would run: %s %s\n' "${INSTALL[*]}" "${PACKAGES[*]}"
+    read -r -p "init: install them now? [y/N] " answer
+    case "$answer" in
+        [yY]*) "${INSTALL[@]}" "${PACKAGES[@]}" ;;
+        *) die "nothing installed. Install those packages and run this again." ;;
+    esac
+fi
+
+# Rust is deliberately not installed from the distribution: the packaged
+# toolchain is routinely older than what the Tauri crates require, and the
+# failure it produces is a compile error deep in a dependency rather than
+# anything saying "your Rust is old". rustup is the supported path and is a
+# one-liner the reader should run themselves.
+if ! command -v cargo >/dev/null 2>&1; then
+    die "cargo is not installed, and this will not install it from the distribution —
+      a packaged Rust is usually too old for the Tauri crates and says so only as a
+      compile error inside a dependency. Install rustup and run this again:
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+fi
+
+if ! docker info >/dev/null 2>&1; then
+    die "docker is installed but not usable by this user.
+      Either the daemon is not running, or you are not in the 'docker' group:
+          sudo systemctl enable --now docker
+          sudo usermod -aG docker \"\$USER\"   # then log out and back in"
+fi
+
+# --- the image, the launcher, the shortcut -----------------------------------
+
+say "building the image (stack selection follows)."
+"$HERE/setup"
+
+say "building the launcher."
+(cd "$HERE/start" && cargo build --release)
+
+chmod +x "$HERE/dev"
+
+say "done. Open the environment with:"
+printf '    %s\n' "$HERE/dev"
