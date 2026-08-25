@@ -239,9 +239,33 @@ COPY core/cont-init/30-editor-defaults.sh /custom-cont-init.d/30-editor-defaults
 RUN chmod +x /custom-cont-init.d/30-editor-defaults.sh
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
-RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/ai-jail-linux-x86_64.tar.gz \
-    | tar xz -C /usr/local/bin \
+#
+# Pinned to a release, where this step used to fetch `releases/latest`. ai-jail
+# ships security-default migrations in ordinary minor releases — v1.18.0
+# (2026-08-16) turned network, agent state, GPU, display and the rest into
+# explicit opt-ins in one go — so tracking latest means the sandbox the image
+# builds can change underneath a project on a rebuild that changed nothing else.
+# It already did: the network default flipping is what sent an agent in a freshly
+# rebuilt image looking for a WSL networking fault that was never there.
+#
+# The digest is checked rather than trusted from the release page, because a tag
+# is a moving target — assets can be replaced without the URL changing. Bump the
+# two together, and read the release notes on the way: this dependency's minor
+# versions are where its threat model changes.
+RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/download/v1.20.1/ai-jail-linux-x86_64.tar.gz -o /tmp/ai-jail.tar.gz \
+    && echo "f0d974f29a0ae37c0ca4fcfee6b3ca92ee3220e31e4e0a013b5e5a99c9851962  /tmp/ai-jail.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/ai-jail.tar.gz -C /usr/local/bin \
+    && rm /tmp/ai-jail.tar.gz \
     && chmod +x /usr/local/bin/ai-jail
+
+# 7.1 Makes the sandbox the default rather than something to remember: the
+# `claude` that PATH resolves is the wrapper, which re-execs the real CLI
+# inside ai-jail. It is named claude.sh in the tree so CI's `bash -n` sweep
+# (which globs *.sh, plus the three extensionless executables by name) covers
+# it, and renamed on the way in because PATH is what has to read `claude`.
+# Why it passes the flags it passes is argued in the script itself.
+COPY core/bin/claude.sh /usr/local/bin/claude
+RUN chmod +x /usr/local/bin/claude
 
 # The image stays as root: LinuxServer's s6-overlay needs to start as root
 # so it can then apply PUID/PGID and drop privileges to user 'abc'.
