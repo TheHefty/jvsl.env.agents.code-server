@@ -438,15 +438,24 @@ otherwise it creates it with `docker run` on the first run.
     quotas.
   - **Environment work that used to be possible from the agent's shell** (booting the android
     emulator, checking whether an image rebuild took) is now either a human step in code-server's
-    terminal or an explicit, narrow grant. Grants go in the project's `.ai-jail`, e.g.
-    `--rw-map /dev/kvm --rw-map /config/android-avd` for emulator work, or `--rw-map /config/.docker`
-    to let the agent reach the nested daemon's socket at all (a unix socket needs *write* permission
-    to connect, so a read-only bind won't do).
+    terminal or an explicit, narrow grant: `--rw-map /dev/kvm --rw-map /config/android-avd` for
+    emulator work, or `--rw-map /config/.docker` to let the agent reach the nested daemon's socket at
+    all (a unix socket needs *write* permission to connect, so a read-only bind won't do).
 
-    **What a project's `.ai-jail` can grant is bounded, though, and this paragraph used to imply
-    otherwise.** It widens the *filesystem* map and not much else: the settings that weaken the
-    baseline are refused outright when they come from project config, with `project .ai-jail
-    network ignored because it weakens the baseline sandbox` and the setting simply left off.
+    **Those grants do not go in the project's `.ai-jail`, and this paragraph said they did until
+    2026-08-25.** A project config may widen the filesystem map only *within the project*: a map
+    pointing anywhere else is dropped as an outside map, with `project .ai-jail map /config/.docker
+    outside project ignored (use --rw-map/--ro-map or global config)`. Every path named above is
+    outside `/config/workspace`, so every one of them was refused — which is why the Docker grant
+    this document has prescribed since v1.3.0 could never take effect where it said to put it, and
+    why the `claude` wrapper passes it now. Measured against v1.20.1 rather than read off the
+    README, and it is a stricter rule than the one below rather than the same one: the maps are
+    bounded by *location*, and the settings below by what they weaken.
+
+    **What a project's `.ai-jail` can grant is bounded in a second way too.** The settings that
+    weaken the baseline are refused outright when they come from project config, with `project
+    .ai-jail network ignored because it weakens the baseline sandbox` and the setting simply left
+    off.
     `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
     must not be able to widen the sandbox it is about to run under — and the consequence is that
     those two get decided in the image instead, which is the operator's side of the same line. See
