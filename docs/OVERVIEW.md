@@ -17,8 +17,10 @@ root — see "Manifest" below for why).
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
   the Claude Code CLI), Claude Code CLI (reached through `core/bin/claude.sh`, installed as
   `/usr/local/bin/claude` so the `claude` that PATH resolves is the sandboxed one — see "Why the
-  container is this permissive" under `start`), `ai-jail`, `jq` (required by `setup` to read and
-  edit the manifest), Rust via `rustup` + the Tauri Linux libs, `docker.io` + `docker-compose-v2`
+  container is this permissive" under `start`), `ai-jail`, `ai-memory` (long-term memory across
+  sessions and across agent CLIs, off unless the project opts in — same section), `jq` (required
+  by `setup` to read and edit the manifest), Rust via `rustup` + the Tauri Linux libs,
+  `docker.io` + `docker-compose-v2`
   (`docker compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't
   pull it in — confirmed missing by actually running `docker compose version` inside a built image
   before adding it; Ubuntu's own repo package is `docker-compose-v2`, not `docker-compose-plugin`
@@ -627,6 +629,35 @@ otherwise it creates it with `docker run` on the first run.
   exist. The digest is checked rather than taken on trust from the release page, because a tag can
   be repointed and its assets replaced without the URL moving. Bumping it is a deliberate step now,
   and its release notes are worth reading on the way past.
+- **`ai-memory` runs per project, inside the container, and only when the project asks for it.**
+  One server per container, which is one per project, reached by the agent over the loopback the
+  sandbox already shares — measured from inside `ai-jail`, where code-server's own
+  `127.0.0.1:8443` answers. Cross-project memory was considered and rejected: it would put the
+  server on the host, and the container has no route there. `start` publishes code-server as
+  `-p 127.0.0.1:0:8443` and avoids `--network host` on purpose, so the only path that exists runs
+  host to container.
+
+  The opt-in is `ai-memory`'s own `.ai-memory.toml` marker rather than a switch the template
+  invents, and it is enforced twice. `core/services/svc-ai-memory/run` parks on `sleep infinity`
+  without it, so nothing listens; `install-hooks --capture-mode allowlist` in
+  `core/cont-init/40-ai-memory.sh` makes a repository without a marker emit no lifecycle event at
+  all, dropped by the native hook before it reaches any spool or wire. Forgetting a marker then
+  costs recall rather than confidentiality, which is the right way round for something that
+  captures prompts and tool excerpts. No LLM provider is configured: zero-LLM mode still gives
+  FTS5, entity and graph-neighbour search plus rule-based summarisation, which is the handoff this
+  is here for. A provider buys consolidated pages and contradiction lint, and costs sending
+  captured content to it.
+
+  Two mechanics are worth knowing before touching this. **Registration happens on every boot, not
+  at build time**, for the reason the android stack already documents: it writes under `/config`, a
+  named volume Docker seeds from the image only on first mount, so anything baked during
+  `docker build` is shadowed the moment a real volume mounts over it. And **the wrapper maps the
+  store into the sandbox**, conditionally. The installed Claude Code hooks are native invocations
+  of the binary — `/usr/local/bin/ai-memory ... hook --event ...`, not the staged shell scripts
+  under `~/.local`, which matters because that path is on the sandbox's throwaway tmpfs — and they
+  read their capture policy out of the store, whose path is baked into each hook command. So
+  `core/bin/claude.sh` adds `--rw-map /config/ai-memory` when that directory exists, and nothing
+  when it doesn't: a project that never opted in gets no widening of the map at all.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps

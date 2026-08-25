@@ -53,11 +53,28 @@ if [[ -n "${CLAUDE_JAILED:-}" ]]; then
   exec /usr/bin/claude "$@"
 fi
 
-exec ai-jail \
-  --network \
-  --agent-state \
-  --env CLAUDE_JAILED=1 \
-  --env CLAUDE_CONFIG_DIR \
-  --env GH_TOKEN \
-  --no-save-config \
-  claude "$@"
+jail_args=(
+  --network
+  --agent-state
+  --env CLAUDE_JAILED=1
+  --env CLAUDE_CONFIG_DIR
+  --env GH_TOKEN
+  --no-save-config
+)
+
+# ai-memory's lifecycle hooks run *inside* the sandbox — the installed Claude
+# Code hook config invokes the binary directly, not the staged shell scripts —
+# and they read their capture policy out of the store, whose path is baked into
+# each hook command. Without the store mapped, that path resolves inside the
+# synthesized /config, where it does not exist.
+#
+# Conditional, because the directory only exists once a project has opted in
+# through its .ai-memory.toml marker (see core/services/svc-ai-memory/run). A
+# project that never opted in gets no extra grant at all, which is the point:
+# this widens the sandbox's map, so it should widen only where it buys
+# something.
+if [[ -d /config/ai-memory ]]; then
+  jail_args+=(--rw-map /config/ai-memory)
+fi
+
+exec ai-jail "${jail_args[@]}" claude "$@"
