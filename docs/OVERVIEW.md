@@ -15,11 +15,13 @@ root — see "Manifest" below for why).
 ## `setup`
 
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
-  the Claude Code CLI), Claude Code CLI, `ai-jail`, `jq` (required by `setup` to read and edit the
-  manifest), Rust via `rustup` + the Tauri Linux libs, `docker.io` + `docker-compose-v2` (`docker
-  compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't pull it
-  in — confirmed missing by actually running `docker compose version` inside a built image before
-  adding it; Ubuntu's own repo package for this is `docker-compose-v2`, not `docker-compose-plugin`
+  the Claude Code CLI), Claude Code CLI (reached through `core/bin/claude.sh`, installed as
+  `/usr/local/bin/claude` so the `claude` that PATH resolves is the sandboxed one — see "Why the
+  container is this permissive" under `start`), `ai-jail`, `jq` (required by `setup` to read and
+  edit the manifest), Rust via `rustup` + the Tauri Linux libs, `docker.io` + `docker-compose-v2`
+  (`docker compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't
+  pull it in — confirmed missing by actually running `docker compose version` inside a built image
+  before adding it; Ubuntu's own repo package is `docker-compose-v2`, not `docker-compose-plugin`
   — that name is only for Docker's own upstream apt repo, which this template doesn't add), and
   `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` plus the `svc-dockerd-rootless` s6 service
   that turns them into a nested rootless daemon. `docker compose` here is for the monorepo's own
@@ -410,6 +412,15 @@ otherwise it creates it with `docker run` on the first run.
     to let the agent reach the nested daemon's socket at all (a unix socket needs *write* permission
     to connect, so a read-only bind won't do).
 
+    **What a project's `.ai-jail` can grant is bounded, though, and this paragraph used to imply
+    otherwise.** It widens the *filesystem* map and not much else: the settings that weaken the
+    baseline are refused outright when they come from project config, with `project .ai-jail
+    network ignored because it weakens the baseline sandbox` and the setting simply left off.
+    `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
+    must not be able to widen the sandbox it is about to run under — and the consequence is that
+    those two get decided in the image instead, which is the operator's side of the same line. See
+    the `claude` wrapper bullet below.
+
     **Those grants are not peers, though, and an earlier claim here — that the nested daemon means
     "the agent can no longer inspect or patch its own container" — was wrong.** Measured from inside
     `ai-jail` (2026-07-30, demonstrated rather than reasoned about): the nested daemon runs *in* this
@@ -499,19 +510,29 @@ otherwise it creates it with `docker run` on the first run.
   **That relocation does not, however, let the agent's own shell run the emulator** — an earlier
   claim here that `/config` is "writable under `ai-jail` too, since it isn't a system path" was too
   broad and has been corrected. `ai-jail` doesn't pass `/config` through as one mount: it builds a
-  *fresh tmpfs* at `/config` and binds in a hand-picked set of children (`.android`, `.cache`,
-  `.claude`, `.config`, `.copilot`, `.local`, `.npm`, `workspace` — read off `/proc/self/mountinfo`
-  from inside the sandbox). `android-avd` isn't among them, so the agent writing to
-  `/config/android-avd` just writes to the throwaway tmpfs. Independently, `ai-jail` synthesizes a
-  minimal `/dev` with no `kvm` node, so the host's `--device /dev/kvm` passthrough doesn't reach the
-  agent either. Two ways out. The narrow one: add `--rw-map /dev/kvm --rw-map /config/android-avd`
-  to the project's `.ai-jail` config and relaunch the agent. The other is the docker socket, where
-  `--rw-map /config/.docker` is granted — but it is **not** `docker exec -u abc` anymore. An earlier
-  version of this line said it was, carried over unchanged from the DooD design; under the nested
-  rootless daemon that command has nothing to act on, since the daemon doesn't manage this container
-  and `docker ps` against it is empty by design. The route that does work is `docker run` with this
-  container's own paths bind-mounted into a fresh container, which grants considerably more than the
-  emulator needs — see the nested-daemon bullet above for what it does and doesn't reach.
+  *fresh tmpfs* at `/config` and binds in a hand-picked set of children. `android-avd` isn't among
+  them, so the agent writing to `/config/android-avd` just writes to the throwaway tmpfs.
+
+  **That set is smaller now than the list this paragraph used to give** (`.android`, `.cache`,
+  `.claude`, `.config`, `.copilot`, `.local`, `.npm`, `workspace`, read off `/proc/self/mountinfo`
+  from inside the sandbox). Re-measured 2026-08-25 off `ai-jail --dry-run`, which prints the whole
+  `bwrap` invocation: under `/config` the only binds left are `.gitconfig` read-only and
+  `workspace`, plus `.claude` when `--agent-state` is passed. Which of the two plausible causes is
+  at work — release drift, since `core/Dockerfile.frag` installs `releases/latest` and therefore
+  tracks whatever ai-jail ships, or the `--private-home` default that `ai-jail status` reports as
+  enabled — was **not** established, so treat it as an open question rather than as documented
+  behaviour. Nothing concluded from the old list changes either way: a shorter list only maps less.
+
+  Independently, `ai-jail` synthesizes a minimal `/dev` with no `kvm` node, so the host's `--device
+  /dev/kvm` passthrough doesn't reach the agent either. Two ways out. The narrow one: add `--rw-map
+  /dev/kvm --rw-map /config/android-avd` to the project's `.ai-jail` config and relaunch the agent.
+  The other is the docker socket, where `--rw-map /config/.docker` is granted — but it is **not**
+  `docker exec -u abc` anymore. An earlier version of this line said it was, carried over unchanged
+  from the DooD design; under the nested rootless daemon that command has nothing to act on, since
+  the daemon doesn't manage this container and `docker ps` against it is empty by design. The route
+  that does work is `docker run` with this container's own paths bind-mounted into a fresh
+  container, which grants considerably more than the emulator needs — see the nested-daemon bullet
+  above for what it does and doesn't reach.
 
   That second route was inference when this paragraph was first written, from the semantics of the
   socket rather than from a run. It has since been executed end to end (2026-07-30), so it can be
@@ -549,6 +570,41 @@ otherwise it creates it with `docker run` on the first run.
   already inside. Every "this can't run under `ai-jail`" in this repo's history has been of that
   shape, and the same move answers all of them — the consuming project's backend test suites, long
   documented as unrunnable under the sandbox, run in full this way too.
+- **`claude` on PATH is the sandboxed one — the jail is the default, not something to remember.**
+  `core/bin/claude.sh` is installed as `/usr/local/bin/claude`, ahead of the CLI's own
+  `/usr/bin/claude`, and re-execs it inside `ai-jail`. This changes a default, not a capability:
+  `ai-jail claude` was always available, and the whole protection sat one forgotten command away
+  from not applying. `/usr/bin/claude` by absolute path stays reachable on purpose — a human in
+  code-server's terminal is not what the sandbox is aimed at. Nothing else in the template invokes
+  `claude`, so the shadowing has no other caller to surprise.
+
+  The wrapper passes two flags that *weaken* `ai-jail`'s baseline, and they live in the image for
+  the reason given in the grants paragraph above: project config is refused for exactly these two.
+  - `--network`. Without it `ai-jail` passes `--unshare-net` — a network namespace holding nothing
+    but `lo` — and the agent cannot reach the API at all. That is how this surfaced (2026-08-25),
+    read at first as a WSL networking fault, which it was not: the container had working DNS and
+    egress throughout, and the jail simply had no interface to use. There is no middle setting to
+    reach for, either: `ai-jail` has no domain allowlist, and `--allow-tcp-port` applies only under
+    `--lockdown`. Little is conceded by turning it on, because the jail's network isolation was
+    never what bounded this agent — see the nested-daemon bullet above, where everything the
+    sandbox hides turns out to be reachable through a container the agent itself starts.
+  - `--agent-state`. Without it `/config/.claude` is not bound into the synthesized `/config`, so
+    the CLI meets an empty `HOME` and starts at onboarding, with no credentials, on every single
+    run. It is mapped **rw**, which does let the jailed agent rewrite its own settings; accepted,
+    because the alternative is a wrapper nobody can use. One trap when checking this by hand:
+    `--agent-state` maps state only for a *recognised agent preset*, so probing it as `ai-jail
+    --agent-state bash` shows no such bind and reads as a bug that isn't one.
+
+  It also passes `--no-save-config`, which is the opposite of a relaxation: without it `ai-jail`
+  writes both flags above into the project's `.ai-jail`, then refuses to honour what it just wrote,
+  and warns about it on every run.
+
+  The one genuinely non-obvious mechanic is the recursion guard. `/usr` is bound into the sandbox
+  read-only and `/usr/local/bin` still precedes `/usr/bin` on the PATH `ai-jail` sets, so the
+  `claude` preset resolves straight back to the wrapper and re-enters it forever. The marker that
+  breaks the loop has to be handed in with `--env CLAUDE_JAILED=1` rather than exported: the
+  sandbox is `--clearenv`'d and only an allowlist is replanted, so an ordinary environment variable
+  is gone by the time the preset runs.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
