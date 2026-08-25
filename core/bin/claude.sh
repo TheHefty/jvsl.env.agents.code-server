@@ -27,6 +27,21 @@
 # --no-save-config is not a relaxation but the opposite: without it ai-jail
 # writes the two flags above into the project's .ai-jail, then refuses to honour
 # what it just wrote, and warns about it on every single run.
+#
+# GH_TOKEN is forwarded so the agent can reach GitHub at all. It cannot get
+# there any other way: the sandbox synthesizes /config and does not map
+# ~/.config, so `gh` never sees its own hosts.yml, and the credential helper in
+# ~/.gitconfig — which the sandbox does map — resolves to a `gh` with nothing to
+# authenticate as. `gh` reads GH_TOKEN before any config file, so the variable
+# alone is enough to make both `gh` and `git push` work in there.
+#
+# It stays opt-in per invocation, and costs nothing when unused: `--env NAME`
+# with the variable unset on the host is a silent no-op, so a plain `claude`
+# forwards nothing. Only GH_TOKEN is forwarded, deliberately — GITHUB_TOKEN is
+# the name other tooling sets for its own reasons, and a token exported for
+# something else should not reach the agent because it happened to be in the
+# shell. Whoever exports GH_TOKEN is choosing to hand the agent that token, so
+# scope it narrowly and give it an expiry.
 set -euo pipefail
 
 # Inside the sandbox /usr is bound in read-only, so this wrapper is still the
@@ -43,5 +58,6 @@ exec ai-jail \
   --agent-state \
   --env CLAUDE_JAILED=1 \
   --env CLAUDE_CONFIG_DIR \
+  --env GH_TOKEN \
   --no-save-config \
   claude "$@"
