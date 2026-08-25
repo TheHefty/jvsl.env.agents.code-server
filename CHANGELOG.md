@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.3](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.2...v1.5.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* the jailed agent can reach the nested daemon ([dbfcc53](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/dbfcc5358e81d8bb5b9a598c80f18c775b640cec))
+* the mapped socket needs the variable that points at it ([44fae5c](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/44fae5c88b1027aa598f92b20fe54478671c04fd))
+
 ## [1.5.2](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.1...v1.5.2) (2026-08-25)
 
 
