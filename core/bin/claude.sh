@@ -115,8 +115,25 @@ fi
 # svc-dockerd-rootless before its own /dev/fuse check, and it lives on the
 # persistent volume, so it is there even when the daemon is disabled or still
 # coming up. A map of a path that does not exist is what the guard is for.
+#
+# **The map alone is not enough, and shipping it alone would have looked like
+# this bug persisting.** ai-jail --clearenv's the sandbox and replants only an
+# allowlist, so the DOCKER_HOST this image sets in core/Dockerfile.frag does not
+# survive into it — measured: 27 variables inside, none of them DOCKER_* — and a
+# `docker` with no DOCKER_HOST goes looking for /var/run/docker.sock, which is
+# not where this daemon listens. So the socket would be mapped in and the client
+# would still fail, with the same message as before the map existed.
+#
+# The value is copied from the host environment where there is one, which is the
+# ENV above and the single place the path is meant to be decided; the literal is
+# a fallback for a shell that lost it, and not a second definition to keep in
+# step. `--env NAME` with NAME unset is a silent no-op, which is exactly the
+# case the fallback covers.
 if [[ -d /config/.docker ]]; then
-  jail_args+=(--rw-map /config/.docker)
+  jail_args+=(
+    --rw-map /config/.docker
+    --env "DOCKER_HOST=${DOCKER_HOST:-unix:///config/.docker/run/docker.sock}"
+  )
 fi
 
 exec ai-jail "${jail_args[@]}" claude "$@"

@@ -452,6 +452,13 @@ otherwise it creates it with `docker run` on the first run.
     README, and it is a stricter rule than the one below rather than the same one: the maps are
     bounded by *location*, and the settings below by what they weaken.
 
+    **The map is half of it, and the half that fails quietly is the other one.** `ai-jail`
+    `--clearenv`'s the sandbox and replants an allowlist, so the `DOCKER_HOST` this image sets does
+    not survive into it — 27 variables inside, none of them `DOCKER_*`. A client with no `DOCKER_HOST`
+    looks for `/var/run/docker.sock`, which is not where this daemon listens, so a sandbox with the
+    socket mapped in and the variable missing fails with the message it gave before the map existed.
+    The wrapper passes both.
+
     **What a project's `.ai-jail` can grant is bounded in a second way too.** The settings that
     weaken the baseline are refused outright when they come from project config, with `project
     .ai-jail network ignored because it weakens the baseline sandbox` and the setting simply left
