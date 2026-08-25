@@ -3,6 +3,8 @@
   "workbench.iconTheme": "file-icons",
   "workbench.editorAssociations": { "*.md": "vscode.markdown.preview.editor" },
   "terminal.integrated.gpuAcceleration": "off",
+  "terminal.integrated.localEchoEnabled": "off",
+  "terminal.integrated.localEchoLatencyThreshold": -1,
   "chat.disableAIFeatures": true,
   "window.menuBarVisibility": "classic"
 }

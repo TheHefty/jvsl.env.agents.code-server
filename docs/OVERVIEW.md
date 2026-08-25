@@ -42,16 +42,27 @@ root — see "Manifest" below for why).
   - **Absent keys only.** A value already in `settings.json` is the reader's, whether they typed it
     or an older image wrote it; `jq '.[0] * .[1]'` with the defaults first gives the existing file
     priority on every key it has. `false` is a value and not a gap.
-  - **A file `jq` cannot read is left exactly as it is.** VS Code accepts comments and trailing
-    commas in `settings.json` and `jq` accepts neither, so a reader who has commented theirs simply
-    stops receiving new defaults — better than truncating something they have kept for a year.
-    There is no separate check for it: the merge fails and its failure path already leaves the file
-    alone. A guard in front of that read as prudence and was removed once no test could tell the
-    two apart.
+  - **Comments no longer freeze the file.** VS Code accepts comments and trailing commas in
+    `settings.json` and `jq` accepts neither, so a single `//` anywhere in it used to mean that
+    environment never received another default for as long as it lived. That read as caution and
+    was the same bug one level down: silent, permanent, and indistinguishable to the reader from a
+    documented fix that simply does not work for them — which is exactly how the terminal's
+    `gpuAcceleration` mitigation could sit in this file for months without reaching anybody. The
+    file is now read with comments and trailing commas stripped by a character scanner rather than
+    a regex over the text, so a `//` inside a string stays part of the URL it belongs to.
+  - **Stripping is for reading; rewriting is the exception.** The file is written only when a
+    default is actually missing, so a commented `settings.json` that is already complete keeps its
+    comments untouched across every boot. When a rewrite does happen the comments do not survive
+    it, so the original is copied to `settings.json.bak` first and a line on stderr says so. A file
+    that is broken rather than commented — truncated, mid-edit, a stray brace — fails both reads
+    and is left byte-identical, with no backup written and without failing the boot.
   - Tested in CI (`core/cont-init/30-editor-defaults.test.sh`, driving the real script through
     `EDITOR_DEFAULTS`/`EDITOR_SETTINGS`). The direction of the merge is what the tests exist for:
     inverted, it is silent and it puts a setting back on every restart, which the reader blames on
-    the editor.
+    the editor. The rewrite path is tested against everything a scanner could mistake for syntax —
+    a `//` inside a URL, a `/*` inside a string, a comma before a brace inside a string, escaped
+    quotes, a real trailing comma — plus the broken file, the already-complete file, and the mode
+    the merged file is left with.
 - **`window.menuBarVisibility: "classic"`** draws the menus as a row instead of the web build's
   single hamburger. It is also load-bearing for `start`: the window's own buttons are injected into
   that row, and with the menu bar hidden there is no `.part.titlebar` to inject into — so the
@@ -776,12 +787,26 @@ Errors already hit and fixed:
 - Separately, accented characters were also garbled inside code-server's own integrated terminal
   (xterm.js) — composed characters reappearing duplicated and interspersed with stray
   whitespace/tabs. Distinct from the GTK issue above: this happens inside the browser-rendered
-  terminal content itself, not GTK chrome, so `GTK_IM_MODULE` doesn't reach it. Likely cause: the
-  terminal's canvas/WebGL-accelerated renderer redrawing asynchronously while dead-key/IME
-  composition is in flight, replaying part of the composition buffer. Mitigated by setting
-  `"terminal.integrated.gpuAcceleration": "off"` in the default `settings.json` (core's 6.2 step).
-  Not yet confirmed fixed on the user's host as of this entry — try this before reaching for a
-  `GTK_IM_MODULE` variant if the symptom is terminal-only.
+  terminal content itself, not GTK chrome, so `GTK_IM_MODULE` doesn't reach it — confirmed on the
+  user's host, where `START_GTK_IM_MODULE=unset` changed nothing about the terminal symptom while
+  the GTK fix above stayed necessary for the window chrome. Two defaults in
+  `core/settings-defaults.json` address it, for the two halves of the path:
+  - `"terminal.integrated.gpuAcceleration": "off"` — the **rendering** half. The canvas/WebGL
+    renderer redraws asynchronously, and a redraw landing while dead-key/IME composition is in
+    flight replays part of the composition buffer.
+  - `"terminal.integrated.localEchoEnabled": "off"` and
+    `"terminal.integrated.localEchoLatencyThreshold": -1` — the **input** half, and the better
+    match for the reported symptom. Local echo draws predicted characters before the shell echoes
+    anything back, then reconciles against what actually arrives. The predictor works in single
+    characters and cursor columns, which is not what a dead-key composition or a multi-byte
+    accented character is, and a mis-prediction is repaired by redrawing — producing exactly the
+    observed shape, letters displaced into runs of stray whitespace. Both keys are set because the
+    build shipped here could honour either name and an unknown key in `settings.json` is inert;
+    the cost is a redundant line, the cost of guessing wrong is the bug staying.
+  The reason this needed a second attempt at all is the merge, not the values: `gpuAcceleration`
+  had been the default since core's 6.2 step, and a `settings.json` with a single comment in it
+  silently refused every default for the life of that environment. See "Default editor settings"
+  above — that path was fixed in the same change.
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
