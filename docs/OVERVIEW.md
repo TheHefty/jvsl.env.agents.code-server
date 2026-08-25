@@ -517,11 +517,11 @@ otherwise it creates it with `docker run` on the first run.
   `.claude`, `.config`, `.copilot`, `.local`, `.npm`, `workspace`, read off `/proc/self/mountinfo`
   from inside the sandbox). Re-measured 2026-08-25 off `ai-jail --dry-run`, which prints the whole
   `bwrap` invocation: under `/config` the only binds left are `.gitconfig` read-only and
-  `workspace`, plus `.claude` when `--agent-state` is passed. Which of the two plausible causes is
-  at work — release drift, since `core/Dockerfile.frag` installs `releases/latest` and therefore
-  tracks whatever ai-jail ships, or the `--private-home` default that `ai-jail status` reports as
-  enabled — was **not** established, so treat it as an open question rather than as documented
-  behaviour. Nothing concluded from the old list changes either way: a shorter list only maps less.
+  `workspace`, plus `.claude` when `--agent-state` is passed. The cause is ai-jail v1.18.0
+  (2026-08-16), whose own notes head the change "Security-default migration": private home became
+  the default, and agent credential state — `~/.claude` among it — became opt-in behind
+  `--agent-state`. So the old list is not wrong, it is pre-migration: it was measured on 2026-07-30,
+  when v1.16.0 was current. Nothing concluded from it changes — a shorter list only maps less.
 
   Independently, `ai-jail` synthesizes a minimal `/dev` with no `kvm` node, so the host's `--device
   /dev/kvm` passthrough doesn't reach the agent either. Two ways out. The narrow one: add `--rw-map
@@ -584,10 +584,11 @@ otherwise it creates it with `docker run` on the first run.
     but `lo` — and the agent cannot reach the API at all. That is how this surfaced (2026-08-25),
     read at first as a WSL networking fault, which it was not: the container had working DNS and
     egress throughout, and the jail simply had no interface to use. There is no middle setting to
-    reach for, either: `ai-jail` has no domain allowlist, and `--allow-tcp-port` applies only under
-    `--lockdown`. Little is conceded by turning it on, because the jail's network isolation was
-    never what bounded this agent — see the nested-daemon bullet above, where everything the
-    sandbox hides turns out to be reachable through a container the agent itself starts.
+    reach for, either: `ai-jail` has no domain allowlist, and `--allow-tcp-port` survives only for
+    compatibility — it fails closed since v1.18.0, on the grounds that UDP cannot be constrained
+    safely alongside it. Little is conceded by turning `--network` on, because the jail's network
+    isolation was never what bounded this agent — see the nested-daemon bullet above, where
+    everything the sandbox hides turns out to be reachable through a container the agent starts.
   - `--agent-state`. Without it `/config/.claude` is not bound into the synthesized `/config`, so
     the CLI meets an empty `HOME` and starts at onboarding, with no credentials, on every single
     run. It is mapped **rw**, which does let the jailed agent rewrite its own settings; accepted,
@@ -605,6 +606,16 @@ otherwise it creates it with `docker run` on the first run.
   breaks the loop has to be handed in with `--env CLAUDE_JAILED=1` rather than exported: the
   sandbox is `--clearenv`'d and only an allowlist is replanted, so an ordinary environment variable
   is gone by the time the preset runs.
+- **`ai-jail` is pinned to a release and verified against its digest, not tracked at
+  `releases/latest`.** Its minor versions are where its threat model moves, not just its features:
+  v1.18.0 (2026-08-16) turned network, agent state, GPU, display, X11 and more into explicit
+  opt-ins in one release, and made project `.ai-jail` files monotonic — able to tighten a sandbox,
+  never to enable a capability in it. Tracking latest therefore meant a rebuild that changed
+  nothing in this repo could still change what the agent is allowed to do, and that is not
+  hypothetical: it is how the sandbox lost its network here, presenting as a WSL fault that did not
+  exist. The digest is checked rather than taken on trust from the release page, because a tag can
+  be repointed and its assets replaced without the URL moving. Bumping it is a deliberate step now,
+  and its release notes are worth reading on the way past.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
