@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.0...v1.5.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **core:** disable terminal local echo, which garbles accented input ([69d28ee](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/69d28eeaca54a01b61aac9076aac17e3380dfd02))
+* **core:** read settings.json even when it has comments in it ([8efea69](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/8efea69633014f0f4cd2264aa5cfa6b9aa092a71))
+* **php:** pin the ondrej PPA key instead of calling Launchpad's API ([274162a](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/274162a7a9fac7dac4a373a6dfa7a9cfe8932864))
+
 ## [1.5.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.4.0...v1.5.0) (2026-08-25)
 
 
