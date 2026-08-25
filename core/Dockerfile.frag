@@ -243,6 +243,15 @@ RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/latest/download/
     | tar xz -C /usr/local/bin \
     && chmod +x /usr/local/bin/ai-jail
 
+# 7.1 Makes the sandbox the default rather than something to remember: the
+# `claude` that PATH resolves is the wrapper, which re-execs the real CLI
+# inside ai-jail. It is named claude.sh in the tree so CI's `bash -n` sweep
+# (which globs *.sh, plus the three extensionless executables by name) covers
+# it, and renamed on the way in because PATH is what has to read `claude`.
+# Why it passes the flags it passes is argued in the script itself.
+COPY core/bin/claude.sh /usr/local/bin/claude
+RUN chmod +x /usr/local/bin/claude
+
 # The image stays as root: LinuxServer's s6-overlay needs to start as root
 # so it can then apply PUID/PGID and drop privileges to user 'abc'.
 # Stack fragments (stacks/*/Dockerfile.frag) are concatenated after this
