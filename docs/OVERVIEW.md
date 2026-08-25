@@ -242,6 +242,24 @@ Docker images use). Lesson from that: a PPA looking documented/well-known isn't 
 actually publishing for the Ubuntu release in use — worth an actual `docker build`, not just
 reading the PPA page, before trusting one for a new stack.
 
+**`php` adds its PPA by hand, with the signing key pinned in the repository.** `add-apt-repository`
+is the convenient way to do it and it fetches the key through Launchpad's *API* at build time — so
+the build depends on a web service being up, and on 2026-08-25 that service answered HTTP 500
+(`GPGKeyTemporarilyNotFoundError`) for at least ten minutes and failed every build of this stack,
+twice in a row, while `ppa.launchpadcontent.net` served the archive itself perfectly. It was the
+only stack whose build could be taken down that way, and the only one departing from the
+pin-and-verify convention the rest of the image follows for third-party binaries. `stacks/php/`
+now carries `ondrej-php.asc` and writes its own `sources.list.d` entry with `signed-by=`, which
+also narrows what that key is trusted for to this one archive. The key was derived from the
+archive rather than from a guide: `gpg --verify` on the PPA's own `InRelease` names
+`14AA40EC0831756756D7F66C4F4EA0AAE5267A6C` ("Launchpad PPA for Ondřej Surý"), and the pinned file
+is that key, checked to verify that signature on its own. It carries no expiry date. Should
+Launchpad ever rotate it, apt refuses the archive loudly instead of installing anything — the fix
+then is to re-derive the key the same way, not to remove the pin. Guarded offline by
+`stacks/php/keyring.test.sh` (CI job `php-keyring`), which checks the file, the fingerprint written
+into the fragment and the fragment's wiring cannot drift apart; verifying against the live PPA
+instead would put every CI run back at the mercy of the outage the pin exists to survive.
+
 Two more found the same way (rebuilding every stack to verify the code-server extension installs
 below), both in versions that were already listed in `versions.json` before this round:
 - **`dotnet` `9.0` removed** — Microsoft's own feed for Ubuntu 24.04 no longer carries

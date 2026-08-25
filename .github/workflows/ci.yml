@@ -68,6 +68,19 @@ jobs:
       - name: the merge honours what is already there
         run: bash core/cont-init/30-editor-defaults.test.sh
 
+  php-keyring:
+    # The php stack installs from a third-party archive and is the only one that
+    # does, so it is the only one carrying a signing key. What this guards is
+    # drift between the three places that key lives — the file, the fingerprint
+    # written into the fragment, and the fragment still being wired to use it.
+    # Deliberately offline: verifying against the live PPA would put every run
+    # back at the mercy of the Launchpad outage the pin exists to survive.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the pinned key is the one the archive is signed with
+        run: bash stacks/php/keyring.test.sh
+
   title-bar:
     # The one piece of this launcher that runs inside somebody else's page, and the
     # one written to fail quietly: if code-server stops calling its title bar
@@ -129,7 +142,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
