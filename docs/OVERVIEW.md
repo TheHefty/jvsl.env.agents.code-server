@@ -784,29 +784,47 @@ Errors already hit and fixed:
   `GTK_IM_MODULE` themselves; changed to unconditional (always overrides whatever's in the
   environment) — this template's own fix should win outright rather than silently no-op behind a
   pre-existing value.
-- Separately, accented characters were also garbled inside code-server's own integrated terminal
-  (xterm.js) — composed characters reappearing duplicated and interspersed with stray
-  whitespace/tabs. Distinct from the GTK issue above: this happens inside the browser-rendered
-  terminal content itself, not GTK chrome, so `GTK_IM_MODULE` doesn't reach it — confirmed on the
-  user's host, where `START_GTK_IM_MODULE=unset` changed nothing about the terminal symptom while
-  the GTK fix above stayed necessary for the window chrome. Two defaults in
-  `core/settings-defaults.json` address it, for the two halves of the path:
-  - `"terminal.integrated.gpuAcceleration": "off"` — the **rendering** half. The canvas/WebGL
-    renderer redraws asynchronously, and a redraw landing while dead-key/IME composition is in
-    flight replays part of the composition buffer.
-  - `"terminal.integrated.localEchoEnabled": "off"` and
-    `"terminal.integrated.localEchoLatencyThreshold": -1` — the **input** half, and the better
-    match for the reported symptom. Local echo draws predicted characters before the shell echoes
-    anything back, then reconciles against what actually arrives. The predictor works in single
-    characters and cursor columns, which is not what a dead-key composition or a multi-byte
-    accented character is, and a mis-prediction is repaired by redrawing — producing exactly the
-    observed shape, letters displaced into runs of stray whitespace. Both keys are set because the
-    build shipped here could honour either name and an unknown key in `settings.json` is inert;
-    the cost is a redundant line, the cost of guessing wrong is the bug staying.
-  The reason this needed a second attempt at all is the merge, not the values: `gpuAcceleration`
-  had been the default since core's 6.2 step, and a `settings.json` with a single comment in it
-  silently refused every default for the life of that environment. See "Default editor settings"
-  above — that path was fixed in the same change.
+- Accented characters were *also* reported garbled inside the environment — letters displaced into
+  growing runs of whitespace, e.g. `est  í        çã   á`. This was read as a second, terminal-side
+  version of the GTK bug above and chased as one for two rounds. **It is neither. It is Claude
+  Code's own prompt, and it is an upstream bug.** Recorded here at length because the wrong theory
+  survived two fixes, and the thing that killed it was one sentence from the reporter that nobody
+  had thought to ask for: *it works fine outside Claude Code's prompt.*
+  - What the symptom actually is: drift that **accumulates along the line**. `í`, `ç` and `ã` are
+    one column and two bytes each, so something counting bytes where it should count columns
+    injects one phantom column per accented character and the error compounds. Not a composition
+    buffer replaying — an arithmetic mistake in a redraw.
+  - What it is not, each ruled out by test rather than by argument: not GTK
+    (`START_GTK_IM_MODULE=unset` changed nothing, while the GTK fix above stayed necessary for the
+    window chrome — note this rules out two *values*, not the input-method layer); not the
+    terminal's renderer and not its input path (`printf` of accented text and a bare `read -r`
+    both come out clean); not the locale (`LANG=en_US.UTF-8`, `TERM=xterm-256color`).
+  - Upstream, matching this exactly: anthropics/claude-code
+    [#6094](https://github.com/anthropics/claude-code/issues/6094) (ASCII fine, any Unicode typed
+    into the interactive prompt garbled) and
+    [#10429](https://github.com/anthropics/claude-code/issues/10429) (diacritics misplaced in the
+    CLI while working normally in a plain terminal session). Also
+    [#2847](https://github.com/anthropics/claude-code/issues/2847) and
+    [#10709](https://github.com/anthropics/claude-code/issues/10709). Observed on Claude Code
+    2.1.241. There is nothing in this image to fix; pasting rather than typing avoids the
+    per-keystroke redraw and is the workaround.
+  - `"terminal.integrated.localEchoEnabled": "off"` was added here as the "input half" of a fix
+    and has been **removed again**: the hypothesis it rested on is disproved, and a default whose
+    justification is gone is debt, not caution. It changed nothing on loopback anyway, which is
+    also why nobody would have noticed it was pointless. Removing it from the defaults does not
+    remove it from anybody's `settings.json` — the merge only ever adds absent keys, and a boot
+    hook that deletes settings is the one behaviour that script exists to avoid. An environment
+    built while it shipped keeps both keys until somebody deletes those two lines by hand.
+  - `"terminal.integrated.gpuAcceleration": "off"` **stays**, still unproven. The terminal is clean
+    *with it set*, and deciding whether it is doing any of that work needs a deliberate test rather
+    than another guess. Left in with that written down, which is the difference between a default
+    that is unverified and one that merely looks decided.
+  - Worth keeping from the wreckage: the reason this took a second round at all was not the values
+    but the merge. `gpuAcceleration` had been the default since core's 6.2 step and could not
+    reach an environment whose `settings.json` contained a single comment — so a documented fix
+    looked like a fix that does not work. See "Default editor settings" above; that path was
+    fixed alongside this. When a mitigation "does not help", check that it arrived before
+    theorising about why it failed.
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
