@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.4.0...v1.5.0) (2026-08-25)
+
+
+### Features
+
+* ai-memory, per project and off unless asked for ([d414b42](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/d414b428dd07569ff6fc13a9cec8203e2696bc0e))
+* ai-memory, per project and off unless asked for ([edd4263](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/edd426396158f17cdba9518e5531815b59af660f))
+
 ## [1.4.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.3.0...v1.4.0) (2026-08-25)
 
 
