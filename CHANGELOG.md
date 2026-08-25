@@ -5,10 +5,8 @@
 
 ### Bug Fixes
 
-* **core:** acentos no terminal — local echo, e o merge de defaults que nunca aplicava ([f8d96f1](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/f8d96f10c2a1815d6bdbbd1f08e26bca652c753d))
 * **core:** disable terminal local echo, which garbles accented input ([69d28ee](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/69d28eeaca54a01b61aac9076aac17e3380dfd02))
 * **core:** read settings.json even when it has comments in it ([8efea69](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/8efea69633014f0f4cd2264aa5cfa6b9aa092a71))
-* **php:** fixar a chave do PPA ondrej em vez de chamar a API do Launchpad ([fc85bd4](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/fc85bd4f9787d256c25bd1eadce43190fca2ab0c))
 * **php:** pin the ondrej PPA key instead of calling Launchpad's API ([274162a](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/274162a7a9fac7dac4a373a6dfa7a9cfe8932864))
 
 ## [1.5.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.4.0...v1.5.0) (2026-08-25)
