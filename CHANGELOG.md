@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.3.0...v1.4.0) (2026-08-25)
+
+
+### Features
+
+* forward GH_TOKEN into the jail, when there is one ([7e740c5](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/7e740c5125ccf0a91d296ca11603419a04af1bbe))
+* forward GH_TOKEN into the jail, when there is one ([1d2bd4f](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/1d2bd4f36517df52b1d21fc42dd1c2be0fd93fee))
+
 ## [1.3.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.2.0...v1.3.0) (2026-08-25)
 
 
