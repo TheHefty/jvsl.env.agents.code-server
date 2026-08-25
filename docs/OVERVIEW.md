@@ -459,11 +459,34 @@ otherwise it creates it with `docker run` on the first run.
     socket mapped in and the variable missing fails with the message it gave before the map existed.
     The wrapper passes both.
 
+    **An operator can grant the same thing without waiting for a release, and the route is worth
+    knowing because it is the one a project cannot take.** `~/.ai-jail` is trusted where a project's
+    is not, and in this image that is `/config/.ai-jail`, on the code-server data volume, so it
+    survives a rebuild:
+
+    ```toml
+    rw_maps = ["~/.docker"]
+    ```
+
+    Two things about it that cost an hour to find. **Write it in code-server's terminal and not from
+    the agent's shell** — the sandbox synthesizes `/config`, so a file the agent writes there exists
+    for nobody but the agent, and the same `~` means two different homes on the two sides. And
+    **relaunch the agent afterwards**: `bwrap` builds its mounts at start, so a grant written beside a
+    running session never reaches that session, which reads as the grant not working.
+
+    `DOCKER_HOST` still has to be exported per shell on top of it. Nothing in a `.ai-jail` can carry
+    an environment variable — `--env` is deliberately not persisted there — which is why the wrapper
+    is the only place both halves fit together.
+
+    Verified end to end in kotodori, which is where the missing grant was costing something: with the
+    map and the variable, its Testcontainers probe goes from `220 tests completed, 54 failed` to 220
+    with none failed, and its guard harness from 49 passed with 2 skipped to 51 passed with none
+    skipped.
+
     **What a project's `.ai-jail` can grant is bounded in a second way too.** The settings that
     weaken the baseline are refused outright when they come from project config, with `project
     .ai-jail network ignored because it weakens the baseline sandbox` and the setting simply left
-    off.
-    `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
+    off. `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
     must not be able to widen the sandbox it is about to run under — and the consequence is that
     those two get decided in the image instead, which is the operator's side of the same line. See
     the `claude` wrapper bullet below.
