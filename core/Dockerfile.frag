@@ -267,6 +267,37 @@ RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/download/v1.20.1
 COPY core/bin/claude.sh /usr/local/bin/claude
 RUN chmod +x /usr/local/bin/claude
 
+# 7.2 Installs ai-memory (akitaonrails/ai-memory), long-term memory shared
+# across sessions and across agent CLIs, and wires it up as an s6 service plus
+# a boot hook. Pinned and digest-checked for the same reason ai-jail is, above.
+#
+# The tarball is not a lone binary: it carries the vendored hook sources, docs
+# and packaging alongside it, so it is unpacked to a scratch directory and only
+# the two things this image needs are installed. /usr/local/share/ai-memory is
+# not an arbitrary choice — it is where `install-hooks` looks for those sources
+# by default.
+RUN curl -fsSL https://github.com/akitaonrails/ai-memory/releases/download/v1.32.0/ai-memory-linux-x86_64.tar.gz -o /tmp/ai-memory.tar.gz \
+    && echo "0477e1741a984aaa18ae35f904e47fdd9b50ce9fd1961d9753fa82cab484ee9f  /tmp/ai-memory.tar.gz" | sha256sum -c - \
+    && mkdir -p /tmp/ai-memory-unpack /usr/local/share/ai-memory \
+    && tar -xzf /tmp/ai-memory.tar.gz -C /tmp/ai-memory-unpack \
+    && install -m 0755 /tmp/ai-memory-unpack/ai-memory /usr/local/bin/ai-memory \
+    && cp -r /tmp/ai-memory-unpack/hooks /usr/local/share/ai-memory/hooks \
+    && rm -rf /tmp/ai-memory-unpack /tmp/ai-memory.tar.gz
+
+# The store goes on the persistent volume rather than the platform default
+# (~/.local/share/ai-memory): it is the memory itself, and it has to outlive the
+# image rebuild that follows every stack change. Set as ENV rather than passed
+# per command so the server, the boot hook and any manual `ai-memory` call in a
+# terminal all agree on one location without repeating the flag.
+ENV AI_MEMORY_DATA_DIR=/config/ai-memory
+
+COPY core/services/svc-ai-memory /etc/s6-overlay/s6-rc.d/svc-ai-memory
+RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-ai-memory/run \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-ai-memory
+
+COPY core/cont-init/40-ai-memory.sh /custom-cont-init.d/40-ai-memory.sh
+RUN chmod +x /custom-cont-init.d/40-ai-memory.sh
+
 # The image stays as root: LinuxServer's s6-overlay needs to start as root
 # so it can then apply PUID/PGID and drop privileges to user 'abc'.
 # Stack fragments (stacks/*/Dockerfile.frag) are concatenated after this

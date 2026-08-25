@@ -1,0 +1,45 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+#
+# Long-running s6 service: ai-memory's MCP server, one per container and so one
+# per project. Cross-project memory was considered and rejected: it would mean a
+# server on the host, and the container has no route there — `start` publishes
+# code-server as -p 127.0.0.1:0:8443 and deliberately avoids --network host, so
+# the only path today runs host -> container. A per-container server needs none
+# of that, and the agent reaches it over the loopback the sandbox already shares
+# (measured: from inside ai-jail, code-server's own 127.0.0.1:8443 answers).
+#
+# The service is installed unconditionally but runs only for a project that
+# opted in, which is what the marker check below is. ai-memory defines
+# .ai-memory.toml as its per-project marker already, so the template gates on
+# that rather than inventing a switch of its own; `install-hooks --capture-mode
+# allowlist` in core/cont-init/40-ai-memory.sh enforces the same rule one layer
+# down, where a repository without a marker emits no lifecycle event at all.
+set -euo pipefail
+
+MARKER=/config/workspace/.ai-memory.toml
+DATA_DIR="${AI_MEMORY_DATA_DIR:-/config/ai-memory}"
+
+# `sleep infinity` rather than exit: s6 restarts a longrun that exits, so
+# exiting here would produce a restart loop that buries the reason in the logs.
+# Same shape as the /dev/fuse guard in svc-dockerd-rootless/run.
+if [[ ! -f "$MARKER" ]]; then
+    echo "**** no $MARKER — ai-memory not enabled for this project ****"
+    echo "**** (create the marker and restart the container to turn it on) ****"
+    sleep infinity
+fi
+
+# The store lives on the persistent named volume, not in the image layer: it is
+# a git-backed wiki plus a SQLite index, and the whole point is that it outlives
+# the rebuild that follows every stack change.
+mkdir -p "$DATA_DIR"
+chown -R abc:abc "$DATA_DIR"
+
+export HOME=/config
+
+# Loopback only, and no bearer token, because the only clients are in this
+# container: the agent's hooks and its MCP client. Nothing outside can reach it
+# — the port is never published by `start`, and the nested rootless daemon runs
+# with --disable-host-loopback, so a container it starts cannot dial in either.
+exec s6-setuidgid abc \
+    ai-memory --data-dir "$DATA_DIR" serve --transport http --bind 127.0.0.1:49374
