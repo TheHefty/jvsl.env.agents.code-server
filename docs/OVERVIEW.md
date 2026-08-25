@@ -600,6 +600,17 @@ otherwise it creates it with `docker run` on the first run.
   writes both flags above into the project's `.ai-jail`, then refuses to honour what it just wrote,
   and warns about it on every run.
 
+  And it forwards `GH_TOKEN`, which is the only route the agent has to GitHub from in there. The
+  synthesized `/config` does not map `~/.config`, so `gh` never finds its own `hosts.yml`, and the
+  `gh auth git-credential` helper in `~/.gitconfig` — which *is* mapped — resolves to a `gh`
+  with nothing to authenticate as. Since `gh` reads `GH_TOKEN` ahead of any config file, it by
+  itself is enough to make both `gh` and `git push` work inside the sandbox. It stays opt-in per
+  invocation and costs nothing unused: `--env NAME` with the host variable unset is a silent no-op,
+  so a plain `claude` forwards nothing. Only `GH_TOKEN` is forwarded, and `GITHUB_TOKEN`
+  deliberately is not — that is the name other tooling sets for its own purposes, and a token
+  exported for something else should not reach the agent by proximity. Exporting it is handing the
+  agent that token: scope it to the repositories it needs, and give it an expiry.
+
   The one genuinely non-obvious mechanic is the recursion guard. `/usr` is bound into the sandbox
   read-only and `/usr/local/bin` still precedes `/usr/bin` on the PATH `ai-jail` sets, so the
   `claude` preset resolves straight back to the wrapper and re-enters it forever. The marker that
