@@ -438,16 +438,55 @@ otherwise it creates it with `docker run` on the first run.
     quotas.
   - **Environment work that used to be possible from the agent's shell** (booting the android
     emulator, checking whether an image rebuild took) is now either a human step in code-server's
-    terminal or an explicit, narrow grant. Grants go in the project's `.ai-jail`, e.g.
-    `--rw-map /dev/kvm --rw-map /config/android-avd` for emulator work, or `--rw-map /config/.docker`
-    to let the agent reach the nested daemon's socket at all (a unix socket needs *write* permission
-    to connect, so a read-only bind won't do).
+    terminal or an explicit, narrow grant: `--rw-map /dev/kvm --rw-map /config/android-avd` for
+    emulator work, or `--rw-map /config/.docker` to let the agent reach the nested daemon's socket at
+    all (a unix socket needs *write* permission to connect, so a read-only bind won't do).
 
-    **What a project's `.ai-jail` can grant is bounded, though, and this paragraph used to imply
-    otherwise.** It widens the *filesystem* map and not much else: the settings that weaken the
-    baseline are refused outright when they come from project config, with `project .ai-jail
-    network ignored because it weakens the baseline sandbox` and the setting simply left off.
-    `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
+    **Those grants do not go in the project's `.ai-jail`, and this paragraph said they did until
+    2026-08-25.** A project config may widen the filesystem map only *within the project*: a map
+    pointing anywhere else is dropped as an outside map, with `project .ai-jail map /config/.docker
+    outside project ignored (use --rw-map/--ro-map or global config)`. Every path named above is
+    outside `/config/workspace`, so every one of them was refused — which is why the Docker grant
+    this document has prescribed since v1.3.0 could never take effect where it said to put it, and
+    why the `claude` wrapper passes it now. Measured against v1.20.1 rather than read off the
+    README, and it is a stricter rule than the one below rather than the same one: the maps are
+    bounded by *location*, and the settings below by what they weaken.
+
+    **The map is half of it, and the half that fails quietly is the other one.** `ai-jail`
+    `--clearenv`'s the sandbox and replants an allowlist, so the `DOCKER_HOST` this image sets does
+    not survive into it — 27 variables inside, none of them `DOCKER_*`. A client with no `DOCKER_HOST`
+    looks for `/var/run/docker.sock`, which is not where this daemon listens, so a sandbox with the
+    socket mapped in and the variable missing fails with the message it gave before the map existed.
+    The wrapper passes both.
+
+    **An operator can grant the same thing without waiting for a release, and the route is worth
+    knowing because it is the one a project cannot take.** `~/.ai-jail` is trusted where a project's
+    is not, and in this image that is `/config/.ai-jail`, on the code-server data volume, so it
+    survives a rebuild:
+
+    ```toml
+    rw_maps = ["~/.docker"]
+    ```
+
+    Two things about it that cost an hour to find. **Write it in code-server's terminal and not from
+    the agent's shell** — the sandbox synthesizes `/config`, so a file the agent writes there exists
+    for nobody but the agent, and the same `~` means two different homes on the two sides. And
+    **relaunch the agent afterwards**: `bwrap` builds its mounts at start, so a grant written beside a
+    running session never reaches that session, which reads as the grant not working.
+
+    `DOCKER_HOST` still has to be exported per shell on top of it. Nothing in a `.ai-jail` can carry
+    an environment variable — `--env` is deliberately not persisted there — which is why the wrapper
+    is the only place both halves fit together.
+
+    Verified end to end in kotodori, which is where the missing grant was costing something: with the
+    map and the variable, its Testcontainers probe goes from `220 tests completed, 54 failed` to 220
+    with none failed, and its guard harness from 49 passed with 2 skipped to 51 passed with none
+    skipped.
+
+    **What a project's `.ai-jail` can grant is bounded in a second way too.** The settings that
+    weaken the baseline are refused outright when they come from project config, with `project
+    .ai-jail network ignored because it weakens the baseline sandbox` and the setting simply left
+    off. `network` and `agent-state` are both of that class. The reasoning is sound — a repo you clone
     must not be able to widen the sandbox it is about to run under — and the consequence is that
     those two get decided in the image instead, which is the operator's side of the same line. See
     the `claude` wrapper bullet below.

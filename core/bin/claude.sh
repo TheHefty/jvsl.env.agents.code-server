@@ -77,4 +77,63 @@ if [[ -d /config/ai-memory ]]; then
   jail_args+=(--rw-map /config/ai-memory)
 fi
 
+# The nested daemon's socket. Without this the agent's `docker` is a binary with
+# nothing to talk to: ai-jail synthesizes /config, so /config/.docker is simply
+# not in there, DOCKER_HOST points at a path that does not exist, and `docker
+# info` fails. Everything a consuming project routes through the daemon fails
+# with it — measured in kotodori, where `./gradlew test` ended `220 tests
+# completed, 54 failed`, every one of them a Testcontainers class initializer.
+#
+# rw and not ro, because connecting to a unix socket needs write permission.
+#
+# This cannot live in a project's .ai-jail, and for a different reason than the
+# two flags at the top of this file: not that it weakens the baseline, but that
+# /config/.docker is outside the project directory, so ai-jail drops it as an
+# outside map and says so — `project .ai-jail map /config/.docker outside
+# project ignored (use --rw-map/--ro-map or global config)`. Verified against
+# v1.20.1, the release section 7 of core/Dockerfile.frag pins. Which leaves the
+# image, the same as --network and --agent-state, or the operator's own
+# ~/.ai-jail.
+#
+# Not --docker, which exists and would be the obvious reach. That flag mounts
+# the *host* socket and upstream describes it as effectively host-root; this
+# daemon is nested in this container, its socket is an ordinary path, and a
+# read-write map is both enough and a narrower claim.
+#
+# What this grants is not narrow, though, and docs/OVERVIEW.md says so plainly:
+# the daemon runs *in* this container, so `docker run -v /:/probe` against it
+# hands a container this container's own root filesystem, and everything the
+# sandbox hides is reachable that way. That was decided on 2026-07-30 — keep the
+# socket, because the boundary that actually contains is the host's and it stays
+# intact — and this block is that decision taking effect rather than a new one.
+#
+# **Conditional on the directory and deliberately not on the socket.** The
+# socket appears when the daemon finishes starting, and this wrapper runs
+# whenever someone types `claude` — so a check for it loses the race on a cold
+# container and silently hands the agent a whole session with no Docker, which
+# looks exactly like the bug this fixes. The directory is created by
+# svc-dockerd-rootless before its own /dev/fuse check, and it lives on the
+# persistent volume, so it is there even when the daemon is disabled or still
+# coming up. A map of a path that does not exist is what the guard is for.
+#
+# **The map alone is not enough, and shipping it alone would have looked like
+# this bug persisting.** ai-jail --clearenv's the sandbox and replants only an
+# allowlist, so the DOCKER_HOST this image sets in core/Dockerfile.frag does not
+# survive into it — measured: 27 variables inside, none of them DOCKER_* — and a
+# `docker` with no DOCKER_HOST goes looking for /var/run/docker.sock, which is
+# not where this daemon listens. So the socket would be mapped in and the client
+# would still fail, with the same message as before the map existed.
+#
+# The value is copied from the host environment where there is one, which is the
+# ENV above and the single place the path is meant to be decided; the literal is
+# a fallback for a shell that lost it, and not a second definition to keep in
+# step. `--env NAME` with NAME unset is a silent no-op, which is exactly the
+# case the fallback covers.
+if [[ -d /config/.docker ]]; then
+  jail_args+=(
+    --rw-map /config/.docker
+    --env "DOCKER_HOST=${DOCKER_HOST:-unix:///config/.docker/run/docker.sock}"
+  )
+fi
+
 exec ai-jail "${jail_args[@]}" claude "$@"
