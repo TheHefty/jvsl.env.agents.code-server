@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.2.0...v1.3.0) (2026-08-25)
+
+
+### Features
+
+* jail the Claude Code CLI by default ([9092c6b](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/9092c6b5bfcf6ab1ccad843a4a78374e98f79c3e))
+* jail the Claude Code CLI by default ([f171c6b](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/f171c6bd357df264d98b354ccbe375ee13016846))
+
+
+### Bug Fixes
+
+* pin ai-jail, whose defaults move under the image ([17aafc6](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/17aafc60411bc89e697736b43ad305a9ef41c8cf))
+
 ## [1.2.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.1.1...v1.2.0) (2026-08-15)
 
 
