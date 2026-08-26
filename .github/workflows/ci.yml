@@ -81,6 +81,22 @@ jobs:
       - name: the pinned key is the one the archive is signed with
         run: bash stacks/php/keyring.test.sh
 
+  agent-docs:
+    # The normative process documents now ship from here and reach a project by
+    # bump, in one folder per language. Two things can rot without anything
+    # failing: the languages drifting apart, and the migration script eating the
+    # half of a project's rules the project wrote itself. Both are checked, and
+    # both checks are offline.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the language folders are the same document
+        run: bash docs/agent/check-parity.sh
+      - name: the parity check can actually fail
+        run: bash docs/agent/check-parity.test.sh
+      - name: migration never destroys what a project wrote
+        run: bash migrate-agent-docs.test.sh
+
   title-bar:
     # The one piece of this launcher that runs inside somebody else's page, and the
     # one written to fail quietly: if code-server stops calling its title bar
@@ -142,7 +158,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, agent-docs, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
