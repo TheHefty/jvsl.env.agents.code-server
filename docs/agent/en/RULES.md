@@ -118,8 +118,8 @@ whoever opens the change.
 - **A consuming repo has no CI of its own**, so a PR in it is mergeable the moment it opens.
   Nothing will stop a broken change: the discipline has to come from whoever opens it.
 - **A test here is a `*.test.sh` beside the thing it exercises**, driving the real script rather
-  than a copy of its logic, and exiting non-zero on failure. `scripts/check-md-size.test.sh` is
-  the local example; the template's `packages.test.sh` and
+  than a copy of its logic, and exiting non-zero on failure. The reference monorepo's
+  `scripts/check-md-size.test.sh` is the shape to copy; the template's `packages.test.sh` and
   `core/cont-init/30-editor-defaults.test.sh` are the ones with a CI job behind them.
 - **A local hook is not CI.** It is opt-in per clone and skippable with `--no-verify`, so treat it
   as a reminder for the author, never as a gate the repository enforces.
@@ -252,12 +252,15 @@ person debugging it at three in the morning finds out why it stopped.
   relevant, which is most things.
 - **What `CLAUDE.md` keeps in its own body is what has to survive the imports failing.** The
   submodule is empty until `git submodule update --init`, and an import that resolves to nothing
-  may say nothing. The mode, the gates and the instruction to stop and say so are written in the
+  says nothing: no error, no warning, only the `@` line left visible with no content behind it. The mode, the gates and the instruction to stop and say so are written in the
   file itself for that reason; do not move them into an import to make the file shorter.
 - **`CHANGELOG.md` is exempt.** It only grows, it is written by release-please rather than by a
   person, and blocking a release commit on it would teach everyone to reach for `--no-verify` —
   which turns off every other check at the same time.
-- **The check is `scripts/check-md-size.sh`**, wired to `.githooks/pre-commit`. Enable it per
-  clone with `git config core.hooksPath .githooks`; git config is not versioned, so no commit can
-  turn it on for you. There is no CI in a consuming repo to catch this afterwards, so an unenabled
+- **The check is a script the project writes, because the template does not ship one.** The rule
+  travels with a bump and the tool does not, and a rule naming a file that never arrives is worse
+  than a rule naming none. The reference monorepo's `scripts/check-md-size.sh`, wired to
+  `.githooks/pre-commit`, is the implementation to copy. Enable it per clone with
+  `git config core.hooksPath .githooks`; git config is not versioned, so no commit can turn it on
+  for you. There is no CI in a consuming repo to catch this afterwards, so an unenabled
   hook means the rule is only as real as the person remembering to run the script.

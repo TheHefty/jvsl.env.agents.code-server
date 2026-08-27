@@ -33,7 +33,7 @@ initialization, and does not translate anything locally — a local translation 
 up following a rule the template retired two versions ago.
 
 The cost is real and worth naming: every normative change is written in every language here.
-`scripts/check-agent-docs-parity.sh` fails when the folders stop having the same files and the same
+`check-parity.sh` fails when the folders stop having the same files and the same
 headings, because the failure mode of a second copy is that it silently stops being the same
 document. It cannot check that a translation still *says* the same thing — only that nothing was
 added or dropped on one side.
