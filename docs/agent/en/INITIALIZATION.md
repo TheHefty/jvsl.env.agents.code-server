@@ -37,7 +37,7 @@ over what was already decided, instead of re-explaining the architecture every t
 prompts and tool excerpts are captured to disk for this project. Memory is per project and never
 crosses into another, and no LLM provider is configured, so nothing captured leaves the machine
 unless someone later adds one. The mechanics are in
-`.code-server/docs/OVERVIEW.md` — don't restate them here, they drift.
+`.code-server/docs/overview/start.md` — don't restate them here, they drift.
 
 If yes, create the marker and say that the container has to be restarted before anything comes up:
 the marker is read at boot, by the service and by the hook that registers with the CLI. If no,

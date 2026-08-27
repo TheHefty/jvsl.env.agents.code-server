@@ -14,7 +14,7 @@
 # so that state would be thrown away on every rebuild. Note this does *not*
 # make the AVD reachable from the Claude Code agent's own sandboxed shell —
 # ai-jail rebuilds /config as a fresh tmpfs and binds in only a fixed set of
-# children, which android-avd isn't one of; see docs/OVERVIEW.md. Drive the
+# children, which android-avd isn't one of; see docs/overview/start.md. Drive the
 # emulator via `docker exec -u abc` from there. The golden copy
 # can't live under /config directly at build time either: /config is the
 # runtime volume mount point, so anything baked there during `docker build`

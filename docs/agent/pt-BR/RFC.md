@@ -3,7 +3,7 @@
 Um registro de decisões que foram caras de tomar, guardado para que a próxima pessoa não pague por
 elas duas vezes. Um RFC captura o *porquê* — o problema, o que foi rejeitado, o que custa — e
 continua verdadeiro depois que o código anda. Não é uma descrição do sistema atual: isso é o
-`docs/OVERVIEW.md`, e o `.code-server/docs/OVERVIEW.md` do próprio template.
+`docs/OVERVIEW.md`, e o `.code-server/docs/overview/` do próprio template.
 
 ## Quando você precisa de um
 
@@ -14,7 +14,7 @@ Um é escrito incondicionalmente na inicialização do projeto: a entrevista de 
 **Este arquivo é o procedimento herdado, não os RFCs de um projeto.** Ele vem do template e é lido
 por import; os arquivos numerados moram no `docs/RFC/` do próprio projeto, que começa vazio.
 Decisões sobre o template em si não vão para lá — moram com o template, no
-`.code-server/docs/OVERVIEW.md`, que versiona com ele e não com um consumidor dele.
+`.code-server/docs/overview/`, que versiona com ele e não com um consumidor dele.
 
 Fora isso, escreva um RFC antes de uma mudança que:
 

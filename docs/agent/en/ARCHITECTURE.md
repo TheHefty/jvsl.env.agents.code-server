@@ -14,7 +14,7 @@ rather than as links, for the reason given in [Rules](RULES.md).
 
 - **Not the dev environment's architecture.** The container, the sandbox, the nested Docker daemon
   and the launcher belong to the template, and they are documented in
-  `.code-server/docs/OVERVIEW.md`, which versions with the template rather than with the project.
+  `.code-server/docs/overview/`, which versions with the template rather than with the project.
   Do not restate it there; link it.
 - **Not a decision log.** Why a shape was chosen, what was rejected, and what it cost live in the
   project's `docs/RFC/`, and stay true after the code moves on. The architecture file describes the

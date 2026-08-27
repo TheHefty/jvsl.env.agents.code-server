@@ -16,7 +16,7 @@ git submodule add https://github.com/TheHefty/jvsl.env.agents.code-server.git .c
 
 The one piece of state that lives outside the submodule, at the consuming repo's own root, is
 `.code-server.stack.json` — the per-project stack selection, written by `setup` (see "Manifest" in
-[`docs/OVERVIEW.md`](docs/OVERVIEW.md) for why it can't live inside the submodule itself). See
+[`docs/overview/setup.md`](docs/overview/setup.md) for why it can't live inside the submodule itself). See
 [`jvsl.monorepo.agents.template`](https://github.com/TheHefty/jvsl.monorepo.agents.template) for a
 reference consumer.
 
@@ -52,7 +52,7 @@ in CI, where they cannot be skipped.
 ### The same thing by hand
 
 Prerequisites on the host: `jq`, `whiptail`, `docker` (for `setup`); Rust/`cargo` + the Tauri Linux
-libs (for `start` — see [`docs/OVERVIEW.md`](docs/OVERVIEW.md) for the exact packages per distro).
+libs (for `start` — see [`docs/overview/start.md`](docs/overview/start.md) for the exact packages per distro).
 
 1. **Build the image** — interactive stack selection, generates `.code-server/Dockerfile`, and
    builds it:
@@ -104,7 +104,7 @@ bare commit. `start`'s own version is kept in lockstep with the tag.
 
 ## Docs
 
-[`docs/OVERVIEW.md`](docs/OVERVIEW.md) — full design rationale: every decision made, the
+[`docs/overview/`](docs/overview/) — full design rationale: every decision made, the
 `core/`/`stacks/` structure, the manifest format, and build issues already hit and fixed. Treated
 as the authoritative, up-to-date spec.
 

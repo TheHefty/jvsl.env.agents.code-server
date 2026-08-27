@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # .code-server is always a submodule directly under the consuming repo's
-# root (see docs/OVERVIEW.md) — REPO_ROOT is that root, one level up.
+# root (see docs/overview/setup.md) — REPO_ROOT is that root, one level up.
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 STACKS_DIR="$SCRIPT_DIR/stacks"
 COMPOSE="$SCRIPT_DIR/core/compose-dockerfile.sh"

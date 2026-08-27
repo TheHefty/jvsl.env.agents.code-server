@@ -14,7 +14,7 @@ código e não como link, pelo motivo dado em [Regras](RULES.md).
 
 - **Não é a arquitetura do ambiente de desenvolvimento.** O container, o sandbox, o daemon Docker
   aninhado e o launcher pertencem ao template, e estão documentados em
-  `.code-server/docs/OVERVIEW.md`, que versiona junto com o template e não com o projeto. Não
+  `.code-server/docs/overview/`, que versiona junto com o template e não com o projeto. Não
   repita aquilo lá; aponte.
 - **Não é um log de decisões.** Por que uma forma foi escolhida, o que foi rejeitado e o que custou
   moram no `docs/RFC/` do projeto, e continuam verdadeiros depois que o código anda. O arquivo de

@@ -3,7 +3,7 @@
 A record of decisions that were expensive to make, kept so the next person does not pay for them
 twice. An RFC captures *why* — the problem, what was rejected, what it costs — and stays true
 after the code moves on. It is not a description of the current system: that is
-`docs/OVERVIEW.md`, and the template's own `.code-server/docs/OVERVIEW.md`.
+`docs/OVERVIEW.md`, and the template's own `.code-server/docs/overview/`.
 
 ## When you need one
 
@@ -13,7 +13,7 @@ One is written unconditionally at project initialization: the purpose interview 
 **This file is the inherited procedure, not a project's RFCs.** It ships from the template and is
 read through an import; the numbered files live in the project's own `docs/RFC/`, which starts empty.
 Decisions about the template itself do not go there — they live with the template, in
-`.code-server/docs/OVERVIEW.md`, which versions with it rather than with a consumer of it.
+`.code-server/docs/overview/`, which versions with it rather than with a consumer of it.
 
 Otherwise, write an RFC before a change that:
 

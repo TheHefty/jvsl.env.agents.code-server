@@ -60,7 +60,7 @@ about.
   container's own root filesystem — including paths the sandbox hides. Writes are bounded by the
   rootless uid mapping (container-root maps to `abc`), not by `ai-jail`. This was measured rather
   than assumed, and the socket was kept knowingly; the reasoning is in
-  [`docs/OVERVIEW.md`](docs/OVERVIEW.md) under "Why the container is this permissive".
+  [`docs/overview/start.md`](docs/overview/start.md) under "Why the container is this permissive".
 - **code-server runs with no password.** `start` passes an empty `PASSWORD=`, so any user or process
   on the host that can reach the published loopback port gets the editor, and through it a shell in
   the container. This is a single-user-workstation assumption, not an oversight.
@@ -77,6 +77,6 @@ about.
 
 ## Reviewing this yourself
 
-`docs/OVERVIEW.md` records the reasoning behind every permissive flag, including the decisions that
+`docs/overview/start.md` records the reasoning behind every permissive flag, including the decisions that
 were reversed and why. If you are evaluating whether to adopt this template, that document — not
 this file — is the honest account.

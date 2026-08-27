@@ -38,7 +38,7 @@ sessões e entre CLIs de agente, e busca sobre o que já foi decidido, em vez de
 arquitetura toda vez. O que custa: prompts e trechos de ferramenta são capturados em disco para
 este projeto. A memória é por projeto e nunca atravessa para outro, e nenhum provedor de LLM está
 configurado, então nada do que é capturado sai da máquina a menos que alguém adicione um depois. A
-mecânica está no `.code-server/docs/OVERVIEW.md` — não repita aqui, isso deriva.
+mecânica está no `.code-server/docs/overview/start.md` — não repita aqui, isso deriva.
 
 Se sim, crie o marcador e diga que o container precisa ser reiniciado antes de qualquer coisa
 subir: o marcador é lido no boot, pelo serviço e pelo hook que se registra na CLI. Se não, não crie
