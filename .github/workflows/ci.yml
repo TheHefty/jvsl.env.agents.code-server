@@ -97,6 +97,19 @@ jobs:
       - name: migration never destroys what a project wrote
         run: bash migrate-agent-docs.test.sh
 
+  md-size:
+    # A Markdown file past 50 KiB stops being read and starts being skimmed,
+    # which is worse than being short: it still looks authoritative. Nothing
+    # noticed docs/OVERVIEW.md growing to 86 KiB over a year of releases, because
+    # the rule shipped from here while the tool to enforce it did not.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: no tracked Markdown over the limit
+        run: bash scripts/check-md-size.sh
+      - name: the size check can actually fail
+        run: bash scripts/check-md-size.test.sh
+
   title-bar:
     # The one piece of this launcher that runs inside somebody else's page, and the
     # one written to fail quietly: if code-server stops calling its title bar
@@ -158,7 +171,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, agent-docs, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

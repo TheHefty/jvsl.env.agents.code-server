@@ -1,8 +1,11 @@
 # `.githooks/pre-push`
 
 - **Everything CI checks that does not need a Docker build**: shell syntax, the host package table,
-  the editor-defaults merge, the injected title bar, and `cargo test --release --locked`. Enabled
-  per clone with `git config core.hooksPath .githooks`, because git config is not versioned.
+  the editor-defaults merge, the language-folder parity, the Markdown size limit, the injected title
+  bar, and `cargo test --release --locked`. Enabled per clone with
+  `git config core.hooksPath .githooks`, because git config is not versioned. The list drifting out
+  of step with `ci.yml` is the quiet way this stops being what it claims to be — parity and size
+  were both running in CI and missing here until somebody compared the two.
 - **What is left out is the point.** `core-build` and `stack-build` build images and take minutes,
   and a hook that takes minutes is a hook people skip with `--no-verify` — at which point it checks
   nothing at all. CI runs those and cannot be skipped.

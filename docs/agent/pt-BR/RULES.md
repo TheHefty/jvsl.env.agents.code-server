@@ -120,9 +120,9 @@ quem abre a mudança.
   Nada vai barrar uma mudança quebrada: a disciplina tem que vir de quem abre.
 - **Um teste aqui é um `*.test.sh` ao lado da coisa que ele exercita**, dirigindo o script real e
   não uma cópia da lógica dele, e saindo com código diferente de zero na falha.
-  O `scripts/check-md-size.test.sh` do monorepo de referência é o formato a copiar;
-  `packages.test.sh` e
-  `core/cont-init/30-editor-defaults.test.sh` do template são os que têm um job de CI atrás.
+  O `scripts/check-md-size.test.sh`, o `packages.test.sh` e o
+  `core/cont-init/30-editor-defaults.test.sh` do template são o formato a copiar, e são os que têm
+  um job de CI atrás.
 - **Um hook local não é CI.** É opt-in por clone e pulável com `--no-verify`, então trate como
   lembrete para quem escreve, nunca como um gate que o repositório impõe.
 
@@ -259,10 +259,11 @@ pessoa depurando às três da manhã descobre por que parou.
 - **`CHANGELOG.md` é isento.** Ele só cresce, é escrito pelo release-please e não por uma pessoa, e
   barrar um commit de release nele ensinaria todo mundo a recorrer ao `--no-verify` — que desliga
   todos os outros checks ao mesmo tempo.
-- **O check é um script que o projeto escreve, porque o template não entrega nenhum.** A regra
-  viaja com o bump e a ferramenta não, e uma regra que nomeia um arquivo que nunca chega é pior do
-  que uma regra que não nomeia nenhum. O `scripts/check-md-size.sh` do monorepo de referência,
-  ligado ao `.githooks/pre-commit`, é a implementação a copiar. Habilite por clone com
+- **O check viaja junto com a regra: `.code-server/scripts/check-md-size.sh`.** Ele examina o
+  repositório de onde você o roda e nunca o submódulo — um submódulo chega ao pai como gitlink e
+  não como arquivos — então da raiz de um monorepo ele checa o monorepo. Ele informa qual árvore
+  examinou, porque um check reportando sobre o repositório errado é, fora isso, indistinguível de
+  um check que passou. Ligue ao seu próprio `.githooks/pre-commit` e habilite por clone com
   `git config core.hooksPath .githooks`; configuração do git não é versionada, então nenhum
   commit consegue ligar isso por você. Não há CI num repo consumidor para pegar isso depois, então
   um hook não habilitado significa que a regra só é tão real quanto a pessoa lembrando de rodar o

@@ -118,9 +118,10 @@ whoever opens the change.
 - **A consuming repo has no CI of its own**, so a PR in it is mergeable the moment it opens.
   Nothing will stop a broken change: the discipline has to come from whoever opens it.
 - **A test here is a `*.test.sh` beside the thing it exercises**, driving the real script rather
-  than a copy of its logic, and exiting non-zero on failure. The reference monorepo's
-  `scripts/check-md-size.test.sh` is the shape to copy; the template's `packages.test.sh` and
-  `core/cont-init/30-editor-defaults.test.sh` are the ones with a CI job behind them.
+  than a copy of its logic, and exiting non-zero on failure. The template's
+  `scripts/check-md-size.test.sh`, `packages.test.sh` and
+  `core/cont-init/30-editor-defaults.test.sh` are the shape to copy, and the ones with a CI job
+  behind them.
 - **A local hook is not CI.** It is opt-in per clone and skippable with `--no-verify`, so treat it
   as a reminder for the author, never as a gate the repository enforces.
 
@@ -257,10 +258,11 @@ person debugging it at three in the morning finds out why it stopped.
 - **`CHANGELOG.md` is exempt.** It only grows, it is written by release-please rather than by a
   person, and blocking a release commit on it would teach everyone to reach for `--no-verify` —
   which turns off every other check at the same time.
-- **The check is a script the project writes, because the template does not ship one.** The rule
-  travels with a bump and the tool does not, and a rule naming a file that never arrives is worse
-  than a rule naming none. The reference monorepo's `scripts/check-md-size.sh`, wired to
-  `.githooks/pre-commit`, is the implementation to copy. Enable it per clone with
+- **The check ships with the rule: `.code-server/scripts/check-md-size.sh`.** It examines the
+  repository you run it from and never the submodule — a submodule reaches its parent as a gitlink
+  rather than as files — so from a monorepo's root it checks the monorepo. It reports which tree it
+  examined, because a check reporting on the wrong repository is otherwise indistinguishable from a
+  check that passes. Wire it to a `.githooks/pre-commit` of your own and enable it per clone with
   `git config core.hooksPath .githooks`; git config is not versioned, so no commit can turn it on
   for you. There is no CI in a consuming repo to catch this afterwards, so an unenabled
   hook means the rule is only as real as the person remembering to run the script.

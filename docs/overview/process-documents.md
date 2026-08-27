@@ -115,6 +115,41 @@ The check itself had the bug it exists to prevent, on its first run: an empty `g
 divergence with no message. Fixed, and there is a case in `check-parity.test.sh` for a file with no
 headings and no links.
 
+## The size limit, and the tool that enforces it
+
+The rules say a Markdown file stays under 50 KiB, because past that it stops being read and starts
+being skimmed — which is worse than being short, since it still looks authoritative. For a long time
+that rule shipped from here and the tool to enforce it did not: `RULES.md` named
+`scripts/check-md-size.sh` as though it arrived with the rules, while the script existed only in the
+reference monorepo, which had written it for itself. Every project adopting the template inherited a
+rule pointing at a file it did not have, which is worse than a rule naming none.
+
+Meanwhile `docs/OVERVIEW.md` grew to 86,792 B — the document *about* this template, breaking this
+template's own rule, for a year of releases, with nothing to notice.
+
+So `scripts/check-md-size.sh` ships from here now, with `check-md-size.test.sh` beside it and a
+`md-size` job in CI. Three things about it are decisions rather than details:
+
+- **It checks the repository you run it from, never the one it lives in.** From a monorepo's root,
+  `.code-server/scripts/check-md-size.sh` examines the monorepo; the submodule's own files are out
+  of scope automatically, because a submodule reaches its parent as a gitlink rather than as files.
+  Run from inside `.code-server/`, it checks the template. Both are right and they are different
+  checks, so `--root` exists to say which one you mean instead of depending on where a hook happened
+  to `cd`.
+- **It names the tree it examined, on success.** A check reporting on the wrong repository is
+  otherwise indistinguishable from a check that passes, and that is the failure a shipped-in-a-
+  submodule tool is most likely to have.
+- **A git that cannot list the tree fails loudly rather than reading as an empty one.** The first
+  cut read straight from `< <(git ls-files -z)`, where a failing git produces no output, the loop
+  never runs, and the script reports "0 files, all under the limit" and exits 0. The listing goes to
+  a file first so that failure lands under `set -e`. There is a case for it in the test file, with a
+  deliberately corrupted index — and it was found by mutating the script to see whether the tests
+  could actually fail, not by reading it.
+
+The reference monorepo now deletes its copy and points its `pre-commit` at this one. Two copies of a
+check is the arrangement that drifts, and it drifts silently: the rule written in one place and
+enforced from another, with nothing saying which is current.
+
 ## Migrating a project that already exists
 
 `migrate-agent-docs.sh`, run from the root of a consuming repo. Dry run by default; `--apply`
