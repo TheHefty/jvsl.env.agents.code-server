@@ -54,6 +54,12 @@ bash packages.test.sh
 echo "pre-push: the editor defaults merge"
 bash core/cont-init/30-editor-defaults.test.sh
 
+echo "pre-push: the language folders are the same document"
+bash docs/agent/check-parity.sh
+
+echo "pre-push: no tracked Markdown over the limit"
+bash scripts/check-md-size.sh
+
 echo "pre-push: the injected title bar"
 node --test start/src/title_bar.test.mjs
 
