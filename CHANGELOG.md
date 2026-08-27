@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.3...v1.6.0) (2026-08-27)
+
+
+### Features
+
+* ship the Markdown size check instead of only the rule ([92e9da1](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/92e9da1f88cdcbcf78a7dbdb829c0ef64afd7002))
+* ship the process documents from the template, in every language ([49f7560](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/49f7560f7f9cb58b48652b7ca74d90e1a648cc27))
+
+
+### Bug Fixes
+
+* correct two dead paths in the shipped process documents ([310622b](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/310622b595497f976d153a5cff976337b1e0505d))
+
 ## [1.5.3](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.2...v1.5.3) (2026-08-25)
 
 
