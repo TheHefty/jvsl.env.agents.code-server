@@ -6,7 +6,6 @@
 ### Features
 
 * ship the Markdown size check instead of only the rule ([92e9da1](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/92e9da1f88cdcbcf78a7dbdb829c0ef64afd7002))
-* ship the process documents from the template, in every language ([5061c1e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/5061c1e6e454d00471e1f67ae8ce5c5c286ec314))
 * ship the process documents from the template, in every language ([49f7560](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/49f7560f7f9cb58b48652b7ca74d90e1a648cc27))
 
 
