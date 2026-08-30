@@ -313,6 +313,12 @@ otherwise it creates it with `docker run` on the first run.
   code-server's terminal is not what the sandbox is aimed at. Nothing else in the template invokes
   `claude`, so the shadowing has no other caller to surprise.
 
+  The same is true of `codex`, shadowed by `core/bin/codex.sh` since the Codex CLI was added
+  alongside Claude Code. It widened nothing — `ai-jail` already knew `codex` as a preset and
+  `--agent-state` already mapped `~/.codex` — and the flags below are shared between the two
+  wrappers from `core/bin/jail-common.sh` rather than written out twice. See "Two agent CLIs, one
+  sandbox, one list of flags" in [`setup.md`](setup.md).
+
   The wrapper passes two flags that *weaken* `ai-jail`'s baseline, and they live in the image for
   the reason given in the grants paragraph above: project config is refused for exactly these two.
   - `--network`. Without it `ai-jail` passes `--unshare-net` — a network namespace holding nothing

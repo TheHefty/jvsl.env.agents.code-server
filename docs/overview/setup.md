@@ -17,6 +17,53 @@
   socket (see "Why the container is this permissive" in [`start.md`](start.md) for why the host
   socket was removed) — it doesn't change how the dev environment itself is brought up, which stays
   `start`'s `docker run` on the host.
+- **Two agent CLIs, one sandbox, one list of flags.** Claude Code and the OpenAI Codex CLI are both
+  installed, and both are shadowed on PATH by a wrapper that re-execs them inside `ai-jail` —
+  `core/bin/claude.sh` at `/usr/local/bin/claude`, `core/bin/codex.sh` at `/usr/local/bin/codex`.
+  Either real binary stays reachable by absolute path under `/usr/bin`, which is the escape hatch
+  for a human who wants one unjailed.
+  - **Adding Codex widened nothing.** `ai-jail` has carried `codex` as a known preset since before
+    this image shipped it, and `--agent-state` already maps `~/.codex` beside `~/.claude`. So the
+    sandbox Codex runs in is the one Claude was already running in, and there is no new grant to
+    argue about.
+  - **The flags live once, in `core/bin/jail-common.sh`**, which both wrappers source. Two copies
+    of that list is two sandboxes that disagree the first time somebody edits one — and they
+    disagree *silently*, because a wrapper with the wrong flags does not error, it produces a tool
+    inside the jail that behaves as though it were misconfigured. What is left in each wrapper is
+    only that agent's own: its re-entry marker, and `CLAUDE_CONFIG_DIR` or `OPENAI_API_KEY`. The
+    reasoning for every shared flag is in that file rather than repeated here.
+  - **Codex needs no `CODEX_HOME`.** Everything it keeps — `config.toml`, `auth.json`, history,
+    sessions — is under `~/.codex`, which is `/config/.codex` here and on the persistent volume
+    already. `CLAUDE_CONFIG_DIR` exists to fix a *second* file one level up that nothing mounted
+    (see "6.1" in `core/Dockerfile.frag`); Codex has no equivalent, so setting the variable would
+    only be a second definition of the default.
+  - **Credentials are forwarded by name, never as `NAME=VALUE`.** `--env GH_TOKEN` copies the value
+    across without it ever entering the wrapper's own argv; the pair form would put the secret in
+    `ps` for every user on the box. `OPENAI_API_KEY` is forwarded the same way and is a silent
+    no-op when unset — which is the ordinary case, since `codex login` writes `~/.codex/auth.json`
+    and that persists on its own. Neither is configured for you: handing an agent a credential is
+    a decision.
+  - Guarded by `core/bin/jail-wrappers.test.sh`, which stubs the `ai-jail` the wrappers `exec` and
+    reads the argv they really built. The shared list has to arrive at both unmodified *and*
+    nothing may be added past it that is not written down as that agent's — the prefix check alone
+    let a stray `--no-landlock` in `claude.sh` through, which is how that second half came to
+    exist.
+- **The versions core pins live in `core/versions.json`.** `claude-code` and `codex` are
+  substituted into `core/Dockerfile.frag` as `{{CLAUDE_CODE_VERSION}}` and `{{CODEX_VERSION}}` by
+  `core/compose-dockerfile.sh`, the same place the stacks get their `{{VERSION}}`. Until 2026-08-30
+  both were `npm install -g <name>` with no version at all — the same "the image changes under a
+  project on a rebuild that changed nothing in it" that `releases/latest` was pinned away from for
+  `ai-jail`, just harder to notice, because an npm package has no release page you watch.
+  - **No digest, and none needed.** A published npm version is immutable, so an exact version names
+    one artifact for good — the property a digest buys for a GitHub asset, where a tag can be
+    repointed and its files replaced.
+  - **An unfilled placeholder stops the compose, by name.** Otherwise it reaches `docker build` as
+    literal text and surfaces minutes later as npm reporting that `@openai/codex@{{CODEX_VERSION}}`
+    is not a version — an error about a package, for a missing key in a JSON file. Tested in
+    `core/compose-dockerfile.test.sh`.
+  - CI's `core-build` job composes before building for exactly this reason; it used to run
+    `docker build -f core/Dockerfile.frag` directly, which stops working the moment core has a
+    placeholder in it.
 - **Default editor settings reach environments that already exist.** The values live in
   `core/settings-defaults.json` — one file, read both by the build-time seeding and by
   `core/cont-init/30-editor-defaults.sh`, because two copies of a default list is two lists that

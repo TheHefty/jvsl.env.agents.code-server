@@ -141,8 +141,13 @@ COPY core/services/svc-dockerd-rootless /etc/s6-overlay/s6-rc.d/svc-dockerd-root
 RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-dockerd-rootless/run \
     && touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-dockerd-rootless
 
-# 5. Ensures the Claude directory is created with permissions for user 'abc'
-RUN mkdir -p /config/.claude && chown -R abc:abc /config/.claude
+# 5. Ensures each agent's state directory exists and belongs to user 'abc'.
+# ai-jail maps into the sandbox only the paths that already exist, so a
+# directory missing here is not created inside the jail — it is simply absent,
+# and the agent starts at onboarding on every single run with nothing saying
+# why. That is exactly what ~/.claude.json did before section 6.1.
+RUN mkdir -p /config/.claude /config/.codex \
+    && chown -R abc:abc /config/.claude /config/.codex
 
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
 # group's gid with the host device's — only acts when `start` passed KVM_GID
@@ -154,8 +159,32 @@ RUN mkdir -p /config/.claude && chown -R abc:abc /config/.claude
 COPY core/cont-init/20-kvm-gid.sh /custom-cont-init.d/20-kvm-gid.sh
 RUN chmod +x /custom-cont-init.d/20-kvm-gid.sh
 
-# 6. Installs the Claude Code CLI
-RUN npm install -g @anthropic-ai/claude-code
+# 6. Installs the agent CLIs, both pinned, from core/versions.json.
+#
+# These two lines were `npm install -g <name>` with no version until 2026-08-30,
+# which is the same "the image changes under a project on a rebuild that changed
+# nothing in it" that `releases/latest` was pinned away from in section 7 — just
+# less visible, because an npm package has no release page to notice moving.
+#
+# There is no digest to check alongside them, and there does not need to be: a
+# published npm version is immutable, so an exact version names one artifact for
+# good. That is the property a digest buys for a GitHub asset, where a tag can
+# be repointed and its files replaced. Bumping either is a deliberate step —
+# edit core/versions.json, read the release notes, rebuild. The numbers are
+# deliberately not repeated here: a version in a comment is a second copy, and
+# the copy is the one nobody edits.
+RUN npm install -g @anthropic-ai/claude-code@{{CLAUDE_CODE_VERSION}}
+
+# 6.0 The OpenAI Codex CLI, sandboxed the same way and by the same wrapper
+# machinery — see section 7.1. ai-jail has known it as a preset since before
+# this image shipped it, and --agent-state already maps ~/.codex beside
+# ~/.claude, so nothing about the sandbox had to be widened to add it.
+#
+# It needs no equivalent of CLAUDE_CONFIG_DIR below: everything Codex keeps —
+# config.toml, auth.json, history, sessions — lives under ~/.codex, which is
+# /config/.codex here and is on the persistent volume. The problem 6.1 exists to
+# solve was a *second* file one level up, and Codex does not have one.
+RUN npm install -g @openai/codex@{{CODEX_VERSION}}
 
 # 6.1 Keeps the CLI's whole state inside /config/.claude — the directory
 # `start` bind-mounts from the host — instead of only its credentials. By
@@ -264,8 +293,17 @@ RUN curl -fsSL https://github.com/akitaonrails/ai-jail/releases/download/v1.20.1
 # (which globs *.sh, plus the three extensionless executables by name) covers
 # it, and renamed on the way in because PATH is what has to read `claude`.
 # Why it passes the flags it passes is argued in the script itself.
+#
+# The flags themselves are almost all shared between the agents, so they live
+# once in core/bin/jail-common.sh, which both wrappers source. Two copies of a
+# flag list is two sandboxes that disagree the first time somebody edits one,
+# and they disagree silently — a wrapper with the wrong flags does not error, it
+# produces a tool inside the jail that behaves as if it were misconfigured.
+# jail-common.sh is not on PATH because it is not a command.
+COPY core/bin/jail-common.sh /usr/local/lib/jail-common.sh
 COPY core/bin/claude.sh /usr/local/bin/claude
-RUN chmod +x /usr/local/bin/claude
+COPY core/bin/codex.sh /usr/local/bin/codex
+RUN chmod +x /usr/local/bin/claude /usr/local/bin/codex
 
 # 7.2 Installs ai-memory (akitaonrails/ai-memory), long-term memory shared
 # across sessions and across agent CLIs, and wires it up as an s6 service plus

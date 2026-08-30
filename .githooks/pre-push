@@ -56,8 +56,11 @@ bash packages.test.sh
 echo "pre-push: the editor defaults merge"
 bash core/cont-init/30-editor-defaults.test.sh
 
-echo "pre-push: the sandbox wrapper"
-bash core/bin/claude.test.sh
+echo "pre-push: the sandbox wrappers"
+bash core/bin/jail-wrappers.test.sh
+
+echo "pre-push: core's pinned versions"
+bash core/compose-dockerfile.test.sh
 
 echo "pre-push: the language folders are the same document"
 bash docs/agent/check-parity.sh
