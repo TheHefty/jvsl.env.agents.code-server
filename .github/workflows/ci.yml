@@ -68,6 +68,19 @@ jobs:
       - name: the merge honours what is already there
         run: bash core/cont-init/30-editor-defaults.test.sh
 
+  jail-wrapper:
+    # The flags core/bin/claude.sh hands ai-jail. Every one of them fails
+    # quietly when it is wrong: a variable the sandbox never receives does not
+    # error, it produces a tool inside the jail that behaves as if it were
+    # misconfigured, and the message it prints blames something else. DOCKER_HOST
+    # cost one round of that and RUSTUP_HOME cost another; this is so the third
+    # is caught here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the sandbox is handed what it cannot inherit
+        run: bash core/bin/claude.test.sh
+
   php-keyring:
     # The php stack installs from a third-party archive and is the only one that
     # does, so it is the only one carrying a signing key. What this guards is
@@ -171,7 +184,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, jail-wrapper, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

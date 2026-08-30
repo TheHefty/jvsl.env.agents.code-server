@@ -42,6 +42,32 @@
 # something else should not reach the agent because it happened to be in the
 # shell. Whoever exports GH_TOKEN is choosing to hand the agent that token, so
 # scope it narrowly and give it an expiry.
+# RUSTUP_HOME is forwarded for the same reason DOCKER_HOST is further down, and
+# was missed for the whole time that one was being fixed. ai-jail --clearenv's
+# the sandbox and replants only an allowlist; PATH makes that allowlist and
+# RUSTUP_HOME does not. So /usr/local/cargo/bin is on PATH in there and the
+# `cargo` it resolves is a rustup shim that cannot find the toolchain it is a
+# shim for.
+#
+# It does not say that. It reports that no default toolchain is configured and
+# advises `rustup default stable` — which would redownload, over the network,
+# the toolchain already sitting in /usr/local/rustup/toolchains, and whose
+# settings.toml has named it as the default the whole time. A failure naming
+# the wrong cause is the one thing this image is not supposed to ship. Section
+# 1.1 of core/Dockerfile.frag installs Rust so that start/ can be verified from
+# inside the container as well as on the host; until this line, that had never
+# once been true inside the jail, which is where the agent always is.
+#
+# CARGO_HOME is deliberately *not* forwarded beside it, and the symmetry is the
+# trap. /usr is bound into the sandbox read-only, so the /usr/local/cargo the
+# image sets is unwritable in there — and cargo does not refuse at the start,
+# it dies partway through a build on its own registry cache with `Read-only
+# file system (os error 30)`, which reads as a broken image rather than as a
+# variable that should not have been sent. Left unset it falls back to
+# $HOME/.cargo: the persistent volume, writable, and still warm on the next
+# run. The cost is that a jailed build and a terminal build keep separate
+# registries, which is disk rather than correctness.
+
 set -euo pipefail
 
 # Inside the sandbox /usr is bound in read-only, so this wrapper is still the
@@ -59,6 +85,7 @@ jail_args=(
   --env CLAUDE_JAILED=1
   --env CLAUDE_CONFIG_DIR
   --env GH_TOKEN
+  --env "RUSTUP_HOME=${RUSTUP_HOME:-/usr/local/rustup}"
   --no-save-config
 )
 
