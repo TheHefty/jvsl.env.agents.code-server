@@ -137,4 +137,38 @@ run "$settings"
 check "the merged file is left writable by its owner and readable" \
     "$(stat -c '%a' "$settings")" "644"
 
+# Named tests for one key, where the others are covered generically. The reason
+# is that this one is a *behaviour* change to something the reader uses all day
+# — every selection in the terminal now replaces the clipboard — so the two ways
+# it can go wrong are worth pinning by name rather than trusting to the generic
+# merge tests to notice. See "Selecting text inside Claude Code" in
+# docs/overview/start.md for what it is for.
+
+# Failure 1 — shipped and documented are two different things. A default that
+# is written up in the docs and missing from this file reaches nobody, and the
+# reader who follows the docs concludes the fix does not work for them, which
+# is exactly how gpuAcceleration spent months not arriving.
+check "copy-on-selection is actually in the shipped defaults" \
+    "$(jq -r '."terminal.integrated.copyOnSelection"' "$DEFAULTS")" "true"
+
+# Failure 2 — the environments that need this most are the ones that already
+# exist: their volume was seeded before this key existed, so build-time seeding
+# will never reach them. This is the path that has to carry it.
+settings="$work/predates-copy-on-selection.json"
+printf '%s' '{"workbench.colorTheme":"Dark Modern"}' > "$settings"
+run "$settings"
+check "an environment older than the key receives it anyway" \
+    "$(jq -r '."terminal.integrated.copyOnSelection"' "$settings")" "true"
+
+# Failure 3 — and whoever wants it off must be able to turn it off *once*. Put
+# back on every restart, this is the most irritating shape a default can take:
+# silent, recurring, and blamed on the editor rather than on the image. Run
+# twice, because once proves nothing about a boot hook.
+settings="$work/copy-on-selection-off.json"
+printf '%s' '{"terminal.integrated.copyOnSelection":false}' > "$settings"
+run "$settings"
+run "$settings"
+check "turning copy-on-selection off survives a restart" \
+    "$(jq -r '."terminal.integrated.copyOnSelection"' "$settings")" "false"
+
 exit "$failures"

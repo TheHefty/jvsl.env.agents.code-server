@@ -49,6 +49,13 @@
     a `//` inside a URL, a `/*` inside a string, a comma before a brace inside a string, escaped
     quotes, a real trailing comma — plus the broken file, the already-complete file, and the mode
     the merged file is left with.
+- **`terminal.integrated.copyOnSelection: true`** makes selecting in the terminal the copy, with no
+  second keystroke. It is there because the Claude Code CLI turns on terminal mouse tracking, which
+  makes xterm.js stand its selection layer down — so inside the CLI a plain drag highlights nothing
+  and you have to hold Shift, which nothing anywhere tells you. Note the cost before inheriting it:
+  every selection in every terminal now replaces the system clipboard. See "Selecting text inside
+  Claude Code" in [`start.md`](start.md) for the diagnosis, and for `CLAUDE_CODE_DISABLE_MOUSE`,
+  which is the other way to get the gesture back and is deliberately not set here.
 - **`window.menuBarVisibility: "classic"`** draws the menus as a row instead of the web build's
   single hamburger. It is also load-bearing for `start`: the window's own buttons are injected into
   that row, and with the menu bar hidden there is no `.part.titlebar` to inject into — so the
