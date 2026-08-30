@@ -352,6 +352,28 @@ otherwise it creates it with `docker run` on the first run.
   breaks the loop has to be handed in with `--env CLAUDE_JAILED=1` rather than exported: the
   sandbox is `--clearenv`'d and only an allowlist is replanted, so an ordinary environment variable
   is gone by the time the preset runs.
+  - **The same allowlist ate `RUSTUP_HOME`, and nobody noticed for as long as `DOCKER_HOST` was
+    being fixed.** `PATH` is replanted, so `/usr/local/cargo/bin` is on it inside the sandbox and
+    `cargo` is right there; `RUSTUP_HOME` is not, so what is right there is a rustup shim that
+    cannot find the toolchain it is a shim for. It reports that no default toolchain is configured
+    and advises `rustup default stable` — pointing at the network, for a toolchain already in
+    `/usr/local/rustup/toolchains` whose `settings.toml` has named it the default all along. The
+    failure named the wrong cause, which is the failure mode this whole template was built against.
+    Section 1.1 of `core/Dockerfile.frag` installs Rust so `start/` can be verified from inside the
+    container as well as on the host, and inside the jail — where the agent always is — that had
+    never once been true. Fixed by `--env "RUSTUP_HOME=${RUSTUP_HOME:-/usr/local/rustup}"` in
+    `core/bin/claude.sh`, the same shape as `DOCKER_HOST`.
+    - **`CARGO_HOME` is deliberately not forwarded with it**, and the symmetry is the trap. `/usr`
+      is bound in read-only, so the `/usr/local/cargo` the image sets is unwritable in the sandbox
+      — and cargo does not refuse up front, it dies partway through a build on its own registry
+      cache with `Read-only file system (os error 30)`, which reads as a broken image rather than
+      as a variable that should not have been sent. Unset, it falls back to `$HOME/.cargo` on the
+      persistent volume: writable, and still warm next run. The cost is that a jailed build and a
+      terminal build keep separate registries — disk, not correctness.
+    - Verified end to end inside the jail rather than argued: `cargo test --release --locked` in
+      `start/` with `RUSTUP_HOME` set and `CARGO_HOME` unset finished the release build and passed
+      3/3, writing 197 MB of registry into `/config/.cargo`. Guarded by
+      `core/bin/claude.test.sh`, which stubs `ai-jail` and reads the argv the wrapper really built.
 - **`ai-jail` is pinned to a release and verified against its digest, not tracked at
   `releases/latest`.** Its minor versions are where its threat model moves, not just its features:
   v1.18.0 (2026-08-16) turned network, agent state, GPU, display, X11 and more into explicit

@@ -8,7 +8,9 @@
 # What is in is what breaks by accident and is cheap to notice: shell syntax
 # across scripts that no longer all end in `.sh`, the package table `init`
 # offers to install from, the settings merge whose direction is silent when
-# inverted, the injected title bar that fails quietly by design, and the Rust.
+# inverted, the sandbox flags that fail by behaving as a misconfiguration in
+# some other tool rather than as an error here, the injected title bar that
+# fails quietly by design, and the Rust.
 #
 # Enable it once per clone (git config is not versioned):
 #
@@ -53,6 +55,9 @@ bash packages.test.sh
 
 echo "pre-push: the editor defaults merge"
 bash core/cont-init/30-editor-defaults.test.sh
+
+echo "pre-push: the sandbox wrapper"
+bash core/bin/claude.test.sh
 
 echo "pre-push: the language folders are the same document"
 bash docs/agent/check-parity.sh
