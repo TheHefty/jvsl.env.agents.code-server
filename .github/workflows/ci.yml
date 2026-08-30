@@ -68,18 +68,30 @@ jobs:
       - name: the merge honours what is already there
         run: bash core/cont-init/30-editor-defaults.test.sh
 
-  jail-wrapper:
-    # The flags core/bin/claude.sh hands ai-jail. Every one of them fails
-    # quietly when it is wrong: a variable the sandbox never receives does not
-    # error, it produces a tool inside the jail that behaves as if it were
-    # misconfigured, and the message it prints blames something else. DOCKER_HOST
-    # cost one round of that and RUSTUP_HOME cost another; this is so the third
-    # is caught here.
+  jail-wrappers:
+    # The flags core/bin/claude.sh and core/bin/codex.sh hand ai-jail. Every one
+    # of them fails quietly when it is wrong: a variable the sandbox never
+    # receives does not error, it produces a tool inside the jail that behaves as
+    # if it were misconfigured, and the message it prints blames something else.
+    # DOCKER_HOST cost one round of that and RUSTUP_HOME cost another. With two
+    # agents sharing one list there is a third way to be wrong — for the list to
+    # stop being one list — and that is what most of this job is.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: the sandbox is handed what it cannot inherit
-        run: bash core/bin/claude.test.sh
+        run: bash core/bin/jail-wrappers.test.sh
+
+  compose-versions:
+    # core's pinned versions moved out of the middle of a RUN line and into
+    # core/versions.json. What this guards is the seam: a placeholder no key
+    # fills must stop the compose by name, not reach `docker build` as literal
+    # text and fail there as an npm error about a version that does not exist.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: core's pins reach the Dockerfile
+        run: bash core/compose-dockerfile.test.sh
 
   php-keyring:
     # The php stack installs from a third-party archive and is the only one that
@@ -146,7 +158,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: docker build core only
-        run: docker build -f core/Dockerfile.frag -t core-ci .
+        # Composed rather than built straight from the fragment, which is how
+        # this ran until core gained {{NAME_VERSION}} placeholders of its own.
+        # Building the raw fragment now fails on the literal `{{CODEX_VERSION}}`
+        # — and would have, silently, for anyone who copied this line.
+        run: |
+          core/compose-dockerfile.sh > "$RUNNER_TEMP/core.Dockerfile"
+          docker build -f "$RUNNER_TEMP/core.Dockerfile" -t core-ci .
 
   discover-stacks:
     runs-on: ubuntu-latest
@@ -184,7 +202,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, jail-wrapper, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, jail-wrappers, compose-versions, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
