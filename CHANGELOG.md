@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.8.1...v1.9.0) (2026-09-01)
+
+
+### Features
+
+* **cpp:** support executable Gherkin tests ([#40](https://github.com/TheHefty/jvsl.env.agents.code-server/issues/40)) ([1607df9](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/1607df9c83fec4fc96d4203306623b9b35c4842a))
+
 ## [1.8.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.8.0...v1.8.1) (2026-09-01)
 
 
