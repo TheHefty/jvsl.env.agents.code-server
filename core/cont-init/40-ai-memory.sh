@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # custom-cont-init.d script: runs as root, before s6-overlay drops privileges
-# to 'abc'. Registers ai-memory with the Claude Code CLI — the MCP server and
+# to 'abc'. Registers ai-memory with the Claude Code and Codex CLIs — the MCP server and
 # the lifecycle hooks — for a project that opted in.
 #
 # This has to happen on every boot rather than once at build time, for the same
@@ -14,7 +14,9 @@
 # `ai-memory init` lays out the data directory that svc-ai-memory then serves.
 set -euo pipefail
 
-MARKER=/config/workspace/.ai-memory.toml
+# The override exists for isolated hook tests. Production leaves it unset, so
+# the opt-in boundary remains the repository marker under /config/workspace.
+MARKER="${AI_MEMORY_MARKER:-/config/workspace/.ai-memory.toml}"
 DATA_DIR="${AI_MEMORY_DATA_DIR:-/config/ai-memory}"
 
 [ -f "$MARKER" ] || exit 0
@@ -42,6 +44,9 @@ s6-setuidgid abc env HOME=/config ai-memory --data-dir "$DATA_DIR" init
 # wants by default.
 s6-setuidgid abc env HOME=/config ai-memory --data-dir "$DATA_DIR" \
     install-mcp --client claude-code --apply
+
+s6-setuidgid abc env HOME=/config ai-memory --data-dir "$DATA_DIR" \
+    install-mcp --client codex --apply
 
 s6-setuidgid abc env HOME=/config ai-memory --data-dir "$DATA_DIR" \
     install-hooks --agent claude-code --apply \

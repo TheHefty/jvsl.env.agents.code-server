@@ -38,7 +38,7 @@ chown -R abc:abc "$DATA_DIR"
 export HOME=/config
 
 # Loopback only, and no bearer token, because the only clients are in this
-# container: the agent's hooks and its MCP client. Nothing outside can reach it
+# container: the agents' hooks and MCP clients. Nothing outside can reach it
 # — the port is never published by `start`, and the nested rootless daemon runs
 # with --disable-host-loopback, so a container it starts cannot dial in either.
 exec s6-setuidgid abc \
