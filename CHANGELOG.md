@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.7.0...v1.8.0) (2026-09-01)
+
+
+### Features
+
+* **cpp:** install SDL's audio and windowing build deps, and check they landed ([2580b0d](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/2580b0d70c41e7fc3a3e30dc3c92ab103b07c67f))
+
 ## [1.7.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.6.0...v1.7.0) (2026-09-01)
 
 
