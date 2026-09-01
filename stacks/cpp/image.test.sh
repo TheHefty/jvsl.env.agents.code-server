@@ -35,10 +35,13 @@ check_header pulse/pulseaudio.h         "SDL builds with no PulseAudio backend"
 check_header libudev.h                  "no gamepad hotplug"
 check_header X11/extensions/scrnsaver.h "no SDL_DisableScreenSaver; the screensaver covers the window"
 check_header libdecor-0/libdecor.h      "undecorated Wayland windows"
+check_header asio.hpp                    "Cucumber.cpp cannot configure its wire server"
+check_header nlohmann/json.hpp           "Cucumber.cpp cannot encode the wire protocol"
+check_header tclap/CmdLine.h             "Cucumber.cpp cannot build its command-line runner"
 
 # The compiler and build tools the stack is nominally about. Cheap to assert
 # here, and it catches an update-alternatives that silently stopped applying.
-for tool in gcc g++ cmake make gdb pkg-config; do
+for tool in gcc g++ cmake make gdb pkg-config ruby cucumber; do
     if command -v "$tool" >/dev/null 2>&1; then
         echo "ok   $tool is on PATH"
     else
@@ -46,6 +49,23 @@ for tool in gcc g++ cmake make gdb pkg-config; do
         failures=$((failures + 1))
     fi
 done
+
+# cucumber-cpp v0.8.0 still speaks the legacy wire protocol. Its own Gemfile
+# pins this exact pair, so checking only that a `cucumber` executable exists
+# would allow a newer, incompatible major to turn every feature yellow before
+# a C++ step definition is reached.
+if command -v ruby >/dev/null 2>&1; then
+    for gem_and_version in "cucumber 7.1.0" "cucumber-wire 6.2.1"; do
+        read -r gem_name gem_version <<< "$gem_and_version"
+        if ruby -e 'gem_name, gem_version = ARGV; Gem::Specification.find_by_name(gem_name, "= #{gem_version}")' \
+            "$gem_name" "$gem_version"; then
+            echo "ok   $gem_name $gem_version is installed"
+        else
+            echo "FAIL $gem_name $gem_version is missing — cucumber-cpp's wire runner is incompatible" >&2
+            failures=$((failures + 1))
+        fi
+    done
+fi
 
 if [ "$failures" -ne 0 ]; then
     echo "$failures check(s) failed" >&2

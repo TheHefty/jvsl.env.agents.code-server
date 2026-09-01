@@ -85,11 +85,12 @@ order.
   belong to, and they are agreed with the user before implementation starts. The image ships a
   Gherkin extension for exactly this reason — feature files are how acceptance criteria get written
   and reviewed, whatever the project is built in.
-- **Nothing executes them, and that is the design.** They state what the change must do; the
-  tests that hold it to that are written test-first from them, in the project's own test
-  suite. Treating a `.feature` as though CI enforced it is how a project ships on a belief nobody
-  ever checked — if you want it executable, that is a runner someone has to choose, wire up and
-  say so about.
+- **They are documentation first, and are not executable by default.** The tests that hold the
+  code to them are normally written test-first in the project's own suite. An RFC may instead
+  choose and wire a Gherkin runner so the same `.feature` becomes the acceptance test; in that
+  case the runner, its dependencies and where it runs are part of the RFC. Never describe a
+  `.feature` as CI-enforced until that exact file is registered and observed failing for the
+  missing behaviour.
 - **These are not the three failure scenarios, and the two do not substitute for each other.**
   Acceptance scenarios say what the change must do; failure scenarios say how it breaks. An RFC
   needs both, and a `.feature` file full of failure modes is neither.
