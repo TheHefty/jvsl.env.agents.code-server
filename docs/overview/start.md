@@ -409,8 +409,9 @@ otherwise it creates it with `docker run` on the first run.
   is here for. A provider buys consolidated pages and contradiction lint, and costs sending
   captured content to it.
 
-  Two mechanics are worth knowing before touching this. **Registration happens on every boot, not
-  at build time**, for the reason the android stack already documents: it writes under `/config`, a
+  Two mechanics are worth knowing before touching this. **MCP registration for Claude Code and
+  Codex happens on every boot, not at build time**, for the reason the android stack already
+  documents: it writes under `/config`, a
   named volume Docker seeds from the image only on first mount, so anything baked during
   `docker build` is shadowed the moment a real volume mounts over it. And **the wrapper maps the
   store into the sandbox**, conditionally. The installed Claude Code hooks are native invocations
@@ -594,4 +595,3 @@ Errors already hit and fixed:
 
 **Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
 code-server to respond, and opens the window correctly.
-

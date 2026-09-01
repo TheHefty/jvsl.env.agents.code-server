@@ -68,6 +68,16 @@ jobs:
       - name: the merge honours what is already there
         run: bash core/cont-init/30-editor-defaults.test.sh
 
+  ai-memory:
+    # The boot hook must preserve ai-memory opt-in and register every supported
+    # first-party client. A missing Codex registration is silent until a new
+    # session starts without memory, so the hook is exercised directly.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: opted-in projects receive ai-memory client wiring
+        run: bash core/cont-init/40-ai-memory.test.sh
+
   jail-wrappers:
     # The flags core/bin/claude.sh and core/bin/codex.sh hand ai-jail. Every one
     # of them fails quietly when it is wrong: a variable the sandbox never
@@ -226,7 +236,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, jail-wrappers, compose-versions, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
