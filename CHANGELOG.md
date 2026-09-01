@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.7.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.6.0...v1.7.0) (2026-09-01)
+
+
+### Features
+
+* copy terminal selections, and record why selecting needs Shift ([57fc101](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/57fc101e633894db7ca165fd8fc9664922a9d738))
+* ship the Codex CLI alongside Claude Code, sandboxed by a shared list ([5e9155a](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/5e9155a178725f90566e8186128054826730569d))
+
+
+### Bug Fixes
+
+* hand RUSTUP_HOME to the sandbox so cargo works inside the jail ([442ad45](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/442ad452880f59040ec1520514ba7a7f55c55857))
+
 ## [1.6.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.5.3...v1.6.0) (2026-08-27)
 
 
