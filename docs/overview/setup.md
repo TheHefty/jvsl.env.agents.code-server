@@ -329,3 +329,41 @@ below), both in versions that were already listed in `versions.json` before this
   too, hence `--break-system-packages`), which works uniformly across all three versions instead of
   branching the fragment per-version.
 
+
+## Checking what a stack actually delivered
+
+`stack-build` in CI composes `core` plus one stack and runs `docker build`. That catches a package
+that does not exist, a feed that has gone away, and a fragment that is malformed — all real, and all
+of it is still only a claim that `apt-get` ran.
+
+For some things the gap between "installed" and "usable" is invisible until much later and
+somewhere else. The `cpp` stack is the case that forced this: SDL configured without
+`alsa/asoundlib.h` on the include path does not fail. It compiles, it links, and it produces a
+binary with no audio backend in it — silent on every machine it will ever run on, with nothing in
+any build log to say why. A build that passes and a capability that exists are two different
+claims, and until now this repository could only make the first one.
+
+So a stack may carry **`stacks/<name>/image.test.sh`**, run by `stack-build` inside the image it has
+just built:
+
+```bash
+docker run --rm --network none --entrypoint /bin/bash \
+  -v "$PWD/stacks/<name>:/image-test:ro" "stack-ci-<name>" /image-test/image.test.sh
+```
+
+Three details in that line are load-bearing. `--entrypoint` is overridden because the base image's
+entrypoint is the s6 init, which would bring up the whole service tree instead of running the
+script. `--network none` because an image test asserts what is *in* the image — anything it had to
+fetch would be testing something else, and would fail on someone else's outage. And the mount is
+read-only, because a test that can write to the tree it is checking can also fix what it was
+supposed to find broken.
+
+**Optional by design.** No stack is required to have one, the step is a no-op where the file is
+absent, and the convention is the filename — nothing has to be registered anywhere. Today only
+`cpp` carries one; it asserts the five development headers are under `/usr/include` and that the
+toolchain is on `PATH`, which also catches an `update-alternatives` that quietly stopped applying.
+
+The test is written to be run by hand as well, against any image or even against a running
+container, and it is worth watching it fail before trusting it: run it in a container built before
+its packages existed and it reports the five headers missing and the six tools present, which is
+how you can tell it is checking rather than passing.

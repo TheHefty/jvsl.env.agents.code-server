@@ -195,6 +195,30 @@ jobs:
           core/compose-dockerfile.sh "${{ matrix.stack }}" > /tmp/Dockerfile
           docker build -f /tmp/Dockerfile -t "stack-ci-${{ matrix.stack }}" .
 
+      # A successful `docker build` proves apt-get ran. It does not prove the
+      # stack delivered what it exists to deliver — a header on the include
+      # path, a tool on PATH — and for some of those the difference only shows
+      # up much later, on someone else's machine, as a capability that silently
+      # is not there. So a stack may carry an image.test.sh, run here against
+      # the image just built. Optional by design: no stack is required to have
+      # one, and the step is a no-op where the file is absent.
+      #
+      # --entrypoint is needed because the base image's entrypoint is the s6
+      # init, which would start the whole service tree instead of running the
+      # script. --network none because an image test asserts what is IN the
+      # image; anything it had to fetch would be testing something else.
+      - name: image checks for ${{ matrix.stack }}, if it has any
+        run: |
+          test="stacks/${{ matrix.stack }}/image.test.sh"
+          if [ ! -f "$test" ]; then
+            echo "no $test — nothing to check inside the image"
+            exit 0
+          fi
+          docker run --rm --network none \
+            --entrypoint /bin/bash \
+            -v "$PWD/stacks/${{ matrix.stack }}:/image-test:ro" \
+            "stack-ci-${{ matrix.stack }}" /image-test/image.test.sh
+
   # The one check branch protection requires, and the only reason this job exists.
   # stack-build's job names come from a matrix built by `ls stacks`, so they change
   # whenever a stack is added or removed: naming them individually would leave a
