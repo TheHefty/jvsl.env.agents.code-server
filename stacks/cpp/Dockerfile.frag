@@ -42,6 +42,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdecor-0-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# C++ acceptance-test infrastructure. cucumber-cpp links against the three
+# header-only libraries below and exposes step definitions over a TCP wire
+# server. Ruby is the Gherkin runner on the other side of that connection.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libasio-dev \
+    nlohmann-json3-dev \
+    libtclap-dev \
+    ruby \
+    ruby-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# cucumber-cpp v0.8.0 is a C++ wire server, not a Gherkin runner. Its own
+# Gemfile pins Cucumber-Ruby and cucumber-wire to this compatible pair; newer
+# Cucumber majors no longer speak the protocol it implements. Keep the runner
+# in the image so a clean checkout can execute acceptance tests without a
+# per-project gem install or network access at test time.
+RUN gem install cucumber-wire --version 6.2.1 --no-document \
+    && gem install cucumber --version 7.1.0 --no-document
+
 # Installs the code-server extension for C/C++ (Open VSX — ms-vscode.cpptools
 # isn't published there, clangd is the closest maintained equivalent)
 RUN /app/code-server/bin/code-server \

@@ -12,14 +12,15 @@ uma descrição do que quer que tenha sido construído.
 
 ## O que não são
 
-**Testes.** Nada aqui é executado. Isto é documentação, e o que prende o código a ela é a suíte de
-testes do próprio projeto, escrita test-first a partir destes cenários — veja Testes em
-[Regras](RULES.md).
+**Testes automaticamente.** Isto é documentação primeiro. Por padrão, o que prende o código a ela
+é a suíte de testes do próprio projeto, escrita test-first a partir destes cenários — veja Testes
+em [Regras](RULES.md). Um projeto pode tornar o mesmo `.feature` executável quando seu RFC nomeia e
+liga um runner Gherkin, em vez de copiar o comportamento para uma segunda descrição de teste.
 
-Isso é uma escolha deliberada e não uma omissão, e tem um modo de falha que vale nomear: um
-`.feature` lido como se a CI o cobrasse deixa um projeto subir apoiado numa crença que ninguém
-nunca verificou. Se você quer que sejam executáveis, isso é um runner que alguém escolhe, liga e
-declara.
+O modo de falha que vale nomear continua o mesmo: um `.feature` lido como se a CI o cobrasse deixa
+um projeto subir apoiado numa crença que ninguém nunca verificou. Executável significa que o
+arquivo exato está registrado num runner e foi visto falhar pelo comportamento ausente; realce de
+sintaxe e cola de steps que nunca roda não contam.
 
 Também não são os cenários de *falha*. Esses ficam no RFC — três por mudança, as piores formas de
 quebrar — e um tipo não substitui o outro: cenários de aceite dizem o que a mudança precisa fazer,

@@ -85,11 +85,12 @@ Não testes escritos ao lado, e não testes escritos depois e commitados numa or
   pertencem, e são acordados com o usuário antes de a implementação começar. A imagem entrega uma
   extensão de Gherkin exatamente por isso — arquivos `.feature` são como critérios de aceite são
   escritos e revisados, seja lá em que o projeto for construído.
-- **Nada os executa, e esse é o desenho.** Eles declaram o que a mudança precisa fazer; os testes
-  que prendem o código a isso são escritos test-first a partir deles, na suíte do próprio projeto.
-  Tratar um `.feature` como se a CI o cobrasse é como um projeto sobe apoiado numa crença que
-  ninguém nunca verificou — se você quer executável, isso é um runner que alguém escolhe, liga e
-  declara.
+- **Eles são documentação primeiro, e não são executáveis por padrão.** Os testes que prendem o
+  código a eles normalmente são escritos test-first na suíte do próprio projeto. Um RFC pode em
+  vez disso escolher e ligar um runner Gherkin para que o mesmo `.feature` vire o teste de aceite;
+  nesse caso o runner, suas dependências e onde ele roda fazem parte do RFC. Nunca descreva um
+  `.feature` como coberto pela CI até que esse arquivo exato esteja registrado e tenha sido visto
+  falhar pelo comportamento ausente.
 - **Estes não são os três cenários de falha, e um não substitui o outro.** Cenários de aceite dizem
   o que a mudança precisa fazer; cenários de falha dizem como ela quebra. Um RFC precisa dos dois, e
   um arquivo `.feature` cheio de modos de falha não é nem um nem outro.
