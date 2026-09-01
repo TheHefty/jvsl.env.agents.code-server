@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.8.0...v1.8.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* register ai-memory with Codex ([1f573f1](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/1f573f11cd7655bf7dc648efe9efd9061cac5851))
+* register ai-memory with Codex ([13fddbc](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/13fddbcd1b0665e03652d934d559b225e67f6ea9))
+
 ## [1.8.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.7.0...v1.8.0) (2026-09-01)
 
 
