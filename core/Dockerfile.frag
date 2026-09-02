@@ -314,8 +314,8 @@ RUN chmod +x /usr/local/bin/claude /usr/local/bin/codex
 # the two things this image needs are installed. /usr/local/share/ai-memory is
 # not an arbitrary choice — it is where `install-hooks` looks for those sources
 # by default.
-RUN curl -fsSL https://github.com/akitaonrails/ai-memory/releases/download/v1.32.0/ai-memory-linux-x86_64.tar.gz -o /tmp/ai-memory.tar.gz \
-    && echo "0477e1741a984aaa18ae35f904e47fdd9b50ce9fd1961d9753fa82cab484ee9f  /tmp/ai-memory.tar.gz" | sha256sum -c - \
+RUN curl -fsSL https://github.com/akitaonrails/ai-memory/releases/download/v2.0.1/ai-memory-linux-x86_64.tar.gz -o /tmp/ai-memory.tar.gz \
+    && echo "3fe40014a43f635f487d453c31ab1d1d2827451f7d1c2c2b685def617f48275c  /tmp/ai-memory.tar.gz" | sha256sum -c - \
     && mkdir -p /tmp/ai-memory-unpack /usr/local/share/ai-memory \
     && tar -xzf /tmp/ai-memory.tar.gz -C /tmp/ai-memory-unpack \
     && install -m 0755 /tmp/ai-memory-unpack/ai-memory /usr/local/bin/ai-memory \
@@ -328,6 +328,15 @@ RUN curl -fsSL https://github.com/akitaonrails/ai-memory/releases/download/v1.32
 # per command so the server, the boot hook and any manual `ai-memory` call in a
 # terminal all agree on one location without repeating the flag.
 ENV AI_MEMORY_DATA_DIR=/config/ai-memory
+
+# 2.0 migrates the wiki to the Open Knowledge Format on its first start, and it
+# archives the whole data directory first — the migration is gated on writing
+# that archive and reading it back, and the server refuses to start if it
+# cannot. Upstream sends it to $HOME unless it detects a container through
+# /.dockerenv or /run/.containerenv; this image has neither, so the default
+# would be taken by accident. It also must not sit inside $AI_MEMORY_DATA_DIR,
+# which upstream rejects — hence a sibling rather than a child.
+ENV AI_MEMORY_BACKUP_DIR=/config/ai-memory-backups
 
 COPY core/services/svc-ai-memory /etc/s6-overlay/s6-rc.d/svc-ai-memory
 RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-ai-memory/run \

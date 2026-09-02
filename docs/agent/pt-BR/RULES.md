@@ -55,6 +55,15 @@ link relativo só pode estar certo num dos dois.
   veem a memória um do outro.
 - **Nenhum provedor de LLM é configurado por padrão**, então prompts e trechos de ferramenta
   capturados ficam na máquina. Adicionar um é uma decisão sobre para onde aquele conteúdo vai.
+  Embeddings são calculados localmente e em processo, então não enviam nada — mas o modelo por trás
+  deles é baixado em tempo de execução, e um host que não consegue alcançá-lo cai para busca por
+  palavra-chave com um aviso, em vez de falhar.
+- **O store sobrevive à imagem, e uma migração de formato sobrevive ao bump que a trouxe.** O
+  diretório de dados fica no volume persistente, então atravessa todo rebuild, e uma versão que o
+  migra no primeiro start mudou algo que ponteiro nenhum traz de volta: um binário mais antigo abre
+  um store migrado e escreve nele sem entendê-lo. Voltar significa restaurar o arquivo que a
+  migração guardou, não repontar o submódulo. Leia as notas de release antes de um bump cruzar uma
+  dessas, e diga isso na mudança que o carrega.
 
 ## Testes
 

@@ -53,7 +53,15 @@ is — and a relative link can only be right in one of them.
 - **Memory is per project.** The server lives in the project's own container; two projects never
   see each other's.
 - **No LLM provider is configured by default**, so captured prompts and tool excerpts stay on the
-  machine. Adding one is a decision about where that content goes.
+  machine. Adding one is a decision about where that content goes. Embeddings are computed locally
+  and in process, so they send nothing — but the model behind them is fetched at runtime, and a
+  host that cannot reach it falls back to keyword search with a warning rather than failing.
+- **The store outlives the image, and a format migration outlives the bump that brought it.** The
+  data directory is on the persistent volume, so it survives every rebuild, and a version that
+  migrates it on first start has changed something no pointer can move back: an older binary opens
+  a migrated store and writes into it without understanding it. Going back means restoring the
+  archive the migration took, not re-pinning the submodule. Read the release notes before a bump
+  crosses one of these, and say so in the change that carries it.
 
 ## Testing
 
