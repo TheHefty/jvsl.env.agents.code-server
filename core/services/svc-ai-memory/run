@@ -17,16 +17,24 @@
 # down, where a repository without a marker emits no lifecycle event at all.
 set -euo pipefail
 
-MARKER=/config/workspace/.ai-memory.toml
+# The override exists for isolated service tests. Production leaves it unset, so
+# the opt-in boundary remains the repository marker under /config/workspace.
+MARKER="${AI_MEMORY_MARKER:-/config/workspace/.ai-memory.toml}"
 DATA_DIR="${AI_MEMORY_DATA_DIR:-/config/ai-memory}"
+BACKUP_DIR="${AI_MEMORY_BACKUP_DIR:-/config/ai-memory-backups}"
 
 # `sleep infinity` rather than exit: s6 restarts a longrun that exits, so
 # exiting here would produce a restart loop that buries the reason in the logs.
 # Same shape as the /dev/fuse guard in svc-dockerd-rootless/run.
+#
+# `exec` rather than a bare call, so parking is terminal by construction. A
+# `sleep` that returned — killed, or replaced by something that does not block
+# — would otherwise fall through into starting the very server this branch has
+# just finished saying is disabled.
 if [[ ! -f "$MARKER" ]]; then
     echo "**** no $MARKER — ai-memory not enabled for this project ****"
     echo "**** (create the marker and restart the container to turn it on) ****"
-    sleep infinity
+    exec sleep infinity
 fi
 
 # The store lives on the persistent named volume, not in the image layer: it is
@@ -35,11 +43,67 @@ fi
 mkdir -p "$DATA_DIR"
 chown -R abc:abc "$DATA_DIR"
 
+# Where ai-memory 2.0 archives the data directory before migrating the wiki to
+# the Open Knowledge Format. The migration runs once, on the first 2.0 start,
+# and it is gated on that archive being written *and* read back: if it cannot
+# be, the server refuses to start rather than touch the store.
+#
+# Named here rather than inherited, for two reasons. Upstream defaults the
+# destination to $HOME and only moves it onto the data volume when it detects a
+# container, which it does through /.dockerenv or /run/.containerenv — measured,
+# this image has neither, so it would take the $HOME branch by accident rather
+# than by agreement. And the destination has to be *outside* $DATA_DIR: tidying
+# it in there does not fail at the tidy, it fails at the next boot as a server
+# that will not start.
+#
+# It is a full copy of the store, so the volume needs room for one. Deleting it
+# once the migration looks right is expected and clears the wiki's banner.
+mkdir -p "$BACKUP_DIR"
+chown abc:abc "$BACKUP_DIR"
+
 export HOME=/config
 
 # Loopback only, and no bearer token, because the only clients are in this
 # container: the agents' hooks and MCP clients. Nothing outside can reach it
 # — the port is never published by `start`, and the nested rootless daemon runs
 # with --disable-host-loopback, so a container it starts cannot dial in either.
-exec s6-setuidgid abc \
-    ai-memory --data-dir "$DATA_DIR" serve --transport http --bind 127.0.0.1:49374
+# Not `exec`, which is what this was until 2.0 gave the server three ways to
+# refuse to start: a migration backup it cannot write or verify, a data
+# directory written in a newer wiki format, and the single-instance lock. Each
+# exits non-zero seconds into boot after printing the one line that explains
+# it, and s6 restarts a longrun that exits — so `exec` turned a diagnosis into
+# a loop that scrolls its own cause away.
+s6-setuidgid abc \
+    ai-memory --data-dir "$DATA_DIR" serve --transport http --bind 127.0.0.1:49374 &
+server=$!
+
+# s6's stop signals have to keep reaching the server now that it is no longer
+# this process. Without forwarding, `s6-svc -d` and container shutdown would
+# kill this shell and leave the daemon behind holding the wiki open.
+trap 'kill -TERM "$server" 2>/dev/null || true' TERM INT
+
+rc=0
+wait "$server" || rc=$?
+
+# Killed by a signal rather than exited on its own: s6 stopping the service, or
+# the OOM killer. Something outside the server decided, nothing was explained,
+# and a restart is the right answer — so hand the code back and let s6 do it.
+# An exit code below that is the server's own verdict on itself, and it will
+# reach the same verdict on every retry.
+if [[ $rc -gt 128 ]]; then
+    wait "$server" 2>/dev/null || true
+    exit "$rc"
+fi
+
+if [[ $rc -ne 0 ]]; then
+    echo "**** ai-memory serve exited $rc — parked, not restarting ****"
+    echo "**** the reason is in the lines above this one; 2.0 refuses to start on ****"
+    echo "**** an unverifiable migration backup, a wiki written by a newer version, ****"
+    echo "**** or another server already holding $DATA_DIR ****"
+    exec sleep infinity
+fi
+
+# A clean exit is the server shutting itself down, which nothing in this image
+# asks it to do. Say so and park rather than spin.
+echo "**** ai-memory serve exited cleanly on its own — parked ****"
+exec sleep infinity

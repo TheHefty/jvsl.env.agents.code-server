@@ -420,6 +420,18 @@ otherwise it creates it with `docker run` on the first run.
   read their capture policy out of the store, whose path is baked into each hook command. So
   `core/bin/claude.sh` adds `--rw-map /config/ai-memory` when that directory exists, and nothing
   when it doesn't: a project that never opted in gets no widening of the map at all.
+
+  **2.0 changed three things this image had to answer for.** Its first start migrates the wiki in
+  place to the Open Knowledge Format, gated on archiving the whole data directory and reading it
+  back; upstream sends that archive to `$HOME` unless it detects a container through `/.dockerenv`
+  or `/run/.containerenv`, and this image has neither, so `AI_MEMORY_BACKUP_DIR` names a sibling of
+  the store rather than inheriting a default by accident. That migration is a one-way door — the
+  store is on the persistent volume, so re-pinning the submodule to an earlier tag leaves an older
+  binary writing into a wiki it no longer understands. And local embeddings arrive on by default:
+  in-process, so nothing is sent anywhere, but the model is fetched at runtime and a host that
+  cannot reach it degrades to keyword search with a warning. `svc-ai-memory/run` stopped using
+  `exec` in the same change, because 2.0 gave the server three ways to refuse to start and s6
+  restarts a longrun that exits.
 - **Google's SDK packages need a `chmod`, not a `chown`, to be usable by the runtime user.** The
   android stack used to end its install with `chown -R abc:abc $ANDROID_HOME`, which looks right and
   silently isn't: at build time `abc` is the base image's `911:1001`, but LinuxServer's init remaps
