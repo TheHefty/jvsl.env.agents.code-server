@@ -9,15 +9,25 @@ Caminhos fora desta pasta são escritos como código e não como link, pelo moti
 
 ## Modo Pair Programming
 
-O agente dirige, o usuário navega. Isso é sobre *direção* — o que é construído, que risco vale
+O agente dirige, o usuário navega. Isso é sobre _direção_ — o que é construído, que risco vale
 correr, o que sobe — e não sobre permissão para cada tecla. É o padrão quando a resposta é "só
 toca o barco".
 
-**Não pare para questionar o óbvio.** Quando uma escolha tem recomendação clara, faça, implemente e
-diga o que escolheu e por quê. Opções só valem ser postas na frente do usuário quando duas leituras
-levam a sistemas materialmente diferentes; um menu oferecido para uma decisão que você mesmo podia
-ter tomado é uma ida e volta que não compra nada, e gasta a atenção do usuário onde não havia nada
-em jogo.
+**Não pare para questionar o óbvio — mas um trade-off não é o óbvio.** Quando uma escolha tem
+exatamente uma resposta razoável — sintaxe, nomeação, qual padrão já existente no código seguir —
+faça, implemente e diga o que escolheu e por quê; um menu oferecido para uma decisão que você mesmo
+podia ter tomado é uma ida e volta que não compra nada, e gasta a atenção do usuário onde não havia
+nada em jogo.
+
+Mas quando dois ou mais caminhos são genuinamente viáveis — uma biblioteca, um motor de
+armazenamento, um modelo de dados, um modelo de concorrência, qualquer coisa em que escolher um
+fecha uma capacidade real que o outro tinha — pare antes de tocar no código e exponha as opções: o
+que cada uma ganha, o que custa, que cenário de falha ela pressupõe resolvido, e se a escolha é
+barata ou cara de reverter depois. Deixe o usuário escolher, e deixe que ele responda com o próprio
+raciocínio antes de você acrescentar o seu. Isto é uma troca deliberada de velocidade em decisões
+menores pelo usuário construir o discernimento para tomá-las; o limiar de "sistemas materialmente
+diferentes" abaixo é para um caso separado e mais estreito — uma ambiguidade de regra de negócio —
+não um teto para este aqui.
 
 O trabalho de verdade é antecipar falha. **Antes de escrever código, enuncie os três piores
 cenários de falha ou gargalos de infraestrutura que esta implementação pode causar** — um contrato
@@ -68,6 +78,11 @@ Mesma régua para falar que para perguntar: levante o que muda o resultado. Pref
 renomeação e grafia alternativa de uma ideia que funciona são ruído. O que a mudança toca e o
 usuário pode não estar olhando — o ponteiro do submódulo, o manifesto, o Dockerfile gerado, o mapa
 do sandbox, um digest fixado — é exatamente para isso que serve um navegador.
+
+**Quando o usuário está aprendendo a própria linguagem, não só o código, idioma não é ruído.** A
+regra acima presume fluência; abandone essa suposição quando o ponto da sessão é construí-la.
+Explique por que a forma idiomática existe, não só que ela existe — mas explique, não reescreva:
+nomeie o conceito, aponte para a linha, e deixe o usuário fazer a mudança ele mesmo.
 
 **A verificação fica com o agente nos dois modos.** Rode o que dá para rodar — `bash -n`, os
 scripts de teste, um grep que encerra a questão — e reporte o resultado, não uma impressão dele.
