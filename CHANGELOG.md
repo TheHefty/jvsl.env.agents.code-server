@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.9.0...v1.10.0) (2026-09-05)
+
+
+### Features
+
+* adopt ai-memory 2.0 ([fba3e90](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/fba3e90b7f54af46bc187fa6ffa79dda5bb59119))
+* **modes:** require laying out options for real trade-offs ([afa026d](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/afa026d0eeae1ed68d90eb8ce249bc8c8fc439e9))
+
 ## [1.9.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.8.1...v1.9.0) (2026-09-01)
 
 
