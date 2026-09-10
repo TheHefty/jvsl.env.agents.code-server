@@ -17,16 +17,16 @@ rather than as links, for the reason given in [Rules](RULES.md).
   `.code-server/docs/overview/`, which versions with the template rather than with the project.
   Do not restate it there; link it.
 - **Not a decision log.** Why a shape was chosen, what was rejected, and what it cost live in the
-  project's `docs/RFC/`, and stay true after the code moves on. The architecture file describes the
-  present and is rewritten whenever the present changes.
+  project's tasks under `docs/PLANNING/`, and stay true after the code moves on. The architecture
+  file describes the present and is rewritten whenever the present changes.
 - **Not `docs/OVERVIEW.md`**, which is how to use the template as a consumer. Several files in a
   project are called `OVERVIEW.md`; check which one you are editing.
 
 ## Keeping it true
 
 An architecture document that lags the system is worse than none, because it is believed. The rule
-that keeps it honest: **an RFC that changes the shape updates the architecture file in the same
-pull request.** The RFC says why it changed; the architecture file says what it is now. If they
+that keeps it honest: **a task that changes the shape updates the architecture file in the same
+pull request.** The task says why it changed; the architecture file says what it is now. If they
 disagree, the architecture file is wrong.
 
 ## Sections to fill
@@ -47,7 +47,7 @@ take down with it. Name the thing that is not obvious from the directory layout.
 ### Data
 
 What is stored, where, and for how long. If the project processes personal data, this is the same
-map recorded in RFC `0001` — keep one of them and link the other, never two that can disagree. See
+map recorded in the SRS — keep one of them and link the other, never two that can disagree. See
 Security in [Rules](RULES.md).
 
 ### Runtime and deployment
@@ -58,7 +58,7 @@ from, what is required to be present, and what it does when something is missing
 ### Failure modes and observability
 
 How the system fails, how anyone finds out, and what they look at first. The three worst failure
-scenarios named in each RFC accumulate here once they are real, along with the signals that catch
+scenarios named in each task accumulate here once they are real, along with the signals that catch
 them — see Observability in [Rules](RULES.md).
 
 ### Seams

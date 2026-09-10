@@ -1,11 +1,15 @@
 # Inicialização do projeto
 
 Seis perguntas são resolvidas antes de qualquer coisa ser construída, e nenhuma delas pode ser
-respondida a partir de um repositório vazio. O primeiro arquivo escrito é o registro das respostas.
+respondida a partir de um repositório vazio. Elas são o precursor da cadeia em
+[Fluxo de trabalho](WORKFLOW.md): o modo e o idioma da documentação são escritos no `CLAUDE.md`
+como fatos aqui e agora, e o resto das respostas é levado para os grillings de termo de abertura e
+SRS que vêm a seguir — o termo de abertura pega as que são sobre *propósito*, a SRS pega as que são
+*restrições*. Este arquivo não produz um documento próprio.
 
-Este arquivo é importado pelo `CLAUDE.md` de um projeto enquanto a inicialização não terminou, e a
-linha de import é removida quando ela termina — veja "Encerrando a inicialização" no fim. Caminhos
-fora desta pasta são escritos como código e não como link, pelo motivo dado em [Regras](RULES.md).
+Ele é importado pelo `CLAUDE.md` de um projeto enquanto a inicialização não terminou, e a linha de
+import é removida quando ela termina — veja "Encerrando a inicialização" no fim. Caminhos fora desta
+pasta são escritos como código e não como link, pelo motivo dado em [Regras](RULES.md).
 
 **Em que modo estamos trabalhando.** Pergunte, e deixe o usuário responder:
 
@@ -23,13 +27,16 @@ https://github.com/TheHefty/jvsl.env.agents.code-server.git .code-server`), o do
 e as restrições já conhecidas não estão visíveis no repositório, e chutar errado desvia tudo que
 for construído em cima.
 
-Não improvise essa entrevista, e não invente um procedimento para ela: todo RFC neste projeto sai
-da mesma entrevista, e [o processo de RFC](RFC.md) descreve ela. Esta é simplesmente a primeira.
-Não toque em nenhum arquivo do projeto até ela acabar.
+Não improvise essa entrevista, e não invente um procedimento para ela: o termo de abertura, a SRS e
+toda estória e task neste projeto saem do mesmo tipo de grilling, e
+[Fluxo de trabalho](WORKFLOW.md) descreve a cadeia. É aqui que ela começa. Não toque em nenhum
+arquivo do projeto além do `CLAUDE.md` até as seis perguntas serem respondidas.
 
-**O resultado é o primeiro RFC do projeto**, `docs/RFC/0001-*.md`, mergeado como `Aceito`. Tudo
-depois é construído em cima dele, e é o único lugar onde um leitor futuro descobre por que o
-projeto tem essa forma.
+**As respostas sobre propósito viram o `docs/CHARTER.md`**, escrito a partir do
+[modelo de termo de abertura](CHARTER-TEMPLATE.md) e mergeado como `Aceito` — o primeiro elo da
+cadeia, e o único lugar onde um leitor futuro descobre por que o projeto tem essa forma. As
+respostas que são restrições — o mapa de dados acima de tudo — viram parte do `docs/SRS.md`, o
+segundo elo.
 
 **Se o projeto mantém memória de longo prazo.** O `ai-memory` fica desligado a menos que o projeto
 carregue um marcador `.ai-memory.toml`, então isto é uma decisão e não um padrão — pergunte, e
@@ -43,11 +50,11 @@ mecânica está no `.code-server/docs/overview/start.md` — não repita aqui, i
 Se sim, crie o marcador e diga que o container precisa ser reiniciado antes de qualquer coisa
 subir: o marcador é lido no boot, pelo serviço e pelo hook que se registra na CLI. Se não, não crie
 nada — a ausência é o interruptor, e dá para ligar depois sem refazer coisa alguma. De um jeito ou
-de outro a resposta pertence ao RFC `0001`, já que ela decide se este projeto acumula um registro
-de como foi construído.
+de outro a resposta pertence ao termo de abertura, já que ela decide se este projeto acumula um
+registro de como foi construído.
 
 **Em que idioma a documentação é escrita.** Pergunte, e aplique a resposta a tudo — `README.md`,
-`CLAUDE.md`, `docs/`, os RFCs, e as mensagens de commit se o usuário quiser lá também. O modo de
+`CLAUDE.md`, `docs/`, as tasks, e as mensagens de commit se o usuário quiser lá também. O modo de
 falha não é a escolha errada, é a mistura: metade da documentação em inglês e metade em português,
 sem regra dizendo qual é qual, então todo arquivo novo reabre a questão e ninguém consegue dar
 grep. O idioma da conversa é outra coisa e não precisa ser resolvido aqui — o usuário define
@@ -90,9 +97,9 @@ que sejam de fato alcançáveis, obrigações em torno da guarda de registros de
 apenas sob ordem judicial. Confirme os prazos de retenção vigentes contra a lei em vez de confiar
 num número citado num documento como este; essa é a parte que muda.
 
-Seja qual for a resposta, ela vai no RFC `0001` como um mapa de dados — que dado pessoal existe,
-por quê, onde mora, quanto tempo fica — e as regras permanentes vão no `docs/RULES.md`. Política e
-termos são arquivos do projeto, escritos no idioma de documentação escolhido acima.
+Seja qual for a resposta, ela vai na SRS como um mapa de dados — que dado pessoal existe, por quê,
+onde mora, quanto tempo fica — e as regras permanentes vão no `docs/RULES.md`. Política e termos são
+arquivos do projeto, escritos no idioma de documentação escolhido acima.
 
 **Sob qual licença o projeto está.** Pergunte, e aplique a resposta imediatamente em vez de deixar
 para depois — `LICENSE` na raiz, o campo de licença de qualquer manifesto que o projeto tenha
@@ -147,16 +154,17 @@ voltadas ao usuário, então a costura de i18n se aplica; a maior parte da lista
 não. Recomendar a coisa inteira para um projeto que não tem UI é ritual, e ritual é o que ensina as
 pessoas a pular as partes que importavam.
 
-É uma recomendação, não um gate. Se o usuário recusar, registre no RFC `0001` com o motivo, como
-todo o resto aqui — uma omissão com motivo anexado pode ser revisitada; uma sem motivo parece
-descuido para sempre.
+É uma recomendação, não um gate. Se o usuário recusar, registre na SRS com o motivo, como todo o
+resto aqui — uma omissão com motivo anexado pode ser revisitada; uma sem motivo parece descuido
+para sempre.
 
-Uma vez resolvido, prossiga no modo escolhido: atualize os arquivos que pertencem ao projeto —
-`README.md`, `CLAUDE.md`, `docs/OVERVIEW.md`, as regras próprias do projeto abaixo da linha de
-import no `docs/RULES.md`, e a seleção de stacks em `.code-server.stack.json` na raiz do repo —
-para refletir as respostas, e monte uma estrutura inicial a partir delas. Os documentos herdados
-sob `.code-server/docs/agent/` não são editados: uma regra que precisa mudar é mudada no template e
-volta por um bump.
+Uma vez que as seis perguntas estão resolvidas, prossiga no modo escolhido para dentro da cadeia em
+[Fluxo de trabalho](WORKFLOW.md): o grilling do termo de abertura primeiro, depois a SRS, depois as
+estórias. Pelo caminho, atualize os arquivos que pertencem ao projeto — `README.md`, `CLAUDE.md`,
+`docs/OVERVIEW.md`, as regras próprias do projeto abaixo da linha de import no `docs/RULES.md`, e a
+seleção de stacks em `.code-server.stack.json` na raiz do repo — para refletir as respostas. Os
+documentos herdados sob `.code-server/docs/agent/` não são editados: uma regra que precisa mudar é
+mudada no template e volta por um bump.
 
 ## Encerrando a inicialização
 
@@ -174,5 +182,5 @@ decisões de uma vez só, e o resto daquele arquivo as pressupõe:
   e um import que foi removido não pode ser relido. Ele também decide para qual pasta de idioma os
   outros imports apontam.
 
-Todo o resto já está registrado no RFC `0001`, que é o que torna remover o import seguro: as
-respostas sobrevivem às perguntas.
+Todo o resto já está registrado no termo de abertura e na SRS, que é o que torna remover o import
+seguro: as respostas sobrevivem às perguntas.

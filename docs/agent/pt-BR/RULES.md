@@ -90,22 +90,24 @@ Não testes escritos ao lado, e não testes escritos depois e commitados numa or
   uma linha de cobertura que vai continuar verde durante a volta do bug.
 - **Critérios de aceite são cenários Gherkin, e são documentação.** `Dado`/`Quando`/`Então`, no
   idioma que a documentação usa, descrevendo comportamento que interessa a uma pessoa em vez de
-  funções que um programador escreveu. Eles moram em `docs/SCENARIOS/`, nomeados pelo RFC a que
-  pertencem, e são acordados com o usuário antes de a implementação começar. A imagem entrega uma
-  extensão de Gherkin exatamente por isso — arquivos `.feature` são como critérios de aceite são
-  escritos e revisados, seja lá em que o projeto for construído.
+  funções que um programador escreveu. Eles moram ao lado da estória, em
+  `docs/PLANNING/<epico>/<estoria>/<estoria>.feature`, e são acordados com o usuário no gate da
+  estória, antes de qualquer task sob a estória ser escrita. A imagem entrega uma extensão de
+  Gherkin exatamente por isso — arquivos `.feature` são como critérios de aceite são escritos e
+  revisados, seja lá em que o projeto for construído.
 - **Eles são documentação primeiro, e não são executáveis por padrão.** Os testes que prendem o
-  código a eles normalmente são escritos test-first na suíte do próprio projeto. Um RFC pode em
+  código a eles normalmente são escritos test-first na suíte do próprio projeto. Uma task pode em
   vez disso escolher e ligar um runner Gherkin para que o mesmo `.feature` vire o teste de aceite;
-  nesse caso o runner, suas dependências e onde ele roda fazem parte do RFC. Nunca descreva um
+  nesse caso o runner, suas dependências e onde ele roda fazem parte da task. Nunca descreva um
   `.feature` como coberto pela CI até que esse arquivo exato esteja registrado e tenha sido visto
   falhar pelo comportamento ausente.
 - **Estes não são os três cenários de falha, e um não substitui o outro.** Cenários de aceite dizem
-  o que a mudança precisa fazer; cenários de falha dizem como ela quebra. Um RFC precisa dos dois, e
-  um arquivo `.feature` cheio de modos de falha não é nem um nem outro.
-- **Um cenário e seu RFC mudam juntos.** Carregam o mesmo número e são editados no mesmo pull
-  request. Dois documentos descrevendo um comportamento, atualizados separadamente, viram dois
-  comportamentos — e o leitor não tem como saber qual deles o código implementa.
+  o que a mudança precisa fazer; cenários de falha dizem como ela quebra. Uma estória carrega os
+  primeiros, cada task sob ela carrega os segundos, e um arquivo `.feature` cheio de modos de falha
+  não é nem um nem outro.
+- **Os cenários de uma estória e seu `OVERVIEW.md` mudam juntos**, no mesmo pull request. Dois
+  documentos descrevendo um comportamento, atualizados separadamente, viram dois comportamentos — e
+  o leitor não tem como saber qual deles o código implementa.
 - **Os três cenários de falha são os primeiros testes.** O "Modo Pair Programming" em
   [Modos](MODES.md) exige nomear as três piores formas de uma mudança falhar antes de escrevê-la;
   test-first é como isso deixa de ser um parágrafo. Nomeie, escreva como testes que falham, depois
@@ -198,22 +200,26 @@ pessoa depurando às três da manhã descobre por que parou.
 - **Escreva a mensagem de commit para quem vai lê-la durante um incidente**, não para o diff. O diff
   já diz o que mudou; a mensagem é onde o porquê mora.
 
-### Releases têm um tema
+### Trabalho tem um tema
 
-- **Uma release é sobre alguma coisa, e essa coisa é uma frase.** "O que quer que tenha entrado
-  desde a última tag" é um changelog, não uma release: ninguém consegue dizer para que serviu, se
-  está terminada, ou o que a teria feito esperar.
-- **Se a frase precisa de um "e", o tema são dois temas.** Idem se não caberia numa única release.
-  Divida — o ponto de um tema é que ele pode ser terminado, e um tema que não pode ser terminado é
-  um backlog com nome.
-- **Um RFC por tema**, e o tema é sobre o que o RFC é. É isso que impede um RFC de ser escrito para
-  uma mudança que ninguém saberia descrever, e uma release de ser montada com mudanças que ninguém
-  acordou.
-- **A ordem é tema, RFC, cenários, código, e ela tem dois gates.** O RFC é acordado com o usuário
-  antes de qualquer cenário ser escrito; os cenários são acordados com o usuário antes de qualquer
-  código. Os dois gates são baratos e os dois sustentam: um RFC fechado depois que o código existe é
-  uma justificativa, e cenários escritos depois da implementação descrevem o que foi construído em
-  vez do que era querido.
+- **Trabalho é sobre alguma coisa, e essa coisa é uma frase.** Essa frase é um **épico**. "O que
+  quer que tenha entrado desde a última tag" é um changelog, não um plano: ninguém consegue dizer
+  para que serviu, se está terminado, ou o que o teria feito esperar.
+- **Se a frase precisa de um "e", o épico são dois épicos.** Idem se não terminaria num prazo
+  razoável. Divida — o ponto de um épico é que ele pode ser terminado, e um épico que não pode ser
+  terminado é um backlog com nome.
+- **Um épico por tema, decomposto em estórias na SRS.** O épico é nomeado lá e cada estória em que
+  ele se quebra é listada sob ele. É isso que impede uma estória de ser escrita para uma mudança
+  que ninguém saberia situar, e uma release de ser montada com mudanças que ninguém acordou.
+- **A ordem é termo de abertura, SRS, épico, estória com seus cenários, task, código — e todo elo é
+  um gate.** Cada um é acordado com o usuário antes de o próximo ser escrito. Os gates são baratos e
+  todo um deles sustenta: um desenho fechado depois que o código existe é uma justificativa, e
+  cenários escritos depois da implementação descrevem o que foi construído em vez do que era
+  querido. A cadeia inteira está em [Fluxo de trabalho](WORKFLOW.md).
+- **O épico não segura uma release.** O release-please corta releases incrementalmente a partir dos
+  commits conforme eles entram; o épico é a frase do changelog e a unidade de planejamento, não um
+  gate de merge. O único gate mecânico num merge é a CI. A release que torna a frase de um épico
+  verdadeira é a que vale nomear.
 
 ### O submódulo do template
 

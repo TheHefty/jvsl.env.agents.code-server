@@ -38,11 +38,14 @@ repo() {
     printf '# Rules\n\nInherited text from two years ago.\n\nPROJECT-RULE: retention is 90 days.\n' > "$d/docs/RULES.md"
     printf '# RFCs\n\nStale copy.\n' > "$d/docs/RFC/README.md"
     printf '# RFC NNNN\n' > "$d/docs/RFC/0000-template.md"
+    printf '# RFC 0007\n\nRFC-BODY-SENTINEL: offline drafts must survive.\n' > "$d/docs/RFC/0007-offline-drafts.md"
+    printf 'Feature: offline drafts\n  FEATURE-SENTINEL\n' > "$d/docs/SCENARIOS/0007-offline-drafts.feature"
     printf '# Scenarios\n\nStale copy.\n' > "$d/docs/SCENARIOS/README.md"
     printf '# Architecture\n\nOUR-SYSTEM: three services and a queue.\n' > "$d/docs/ARCHITECTURE/OVERVIEW.md"
     printf '# CLAUDE.md\n\n## Pair Programming Mode\n\nOld copy.\n\n## Commands\n\nPROJECT-COMMAND: make dev\n' > "$d/CLAUDE.md"
     printf '# Rules\n' > "$d/.code-server/docs/agent/en/RULES.md"
     printf '# Modes\n' > "$d/.code-server/docs/agent/en/MODES.md"
+    printf '# Workflow\n' > "$d/.code-server/docs/agent/en/WORKFLOW.md"
     echo "$d"
 }
 
@@ -63,6 +66,17 @@ check "apply exits clean" "$(run "$d" --apply)" "0"
 check "  RFC readme is gone from docs/RFC" "$([ -f "$d/docs/RFC/README.md" ] && echo yes || echo no)" "no"
 check "  and is kept under _superseded" "$([ -f "$d/docs/_superseded/docs/RFC/README.md" ] && echo yes || echo no)" "yes"
 check "  scenario readme kept too" "$([ -f "$d/docs/_superseded/docs/SCENARIOS/README.md" ] && echo yes || echo no)" "yes"
+
+# 2b. A legacy RFC is folded into a story under the `legacy` epic — moved, not
+#     copied, so there is never a second copy to drift — and its scenario file
+#     comes with it. This is the 2.0.0 structural migration.
+STORY="$d/docs/PLANNING/legacy/offline-drafts"
+check "  legacy RFC becomes a task" "$([ -f "$STORY/tasks/offline-drafts.md" ] && echo yes || echo no)" "yes"
+check "  with its body intact" "$(grep -c 'RFC-BODY-SENTINEL' "$STORY/tasks/offline-drafts.md")" "1"
+check "  the feature file comes with it" "$(grep -c 'FEATURE-SENTINEL' "$STORY/offline-drafts.feature")" "1"
+check "  a story OVERVIEW is written" "$([ -f "$STORY/OVERVIEW.md" ] && echo yes || echo no)" "yes"
+check "  no second copy left in docs/RFC" "$([ -e "$d/docs/RFC/0007-offline-drafts.md" ] && echo yes || echo no)" "no"
+check "  PLANNING and DEBTS folders exist" "$([ -f "$d/docs/PLANNING/README.md" ] && [ -f "$d/docs/DEBTS/README.md" ] && echo yes || echo no)" "yes"
 
 # 3. The project's own rule survives, and the import is above it. This is the
 #    failure this script was most likely to cause.

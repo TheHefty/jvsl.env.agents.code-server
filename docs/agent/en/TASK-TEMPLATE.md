@@ -1,12 +1,16 @@
-# RFC NNNN: Title
+---
+status: Draft        # Draft | Accepted | Rejected | Superseded by <slug>
+story: <epic-slug>/<story-slug>
+epic: <epic-slug>
+pr:                  # the pull request that introduces this task
+depends-on: []       # slugs of tasks that must land first
+---
 
-| | |
-|---|---|
-| **Status** | Draft |
-| **Date** | YYYY-MM-DD |
-| **Author** | |
-| **Supersedes** | — |
-| **Superseded by** | — |
+# Task: <slug>
+
+The detailed design of one slice of a story — see [Tasks](TASKS.md) for when this is the right unit
+and [Workflow](WORKFLOW.md) for where it sits in the chain. The frontmatter above is what the
+story's `OVERVIEW.md` task index is built from; keep it accurate.
 
 ## Summary
 
@@ -15,33 +19,25 @@ reader who stops here should be able to say whether this affects them.
 
 ## Problem
 
-What is wrong today, in terms of something observed rather than something feared. Name the
-symptom, and where it showed up. If this is preventive, say so plainly — a problem stated as a
-prediction is fine as long as it is not disguised as a report.
+What is wrong today, in terms of something observed rather than something feared. Name the symptom
+and where it showed up. If this is preventive, say so plainly — a problem stated as a prediction is
+fine as long as it is not disguised as a report.
 
 Say who pays for it today: the consuming project, the agent, whoever operates the host.
 
 ## Proposal
 
-What to do. Enough detail that someone else could implement it and arrive at roughly the same
-thing — where the code goes, what it touches, what the interface is. Not a diff.
+What to do. Enough detail that someone else could implement it and arrive at roughly the same thing
+— where the code goes, what it touches, what the interface is. Not a diff.
 
-## Acceptance scenarios
-
-Link the `.feature` file in `docs/SCENARIOS/` that carries this RFC's number.
-Agreed with the user before any code is written — that agreement is what makes them acceptance
-criteria rather than a description of whatever got built.
-
-They are documentation, not tests. What holds the code to them is the test suite, written
-test-first from these scenarios.
+The acceptance criteria for the behaviour this slice contributes to are the story's `<story>.feature`,
+not this document — see [Scenarios](SCENARIOS.md). Cite the scenarios this task moves toward green.
 
 ## Three worst failure scenarios
 
-Not the same thing as the section above, and neither replaces the other: acceptance scenarios say
-what the change must do, these say how it breaks.
-
 **Mandatory.** Not a risk checklist: the three specific ways *this* change hurts, ranked by what
-they would cost. See "Pair Programming Mode" in [Modes](MODES.md).
+they would cost. See "Pair Programming Mode" in [Modes](MODES.md). These are not the acceptance
+scenarios — those say what the change must do; these say how it breaks.
 
 For each one, say how it is caught. An identified failure without a test is an identified failure
 that ships.
@@ -65,6 +61,7 @@ What this reaches beyond the file it edits. Tick what applies and say how:
 - [ ] The agent's sandbox map, or where a capability is decided
 - [ ] A dependency fetched at build time — with its pin and digest
 - [ ] The release/versioning discipline
+- [ ] Another story or task — name it, and set `depends-on`
 - [ ] Nothing outside this repository
 
 ## Alternatives considered

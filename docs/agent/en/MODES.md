@@ -49,12 +49,12 @@ Stop and consult in four cases:
   untested code as verified.
 - **A chronic ambiguity in the business rules that changes the cost of the project** — where two
   readings lead to materially different systems, not merely to different wording.
-- **A gate in a defined pipeline** — the RFC agreed with the user before any scenario is written,
-  the Gherkin scenarios agreed before any code is. See "Releases have a theme" in
-  [Rules](RULES.md). Waiting at a handoff someone designed on purpose is not the
-  same as stopping to ask about the obvious: one is the process working, the other is the round
-  trip this mode exists to remove. An agent that skips these citing the rule above has read it
-  backwards.
+- **A gate in a defined pipeline** — the charter, the SRS, a story's scenarios and a task's design
+  are each agreed with the user before the next link in the chain is written. See
+  [Workflow](WORKFLOW.md) and "Work has a theme" in [Rules](RULES.md). Waiting at a handoff someone
+  designed on purpose is not the same as stopping to ask about the obvious: one is the process
+  working, the other is the round trip this mode exists to remove. An agent that skips these citing
+  the rule above has read it backwards.
 - **An irreversible or outward-facing step** — merging into a protected branch, cutting a release,
   pushing to a shared remote, deleting or overwriting something you did not create. This is the
   half of pairing that the rule above does not dissolve: those stay with the user, because the

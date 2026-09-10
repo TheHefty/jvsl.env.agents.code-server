@@ -89,22 +89,24 @@ order.
   of coverage that will hold green through the bug's return.
 - **Acceptance criteria are Gherkin scenarios, and they are documentation.** `Given`/`When`/`Then`,
   in the language the documentation uses, describing behaviour a person cares about rather than
-  functions a programmer wrote. They live in `docs/SCENARIOS/`, named for the RFC they
-  belong to, and they are agreed with the user before implementation starts. The image ships a
-  Gherkin extension for exactly this reason — feature files are how acceptance criteria get written
-  and reviewed, whatever the project is built in.
+  functions a programmer wrote. They live beside their story, at
+  `docs/PLANNING/<epic>/<story>/<story>.feature`, and they are agreed with the user at the story
+  gate, before any task under the story is written. The image ships a Gherkin extension for exactly
+  this reason — feature files are how acceptance criteria get written and reviewed, whatever the
+  project is built in.
 - **They are documentation first, and are not executable by default.** The tests that hold the
-  code to them are normally written test-first in the project's own suite. An RFC may instead
+  code to them are normally written test-first in the project's own suite. A task may instead
   choose and wire a Gherkin runner so the same `.feature` becomes the acceptance test; in that
-  case the runner, its dependencies and where it runs are part of the RFC. Never describe a
+  case the runner, its dependencies and where it runs are part of the task. Never describe a
   `.feature` as CI-enforced until that exact file is registered and observed failing for the
   missing behaviour.
 - **These are not the three failure scenarios, and the two do not substitute for each other.**
-  Acceptance scenarios say what the change must do; failure scenarios say how it breaks. An RFC
-  needs both, and a `.feature` file full of failure modes is neither.
-- **A scenario and its RFC change together.** They carry the same number and they are edited in
-  the same pull request. Two documents describing one behaviour, updated separately, become two
-  behaviours — and the reader has no way to tell which one the code implements.
+  Acceptance scenarios say what the change must do; failure scenarios say how it breaks. A story
+  carries the first, each task under it carries the second, and a `.feature` file full of failure
+  modes is neither.
+- **A story's scenarios and its `OVERVIEW.md` change together**, in the same pull request. Two
+  documents describing one behaviour, updated separately, become two behaviours — and the reader
+  has no way to tell which one the code implements.
 - **The three failure scenarios are the first tests.** "Pair Programming Mode" in
   [Modes](MODES.md) requires naming the three worst ways a change fails before
   writing it; test-first is how those stop being a paragraph. Name them, write them as failing
@@ -196,22 +198,26 @@ person debugging it at three in the morning finds out why it stopped.
 - **Write the commit message for the person who will read it during an incident**, not for the
   diff. The diff already says what changed; the message is where why belongs.
 
-### Releases have a theme
+### Work has a theme
 
-- **A release is about something, and the something is one sentence.** "Whatever landed since the
-  last tag" is a changelog, not a release: nobody can say what it was for, whether it is finished,
-  or what would have made it wait.
-- **If the sentence needs an "and", the theme is two themes.** Same if it would not land in a
-  single release. Split it — the point of a theme is that it can be finished, and a theme that
+- **Work is about something, and the something is one sentence.** That sentence is an **epic**.
+  "Whatever landed since the last tag" is a changelog, not a plan: nobody can say what it was for,
+  whether it is finished, or what would have made it wait.
+- **If the sentence needs an "and", the epic is two epics.** Same if it would not finish in a
+  reasonable span. Split it — the point of an epic is that it can be finished, and an epic that
   cannot be finished is a backlog with a name.
-- **One RFC per theme**, and the theme is what the RFC is about. This is what stops an RFC from
-  being written for a change nobody could describe, and a release from being assembled out of
-  changes nobody agreed on.
-- **The order is theme, RFC, scenarios, code, and it has two gates.** The RFC is agreed with the
-  user before any scenario is written; the scenarios are agreed with the user before any code is.
-  Both gates are cheap and both are load-bearing: an RFC settled after the code exists is a
-  justification, and scenarios written after the implementation describe what was built rather
-  than what was wanted.
+- **One epic per theme, decomposed into stories in the SRS.** The epic is named there and each
+  story it breaks into is listed under it. This is what stops a story from being written for a
+  change nobody could place, and a release from being assembled out of changes nobody agreed on.
+- **The order is charter, SRS, epic, story with its scenarios, task, code — and every link is a
+  gate.** Each is agreed with the user before the next is written. The gates are cheap and every
+  one is load-bearing: a design settled after the code exists is a justification, and scenarios
+  written after the implementation describe what was built rather than what was wanted. The whole
+  chain is in [Workflow](WORKFLOW.md).
+- **The epic does not hold a release.** release-please cuts releases incrementally from the commits
+  as they land; the epic is the changelog's sentence and the planning unit, not a merge gate. The
+  only mechanical gate on a merge is CI. The release that makes an epic's sentence true is the one
+  worth naming.
 
 ### The template submodule
 

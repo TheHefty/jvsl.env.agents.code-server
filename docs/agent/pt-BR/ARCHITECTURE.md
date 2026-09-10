@@ -17,16 +17,16 @@ código e não como link, pelo motivo dado em [Regras](RULES.md).
   `.code-server/docs/overview/`, que versiona junto com o template e não com o projeto. Não
   repita aquilo lá; aponte.
 - **Não é um log de decisões.** Por que uma forma foi escolhida, o que foi rejeitado e o que custou
-  moram no `docs/RFC/` do projeto, e continuam verdadeiros depois que o código anda. O arquivo de
-  arquitetura descreve o presente e é reescrito sempre que o presente muda.
+  moram nas tasks do projeto sob `docs/PLANNING/`, e continuam verdadeiros depois que o código anda.
+  O arquivo de arquitetura descreve o presente e é reescrito sempre que o presente muda.
 - **Não é o `docs/OVERVIEW.md`**, que é como usar o template como consumidor. Vários arquivos num
   projeto se chamam `OVERVIEW.md`; confira qual você está editando.
 
 ## Mantendo verdadeiro
 
 Um documento de arquitetura que fica atrás do sistema é pior que nenhum, porque nele se acredita. A
-regra que o mantém honesto: **um RFC que muda a forma atualiza o arquivo de arquitetura no mesmo
-pull request.** O RFC diz por que mudou; o arquivo de arquitetura diz o que é agora. Se os dois
+regra que o mantém honesto: **uma task que muda a forma atualiza o arquivo de arquitetura no mesmo
+pull request.** A task diz por que mudou; o arquivo de arquitetura diz o que é agora. Se os dois
 discordarem, o errado é o arquivo de arquitetura.
 
 ## Seções a preencher
@@ -47,8 +47,8 @@ que derrubaria junto. Nomeie o que não é óbvio pelo layout de diretórios.
 ### Dados
 
 O que é armazenado, onde, e por quanto tempo. Se o projeto processa dado pessoal, este é o mesmo
-mapa registrado no RFC `0001` — fique com um dos dois e aponte o outro, nunca dois que possam
-discordar. Veja Segurança em [Regras](RULES.md).
+mapa registrado na SRS — fique com um dos dois e aponte o outro, nunca dois que possam discordar.
+Veja Segurança em [Regras](RULES.md).
 
 ### Execução e implantação
 
@@ -58,7 +58,7 @@ precisa estar presente, e o que ele faz quando algo falta.
 ### Modos de falha e observabilidade
 
 Como o sistema falha, como alguém descobre, e o que essa pessoa olha primeiro. Os três piores
-cenários de falha nomeados em cada RFC se acumulam aqui quando viram realidade, junto dos sinais
+cenários de falha nomeados em cada task se acumulam aqui quando viram realidade, junto dos sinais
 que os pegam — veja Observabilidade em [Regras](RULES.md).
 
 ### Costuras

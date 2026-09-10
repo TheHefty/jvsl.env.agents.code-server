@@ -25,7 +25,7 @@ made it long would have thrown away the part worth keeping.
 | [`pre-push-hook.md`](pre-push-hook.md) | The gate before a push, what it deliberately leaves to CI, and why it is not branch protection. |
 | [`init-and-dev.md`](init-and-dev.md) | The host-side helpers, and the rule that a failure has to name its own cause. |
 | [`start.md`](start.md) | The launcher, and everything the running container grants: the permissiveness audit, the sandbox map, `ai-memory`, the Android AVD, the Tauri build prerequisites per distro. |
-| [`process-documents.md`](process-documents.md) | How `docs/agent/` is delivered, what is imported versus linked, the languages, and migrating a project that already exists. |
+| [`process-documents.md`](process-documents.md) | How `docs/agent/` is delivered, what is imported versus linked, the languages, the charter/SRS/story/task chain, and migrating a project that already exists. |
 | [`versioning-and-releases.md`](versioning-and-releases.md) | release-please, the tag discipline, and what a consuming repo has to do after a bump. |
 
 `start.md` is 43 KiB and is the next one to divide. It is not a byte problem to solve with scissors:
