@@ -31,11 +31,17 @@ attached to the discussion that produced it.
 
 The project's terms of reference: what it is for, who it is for, what is in scope and what is
 explicitly not, who the stakeholders are, and the decisions that outlive every later document — the
-licence, whether the project keeps long-term memory, the mode of work. The six questions in
+licence, whether the project keeps long-term memory, the mode of work. The seven questions in
 [Initialization](INITIALIZATION.md) are its raw material; the answers that are about *purpose* land
 here. Written from [the charter template](CHARTER-TEMPLATE.md). It is short and it rarely changes,
 and when it does the change is a grilling of its own, because everything downstream was built
 against it.
+
+One of those seven questions is whether this is a new project or a sustaining engagement on an
+existing codebase. For a sustaining engagement the charter shrinks to the engagement's terms — the
+greenfield purpose grilling is skipped, because the purpose is fixed by whoever owns the system —
+but it is still the first link and still a gate, and the SRS that follows is then hybrid: a
+one-line baseline for the whole system, detail only where the work reaches.
 
 ### SRS
 

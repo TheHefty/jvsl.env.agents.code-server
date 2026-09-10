@@ -21,6 +21,12 @@ What the system does, grouped by area. Number them so a story and a task can cit
 they implement. Each one is checkable: a reader can look at the running system and say whether it
 holds.
 
+For a **sustaining** engagement (see the charter's Kind), this section is hybrid: one line of
+baseline for every area of the existing system — enough that a reader knows what is there and can
+tell a regression from a change — and full detail only where the sustaining work reaches. The
+baseline is reverse-engineered from the code that already runs; the detailed part is written the
+same way it would be for a new project.
+
 ## Non-functional requirements
 
 The constraints the functional requirements are delivered under — performance, availability,

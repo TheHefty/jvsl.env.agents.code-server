@@ -21,6 +21,12 @@ O que o sistema faz, agrupado por área. Numere-os para que uma estória e uma t
 requisito que implementam. Cada um é verificável: um leitor consegue olhar o sistema rodando e dizer
 se ele vale.
 
+Para um engajamento de **sustentação** (veja o Tipo no termo de abertura), esta seção é híbrida:
+uma linha de base para cada área do sistema existente — o suficiente para um leitor saber o que
+está lá e conseguir distinguir uma regressão de uma mudança — e detalhe completo só onde o trabalho
+de sustentação alcança. A linha de base sai de engenharia reversa do código que já roda; a
+parte detalhada é escrita do mesmo jeito que seria para um projeto novo.
+
 ## Requisitos não funcionais
 
 As restrições sob as quais os requisitos funcionais são entregues — desempenho, disponibilidade,

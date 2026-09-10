@@ -1,6 +1,6 @@
 # Project initialization
 
-Six questions are settled before anything is built, and none of them can be answered from an empty
+Seven questions are settled before anything is built, and none of them can be answered from an empty
 repository. They are the precursor to the chain in [Workflow](WORKFLOW.md): the mode and the
 documentation language are written into `CLAUDE.md` as facts here and now, and the rest of the
 answers are carried into the charter and SRS grillings that follow — the charter takes the ones
@@ -21,15 +21,31 @@ are written as code rather than as links, for the reason given in [Rules](RULES.
 Both are described in [Modes](MODES.md). Ask once, at initialization, and write the answer into
 `CLAUDE.md` as a fact; afterwards assume the mode last chosen and do not re-open it every session.
 
+**A new project, or sustaining an existing codebase.** Ask, because it changes the first two links
+of the chain:
+
+- **A new project** — nothing exists yet. The charter is the full purpose interview below, and the
+  SRS is written forward: what the system will do.
+- **Sustaining an existing codebase** — the code is already there and the mandate is to keep it
+  running and evolve it carefully. The charter shrinks to the engagement's terms: what system, who
+  owns it, what the work covers and what it explicitly will not touch. It is still the first link
+  and still a gate; only the greenfield purpose grilling is skipped, because the purpose is already
+  fixed by whoever owns the system. The SRS is then hybrid — a one-line baseline for every area of
+  the existing system, and real detail only where the sustaining work reaches.
+
+Record the answer in the charter. It does not change the mode, language, memory or licence
+questions; those are asked the same way either way.
+
 **What the project is for.** When the template is added to a project (`git submodule add
 https://github.com/TheHefty/jvsl.env.agents.code-server.git .code-server`), the domain, the goals
 and any constraints already known are not visible in the repository, and guessing them wrong
-misdirects everything built on top.
+misdirects everything built on top. For a sustaining engagement this is thinner — the purpose is
+the mandate, not a fresh decision — but the scope boundary still needs saying out loud.
 
 Do not improvise that interview, and do not invent a procedure for it: the charter, the SRS and
 every story and task in this project are produced by the same kind of grilling, and
 [Workflow](WORKFLOW.md) describes the chain. This is where it starts. Touch no project file beyond
-`CLAUDE.md` until the six questions are answered.
+`CLAUDE.md` until the seven questions are answered.
 
 **The answers about purpose become `docs/CHARTER.md`**, written from [the charter
 template](CHARTER-TEMPLATE.md) and merged `Accepted` — the first link in the chain, and the only
@@ -154,8 +170,9 @@ It is a recommendation, not a gate. If the user declines, record it in the SRS w
 like everything else here — an omission with a reason attached can be revisited; one without looks
 like an oversight forever.
 
-Once the six questions are settled, proceed under the chosen mode into the chain in
-[Workflow](WORKFLOW.md): the charter grilling first, then the SRS, then the stories. Along the way,
+Once the seven questions are settled, proceed under the chosen mode into the chain in
+[Workflow](WORKFLOW.md): the charter grilling first — full for a new project, the engagement's
+terms for a sustaining one — then the SRS, then the stories. Along the way,
 update the files that belong to the project — `README.md`, `CLAUDE.md`, `docs/OVERVIEW.md`, the
 project's own rules below the import line in `docs/RULES.md`, and the stack selection in
 `.code-server.stack.json` at the repo's root — to reflect the answers. The inherited documents

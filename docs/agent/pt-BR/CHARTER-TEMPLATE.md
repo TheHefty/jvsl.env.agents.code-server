@@ -5,17 +5,24 @@
 | **Status** | Rascunho |
 | **Data** | AAAA-MM-DD |
 | **Autor** | |
+| **Tipo** | novo \| sustentação |
 
 Os termos de referência contra os quais o projeto inteiro é construído. Escrito a partir de um
 grilling na inicialização — veja [Fluxo de trabalho](WORKFLOW.md) — e emendado apenas por outro
 grilling, porque tudo a jusante o pressupõe. Mantenha curto: este é o documento que um novo
 contribuidor lê primeiro, e aquele contra o qual uma discordância sobre escopo é resolvida.
 
+Para um engajamento de **sustentação** — um código legado assumido para manter rodando e evoluir —
+o grilling de propósito greenfield é pulado: preencha Propósito e Stakeholders a partir do mandato
+e não de uma decisão, gaste o esforço em "No escopo / fora do escopo", e mantenha o resto seco. O
+termo de abertura continua sendo o primeiro elo e continua sendo um gate.
+
 ## Propósito
 
 Por que este projeto existe, em termos do resultado que alguém quer e não do software que o entrega.
 Um parágrafo. Quem parar de ler aqui tem que conseguir dizer para que o projeto serve e quem o
-quis.
+quis. Para um engajamento de sustentação, este é o mandato como foi dado — o que o dono está pagando
+para manter vivo — não uma decisão nova.
 
 ## No escopo / fora do escopo
 

@@ -5,17 +5,24 @@
 | **Status** | Draft |
 | **Date** | YYYY-MM-DD |
 | **Author** | |
+| **Kind** | new \| sustaining |
 
 The terms of reference the whole project is built against. Written from a grilling at
 initialization — see [Workflow](WORKFLOW.md) — and amended only by another grilling, because
 everything downstream assumes it. Keep it short: this is the document a new contributor reads
 first, and the one a disagreement about scope is settled against.
 
+For a **sustaining** engagement — an existing codebase taken over to keep running and evolve — the
+greenfield purpose grilling is skipped: fill Purpose and Stakeholders from the mandate rather than
+from a decision, spend the effort on "In scope / out of scope" instead, and keep the rest terse.
+The charter is still the first link and still a gate.
+
 ## Purpose
 
 Why this project exists, in terms of the outcome someone wants rather than the software that
 delivers it. One paragraph. A reader who stops here should be able to say what the project is for
-and who wanted it.
+and who wanted it. For a sustaining engagement, this is the mandate as given — what the owner is
+paying to have kept alive — not a fresh decision.
 
 ## In scope / out of scope
 

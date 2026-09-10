@@ -191,7 +191,14 @@ sentence and the planning unit, not a merge gate. The only mechanical gate on a 
 Four documents means four gates where there were two. That is the deliberate cost: each grilling is
 scaled to its layer, and a wrong decision is caught where it was made rather than five stories
 later. `WORKFLOW.md` is the new linked document that lays the whole chain out end to end;
-`INITIALIZATION.md` shrank to the six questions plus a pointer into it.
+`INITIALIZATION.md` shrank to a set of precursor questions plus a pointer into it.
+
+One of those questions is new here: whether the work is a new project or the sustaining of an
+existing codebase. A sustaining engagement keeps all four gates but scales the first two down — the
+charter is the engagement's terms rather than a greenfield purpose interview, and the SRS is hybrid:
+a one-line reverse-engineered baseline for the whole system, full detail only where the sustaining
+work reaches. The purpose is not a decision to grill when someone already owns the system and is
+paying to keep it alive.
 
 ## Migrating a project that already exists
 

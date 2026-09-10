@@ -32,11 +32,18 @@ diff revisável grudado na discussão que o produziu.
 
 Os termos de referência do projeto: para que ele serve, para quem, o que está no escopo e o que
 explicitamente não está, quem são os stakeholders, e as decisões que sobrevivem a todo documento
-posterior — a licença, se o projeto mantém memória de longo prazo, o modo de trabalho. As seis
+posterior — a licença, se o projeto mantém memória de longo prazo, o modo de trabalho. As sete
 perguntas em [Inicialização](INITIALIZATION.md) são a matéria-prima dele; as respostas que são
 sobre *propósito* caem aqui. Escrito a partir do [modelo de termo de abertura](CHARTER-TEMPLATE.md).
 É curto e raramente muda, e quando muda a mudança é um grilling próprio, porque tudo a jusante foi
 construído contra ele.
+
+Uma dessas sete perguntas é se isto é um projeto novo ou um engajamento de sustentação sobre um
+código legado. Para um engajamento de sustentação o termo de abertura encolhe para os termos do
+engajamento — o grilling de propósito greenfield é pulado, porque o propósito é fixado por quem é
+dono do sistema — mas ele continua sendo o primeiro elo e continua sendo um gate, e a SRS que vem a
+seguir então é híbrida: uma linha de base de uma linha para o sistema todo, detalhe só onde o
+trabalho alcança.
 
 ### SRS
 

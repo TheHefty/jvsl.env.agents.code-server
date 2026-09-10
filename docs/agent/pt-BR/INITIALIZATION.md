@@ -1,6 +1,6 @@
 # Inicialização do projeto
 
-Seis perguntas são resolvidas antes de qualquer coisa ser construída, e nenhuma delas pode ser
+Sete perguntas são resolvidas antes de qualquer coisa ser construída, e nenhuma delas pode ser
 respondida a partir de um repositório vazio. Elas são o precursor da cadeia em
 [Fluxo de trabalho](WORKFLOW.md): o modo e o idioma da documentação são escritos no `CLAUDE.md`
 como fatos aqui e agora, e o resto das respostas é levado para os grillings de termo de abertura e
@@ -22,15 +22,32 @@ Os dois estão descritos em [Modos](MODES.md). Pergunte uma vez, na inicializaç
 resposta no `CLAUDE.md` como um fato; depois disso assuma o modo escolhido por último e não reabra
 a cada sessão.
 
+**Projeto novo, ou sustentação de um código legado.** Pergunte, porque isso muda os dois primeiros
+elos da cadeia:
+
+- **Projeto novo** — nada existe ainda. O termo de abertura é a entrevista de propósito completa
+  abaixo, e a SRS é escrita para frente: o que o sistema vai fazer.
+- **Sustentação de um código legado** — o código já está lá e o mandato é mantê-lo rodando e
+  evoluí-lo com cuidado. O termo de abertura encolhe para os termos do engajamento: que sistema,
+  quem é dono, o que o trabalho cobre e o que ele explicitamente não vai tocar. Continua sendo o
+  primeiro elo e continua sendo um gate; só o grilling de propósito greenfield é pulado, porque o
+  propósito já está fixado por quem é dono do sistema. A SRS então é híbrida — uma linha de base
+  para cada área do sistema existente, e detalhe de verdade só onde o trabalho de sustentação
+  alcança.
+
+Registre a resposta no termo de abertura. Ela não muda as perguntas de modo, idioma, memória ou
+licença; essas são feitas do mesmo jeito de qualquer forma.
+
 **Para que serve o projeto.** Quando o template é adicionado a um projeto (`git submodule add
 https://github.com/TheHefty/jvsl.env.agents.code-server.git .code-server`), o domínio, os objetivos
 e as restrições já conhecidas não estão visíveis no repositório, e chutar errado desvia tudo que
-for construído em cima.
+for construído em cima. Para um engajamento de sustentação isso é mais raso — o propósito é o
+mandato, não uma decisão nova — mas a fronteira de escopo ainda precisa ser dita em voz alta.
 
 Não improvise essa entrevista, e não invente um procedimento para ela: o termo de abertura, a SRS e
 toda estória e task neste projeto saem do mesmo tipo de grilling, e
 [Fluxo de trabalho](WORKFLOW.md) descreve a cadeia. É aqui que ela começa. Não toque em nenhum
-arquivo do projeto além do `CLAUDE.md` até as seis perguntas serem respondidas.
+arquivo do projeto além do `CLAUDE.md` até as sete perguntas serem respondidas.
 
 **As respostas sobre propósito viram o `docs/CHARTER.md`**, escrito a partir do
 [modelo de termo de abertura](CHARTER-TEMPLATE.md) e mergeado como `Aceito` — o primeiro elo da
@@ -158,9 +175,10 @@ pessoas a pular as partes que importavam.
 resto aqui — uma omissão com motivo anexado pode ser revisitada; uma sem motivo parece descuido
 para sempre.
 
-Uma vez que as seis perguntas estão resolvidas, prossiga no modo escolhido para dentro da cadeia em
-[Fluxo de trabalho](WORKFLOW.md): o grilling do termo de abertura primeiro, depois a SRS, depois as
-estórias. Pelo caminho, atualize os arquivos que pertencem ao projeto — `README.md`, `CLAUDE.md`,
+Uma vez que as sete perguntas estão resolvidas, prossiga no modo escolhido para dentro da cadeia em
+[Fluxo de trabalho](WORKFLOW.md): o grilling do termo de abertura primeiro — completo para um
+projeto novo, os termos do engajamento para um de sustentação — depois a SRS, depois as estórias.
+Pelo caminho, atualize os arquivos que pertencem ao projeto — `README.md`, `CLAUDE.md`,
 `docs/OVERVIEW.md`, as regras próprias do projeto abaixo da linha de import no `docs/RULES.md`, e a
 seleção de stacks em `.code-server.stack.json` na raiz do repo — para refletir as respostas. Os
 documentos herdados sob `.code-server/docs/agent/` não são editados: uma regra que precisa mudar é
