@@ -50,11 +50,12 @@ Pare e consulte em quatro casos:
   apresente código não testado como verificado.
 - **Uma ambiguidade crônica nas regras de negócio que muda o custo do projeto** — onde duas
   leituras levam a sistemas materialmente diferentes, e não meramente a redações diferentes.
-- **Um gate de um pipeline definido** — o RFC acordado com o usuário antes de qualquer cenário ser
-  escrito, os cenários Gherkin acordados antes de qualquer código. Veja "Releases têm um tema" em
-  [Regras](RULES.md). Esperar num handoff que alguém desenhou de propósito não é a mesma coisa que
-  parar para perguntar o óbvio: um é o processo funcionando, o outro é a ida e volta que este modo
-  existe para remover. Um agente que pula esses citando a regra acima leu ela ao contrário.
+- **Um gate de um pipeline definido** — o termo de abertura, a SRS, os cenários de uma estória e o
+  desenho de uma task são cada um acordados com o usuário antes de o próximo elo da cadeia ser
+  escrito. Veja [Fluxo de trabalho](WORKFLOW.md) e "Trabalho tem um tema" em [Regras](RULES.md).
+  Esperar num handoff que alguém desenhou de propósito não é a mesma coisa que parar para perguntar
+  o óbvio: um é o processo funcionando, o outro é a ida e volta que este modo existe para remover.
+  Um agente que pula esses citando a regra acima leu ela ao contrário.
 - **Um passo irreversível ou voltado para fora** — merge em branch protegida, cortar release, push
   para um remoto compartilhado, apagar ou sobrescrever algo que você não criou. Esta é a metade do
   pareamento que a regra acima não dissolve: essas ficam com o usuário, porque o custo de errar ali

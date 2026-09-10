@@ -66,11 +66,11 @@ check "identical structure passes" "$(run "$d")" "0"
 # 2. A file present on one side only. This is the realistic failure: a document
 #    added in one language and forgotten in the other.
 d="$(fixture missing)"
-cat > "$d/en/RFC.md" <<'MD'
-# RFCs
+cat > "$d/en/TASKS.md" <<'MD'
+# Tasks
 MD
 check "file missing in one language fails" "$(run "$d")" "1"
-check "  and names the file" "$(grep -c 'RFC.md' "$WORK/out")" "1"
+check "  and names the file" "$(grep -c 'TASKS.md' "$WORK/out")" "1"
 
 # 3. A heading added on one side. This is what an edit landing in one language
 #    looks like from the outside: same files, different document.
@@ -87,7 +87,7 @@ check "heading at a different level fails" "$(run "$d")" "1"
 # 5. A sibling link that points somewhere else. A translation that links to the
 #    wrong document sends the reader to the wrong rules.
 d="$(fixture links)"
-sed -i 's/(MODES.md)/(RFC.md)/' "$d/pt-BR/RULES.md"
+sed -i 's/(MODES.md)/(TASKS.md)/' "$d/pt-BR/RULES.md"
 check "different sibling link fails" "$(run "$d")" "1"
 
 # 6. One language is not a divergence. The check must not block a template that

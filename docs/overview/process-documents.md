@@ -1,8 +1,9 @@
 # Process documents (`docs/agent/`)
 
 The template used to ship an environment and nothing else. The way a project was *worked on* —
-the pairing modes, the ground rules, the initialization interview, the RFC → scenarios → code
-pipeline — lived in the reference monorepo and reached a project by being copied at creation. That
+the pairing modes, the ground rules, the initialization interview, the charter → SRS → story →
+task → code chain — lived in the reference monorepo and reached a project by being copied at
+creation. That
 copy was never updated again. Thirty-one commits changed those documents upstream, twenty-nine of
 them typed `docs`, and no existing project received one: `docs` proposes no release, so there was
 no version to bump to and nothing anywhere said the rules had moved. The environment had an update
@@ -15,10 +16,10 @@ imports in its `CLAUDE.md`. A bump moves them.
 
 An import is resident: everything reached by `@path` is loaded into every session. So the split is
 not tidiness, it is budget. `MODES.md` and the project's `docs/RULES.md` are imported because they
-govern every turn. `RFC.md`, `RFC-TEMPLATE.md`, `SCENARIOS.md` and `ARCHITECTURE.md` are linked and
-read when they are relevant. `INITIALIZATION.md` is imported only while initialization is
-unfinished — ending it is deleting one line, instead of deleting a section and hoping the deletion
-was clean.
+govern every turn. `WORKFLOW.md`, `TASKS.md`, `TASK-TEMPLATE.md`, the charter/SRS/story/debt
+templates, `SCENARIOS.md` and `ARCHITECTURE.md` are linked and read when they are relevant.
+`INITIALIZATION.md` is imported only while initialization is unfinished — ending it is deleting one
+line, instead of deleting a section and hoping the deletion was clean.
 
 An `@path` import resolves against the directory of the file that contains it, not against the
 repository root. So `CLAUDE.md` at the root imports `@.code-server/docs/agent/en/MODES.md`, while
@@ -150,6 +151,55 @@ The reference monorepo now deletes its copy and points its `pre-commit` at this 
 check is the arrangement that drifts, and it drifts silently: the rule written in one place and
 enforced from another, with nothing saying which is current.
 
+## The charter/SRS/story/task chain (2.0.0)
+
+The original process had one planning artifact: an RFC, numbered `NNNN`, produced by a grilling.
+`0001` was the project's purpose interview and everything after was another RFC before another
+change. Two things about that broke down.
+
+The number was a shared counter. Two branches working in parallel both reached for the next free
+`NNNN`, and the collision was either a merge conflict in the filename or — worse — a silent
+duplicate once both merged, two RFCs claiming `0007` with nothing pointing that out. A sequential
+identifier only works when allocation is serialized, and the whole point of parallel work is that
+it is not.
+
+And an RFC was doing two jobs at once: it was the unit of *decomposition* (what work exists) and
+the unit of *design* (how one piece is built). `0001 = the whole project` and `0034 = a two-file
+change` sitting in the same flat folder with the same template is a scale mismatch that no amount of
+"the test is not size" fixes.
+
+So the flat RFC list is replaced by a chain, each link its own document and its own gate:
+
+- **`docs/CHARTER.md`** — terms of reference. Purpose, scope, stakeholders, and the standing
+  decisions (mode, language, memory, licence) carried over from the six initialization questions.
+- **`docs/SRS.md`** — requirements, the data/legal map, and the decomposition: the epics, and the
+  stories under each. This is the source of truth for what work exists; `docs/PLANNING/` mirrors it.
+- **`docs/PLANNING/<epic>/<story>/`** — one folder per story, holding `OVERVIEW.md`, the story's
+  `<story>.feature` acceptance scenarios, and a `tasks/` directory.
+- **`docs/PLANNING/<epic>/<story>/tasks/<slug>.md`** — the task: what an RFC was, minus the
+  acceptance-scenarios section (those are the story's now). **Named by slug, never by number** —
+  there is no shared counter, so two tasks opened in parallel cannot collide. Ordering that a
+  number used to imply lives in the story's task index and in each task's `depends-on` frontmatter.
+- **`docs/DEBTS/<slug>/OVERVIEW.md`** — a fix or shortcut made outside the chain: a production
+  hotfix, or a corner cut knowingly. `problem → root cause → fix → regression scenario`.
+
+An epic is not a document — a heading in the SRS and a folder. It is the unit "Work has a theme" in
+`RULES.md` now points at: one finishable sentence, and the sentence a release is *for*.
+release-please still cuts releases incrementally from the commits; the epic is the changelog's
+sentence and the planning unit, not a merge gate. The only mechanical gate on a merge stays CI.
+
+Four documents means four gates where there were two. That is the deliberate cost: each grilling is
+scaled to its layer, and a wrong decision is caught where it was made rather than five stories
+later. `WORKFLOW.md` is the new linked document that lays the whole chain out end to end;
+`INITIALIZATION.md` shrank to a set of precursor questions plus a pointer into it.
+
+One of those questions is new here: whether the work is a new project or the sustaining of an
+existing codebase. A sustaining engagement keeps all four gates but scales the first two down — the
+charter is the engagement's terms rather than a greenfield purpose interview, and the SRS is hybrid:
+a one-line reverse-engineered baseline for the whole system, full detail only where the sustaining
+work reaches. The purpose is not a decision to grill when someone already owns the system and is
+paying to keep it alive.
+
 ## Migrating a project that already exists
 
 `migrate-agent-docs.sh`, run from the root of a consuming repo. Dry run by default; `--apply`
@@ -161,6 +211,14 @@ below it, and `CLAUDE.md` gains the imports without losing a line. What it will 
 the prose the imports now duplicate — the two mode sections, typically — because the one thing it
 could destroy is the half of a file a project wrote itself, and no inspection of the bytes tells
 that half from the inherited one. It prints what a person has to finish.
+
+The 2.0.0 chain adds a structural migration on top of the pointer rewrite. Existing
+`docs/RFC/NNNN-*.md` have no story to belong to, so the script builds one: an epic `legacy` under
+`docs/PLANNING/`, one story per RFC, the RFC becomes that story's single task, and a matching
+`docs/SCENARIOS/NNNN-*.feature` moves in beside it as the story's `.feature`. The RFC and scenario
+files themselves are copied to `docs/_superseded/` with their paths kept — nothing is deleted, and
+the reorganization into real epics and stories is left for a person, because only they know which
+RFCs were actually one theme.
 
 `docs/ARCHITECTURE/OVERVIEW.md` is left alone entirely. The instruction half ships here as
 `ARCHITECTURE.md`; what is in a project's file is that project's description of its own system.

@@ -1,9 +1,10 @@
 # Agent process documents
 
 The normative half of how a project built on this template is worked on: the pairing modes, the
-ground rules, the initialization interview, and the RFC → scenarios → code pipeline. It ships from
-the template and reaches a project through a submodule bump, which is the whole point — before
-this, every one of these documents was copied into a project at creation and never updated again.
+ground rules, the initialization interview, and the charter → SRS → story → task → code chain. It
+ships from the template and reaches a project through a submodule bump, which is the whole point —
+before this, every one of these documents was copied into a project at creation and never updated
+again.
 
 ## How a project reaches them
 
@@ -22,8 +23,9 @@ While initialization is unfinished, `CLAUDE.md` also imports `INITIALIZATION.md`
 initialization is removing that one line.
 
 **An import is resident and a link is not.** Everything reached by `@path` is loaded into every
-session. `RFC.md`, `RFC-TEMPLATE.md`, `SCENARIOS.md` and `ARCHITECTURE.md` are read when they are
-relevant and are therefore linked, never imported.
+session. `WORKFLOW.md`, `TASKS.md`, `TASK-TEMPLATE.md`, the `CHARTER-TEMPLATE.md`,
+`SRS-TEMPLATE.md`, `STORY-TEMPLATE.md` and `DEBT-TEMPLATE.md` templates, `SCENARIOS.md` and
+`ARCHITECTURE.md` are read when they are relevant and are therefore linked, never imported.
 
 ## Languages
 

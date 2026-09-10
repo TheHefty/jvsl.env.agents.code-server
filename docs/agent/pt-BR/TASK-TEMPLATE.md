@@ -1,12 +1,16 @@
-# RFC NNNN: Título
+---
+status: Rascunho     # Rascunho | Aceita | Rejeitada | Substituída por <slug>
+story: <slug-do-epico>/<slug-da-estoria>
+epic: <slug-do-epico>
+pr:                  # o pull request que introduz esta task
+depends-on: []       # slugs de tasks que precisam entrar antes
+---
 
-| | |
-|---|---|
-| **Status** | Rascunho |
-| **Data** | AAAA-MM-DD |
-| **Autor** | |
-| **Substitui** | — |
-| **Substituído por** | — |
+# Task: <slug>
+
+O desenho detalhado de uma fatia de uma estória — veja [Tasks](TASKS.md) para quando esta é a
+unidade certa e [Fluxo de trabalho](WORKFLOW.md) para onde ela fica na cadeia. O frontmatter acima é
+a partir do que o índice de tasks no `OVERVIEW.md` da estória é montado; mantenha-o preciso.
 
 ## Resumo
 
@@ -16,8 +20,8 @@ de ler aqui tem que conseguir dizer se isso afeta a própria vida.
 ## Problema
 
 O que está errado hoje, em termos de algo observado e não de algo temido. Nomeie o sintoma e onde
-ele apareceu. Se for preventivo, diga isso com todas as letras — um problema enunciado como
-previsão é aceitável desde que não esteja disfarçado de relato.
+ele apareceu. Se for preventivo, diga isso com todas as letras — um problema enunciado como previsão
+é aceitável desde que não esteja disfarçado de relato.
 
 Diga quem paga por ele hoje: o projeto consumidor, o agente, quem opera o host.
 
@@ -26,22 +30,15 @@ Diga quem paga por ele hoje: o projeto consumidor, o agente, quem opera o host.
 O que fazer. Detalhe suficiente para outra pessoa implementar e chegar aproximadamente na mesma
 coisa — onde o código vai, o que ele toca, qual é a interface. Não é um diff.
 
-## Cenários de aceite
-
-Aponte o arquivo `.feature` em `docs/SCENARIOS/` que carrega o número deste RFC.
-Acordados com o usuário antes de qualquer código — esse acordo é o que os torna critério de aceite
-em vez de descrição do que quer que tenha sido construído.
-
-São documentação, não testes. O que prende o código a eles é a suíte de testes, escrita test-first
-a partir destes cenários.
+Os critérios de aceite do comportamento para o qual esta fatia contribui são o `<estoria>.feature`
+da estória, não este documento — veja [Cenários](SCENARIOS.md). Cite os cenários que esta task move
+em direção ao verde.
 
 ## Três piores cenários de falha
 
-Não é a mesma coisa que a seção acima, e um não substitui o outro: cenários de aceite dizem o que a
-mudança precisa fazer, estes dizem como ela quebra.
-
 **Obrigatório.** Não é checklist de risco: as três formas específicas de *esta* mudança machucar,
-ordenadas pelo que custariam. Veja "Modo Pair Programming" em [Modos](MODES.md).
+ordenadas pelo que custariam. Veja "Modo Pair Programming" em [Modos](MODES.md). Estes não são os
+cenários de aceite — esses dizem o que a mudança precisa fazer; estes dizem como ela quebra.
 
 Para cada uma, diga como ela é pega. Uma falha identificada sem teste é uma falha identificada que
 vai para produção.
@@ -65,13 +62,13 @@ O que isto atinge além do arquivo que edita. Marque o que se aplica e diga como
 - [ ] O mapa do sandbox do agente, ou onde uma capacidade é decidida
 - [ ] Uma dependência buscada em tempo de build — com seu pin e digest
 - [ ] A disciplina de release/versionamento
+- [ ] Outra estória ou task — nomeie, e preencha `depends-on`
 - [ ] Nada fora deste repositório
 
 ## Alternativas consideradas
 
-O que mais estava na mesa e por que perdeu. Uma linha de "rejeitado porque" vale mais que a
-proposta inteira quando alguém repropõe a mesma coisa daqui a um ano. Inclua a opção de não fazer
-nada.
+O que mais estava na mesa e por que perdeu. Uma linha de "rejeitado porque" vale mais que a proposta
+inteira quando alguém repropõe a mesma coisa daqui a um ano. Inclua a opção de não fazer nada.
 
 ## Verificação
 

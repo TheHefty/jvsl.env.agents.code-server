@@ -1,11 +1,15 @@
 # Project initialization
 
-Six questions are settled before anything is built, and none of them can be answered from an empty
-repository. The first file written is the record of the answers.
+Seven questions are settled before anything is built, and none of them can be answered from an empty
+repository. They are the precursor to the chain in [Workflow](WORKFLOW.md): the mode and the
+documentation language are written into `CLAUDE.md` as facts here and now, and the rest of the
+answers are carried into the charter and SRS grillings that follow — the charter takes the ones
+about *purpose*, the SRS takes the ones that are *constraints*. This file produces no document of
+its own.
 
-This file is imported by a project's `CLAUDE.md` while initialization is unfinished, and the import
-line is removed when it is done — see "Ending initialization" at the bottom. Paths outside this
-folder are written as code rather than as links, for the reason given in [Rules](RULES.md).
+It is imported by a project's `CLAUDE.md` while initialization is unfinished, and the import line
+is removed when it is done — see "Ending initialization" at the bottom. Paths outside this folder
+are written as code rather than as links, for the reason given in [Rules](RULES.md).
 
 **Which mode we are working in.** Ask, and let the user answer:
 
@@ -17,18 +21,36 @@ folder are written as code rather than as links, for the reason given in [Rules]
 Both are described in [Modes](MODES.md). Ask once, at initialization, and write the answer into
 `CLAUDE.md` as a fact; afterwards assume the mode last chosen and do not re-open it every session.
 
+**A new project, or sustaining an existing codebase.** Ask, because it changes the first two links
+of the chain:
+
+- **A new project** — nothing exists yet. The charter is the full purpose interview below, and the
+  SRS is written forward: what the system will do.
+- **Sustaining an existing codebase** — the code is already there and the mandate is to keep it
+  running and evolve it carefully. The charter shrinks to the engagement's terms: what system, who
+  owns it, what the work covers and what it explicitly will not touch. It is still the first link
+  and still a gate; only the greenfield purpose grilling is skipped, because the purpose is already
+  fixed by whoever owns the system. The SRS is then hybrid — a one-line baseline for every area of
+  the existing system, and real detail only where the sustaining work reaches.
+
+Record the answer in the charter. It does not change the mode, language, memory or licence
+questions; those are asked the same way either way.
+
 **What the project is for.** When the template is added to a project (`git submodule add
 https://github.com/TheHefty/jvsl.env.agents.code-server.git .code-server`), the domain, the goals
 and any constraints already known are not visible in the repository, and guessing them wrong
-misdirects everything built on top.
+misdirects everything built on top. For a sustaining engagement this is thinner — the purpose is
+the mandate, not a fresh decision — but the scope boundary still needs saying out loud.
 
-Do not improvise that interview, and do not invent a procedure for it: every RFC in this project
-is produced by the same interview, and [the RFC process](RFC.md) describes it.
-This one is simply the first. Touch no project file until it ends.
+Do not improvise that interview, and do not invent a procedure for it: the charter, the SRS and
+every story and task in this project are produced by the same kind of grilling, and
+[Workflow](WORKFLOW.md) describes the chain. This is where it starts. Touch no project file beyond
+`CLAUDE.md` until the seven questions are answered.
 
-**The result is the project's first RFC**, `docs/RFC/0001-*.md`, merged `Accepted`. Everything
-after is built on it, and it is the only place a later reader finds out why the project is shaped
-this way.
+**The answers about purpose become `docs/CHARTER.md`**, written from [the charter
+template](CHARTER-TEMPLATE.md) and merged `Accepted` — the first link in the chain, and the only
+place a later reader finds out why the project is shaped this way. The answers that are constraints
+— the data map above all — become part of `docs/SRS.md`, the second link.
 
 **Whether the project keeps long-term memory.** `ai-memory` is off unless the project carries an
 `.ai-memory.toml` marker, so this is a decision, not a default — ask it, and put enough in front of
@@ -42,11 +64,11 @@ unless someone later adds one. The mechanics are in
 If yes, create the marker and say that the container has to be restarted before anything comes up:
 the marker is read at boot, by the service and by the hook that registers with the CLI. If no,
 create nothing — absence is the switch, and it can be turned on later without redoing anything.
-Either way the answer belongs in RFC `0001`, since it decides whether this project accumulates a
+Either way the answer belongs in the charter, since it decides whether this project accumulates a
 record of how it was built.
 
 **Which language the documentation is written in.** Ask, and apply the answer to all of it —
-`README.md`, `CLAUDE.md`, `docs/`, the RFCs, and commit messages if the user wants it there too.
+`README.md`, `CLAUDE.md`, `docs/`, the tasks, and commit messages if the user wants it there too.
 The failure mode is not the wrong choice, it is the mixture: half the docs in English and half in
 Portuguese, with no rule saying which is which, so every new file re-opens the question and nobody
 can grep. Conversation language is a different thing and does not need settling here — the user
@@ -89,8 +111,8 @@ policy that are actually reachable, obligations around keeping access records, a
 under judicial order. Confirm current retention periods against the law rather than trusting a
 number quoted in a document like this one; that is the part that changes.
 
-Whatever the answer, it goes in RFC `0001` as a data map — what personal data exists, why, where
-it lives, how long it stays — and the standing rules go in `docs/RULES.md`. Policy and terms are
+Whatever the answer, it goes in the SRS as a data map — what personal data exists, why, where it
+lives, how long it stays — and the standing rules go in `docs/RULES.md`. Policy and terms are
 project files, written in the documentation language chosen above.
 
 **Which licence the project is under.** Ask, and apply the answer immediately rather than leaving
@@ -144,16 +166,18 @@ so the i18n seam applies; most of the accessibility list does not. Recommending 
 a project that has no UI is ritual, and ritual is what teaches people to skip the parts that
 mattered.
 
-It is a recommendation, not a gate. If the user declines, record it in RFC `0001` with the reason,
+It is a recommendation, not a gate. If the user declines, record it in the SRS with the reason,
 like everything else here — an omission with a reason attached can be revisited; one without looks
 like an oversight forever.
 
-Once it is settled, proceed under the chosen mode: update the files that belong to the project —
-`README.md`, `CLAUDE.md`, `docs/OVERVIEW.md`, the project's own rules below the import line in
-`docs/RULES.md`, and the stack selection in `.code-server.stack.json` at the repo's root — to
-reflect the answers, and assemble an initial structure from them. The inherited documents under
-`.code-server/docs/agent/` are not edited: a rule that needs changing is changed in the template
-and arrives back through a bump.
+Once the seven questions are settled, proceed under the chosen mode into the chain in
+[Workflow](WORKFLOW.md): the charter grilling first — full for a new project, the engagement's
+terms for a sustaining one — then the SRS, then the stories. Along the way,
+update the files that belong to the project — `README.md`, `CLAUDE.md`, `docs/OVERVIEW.md`, the
+project's own rules below the import line in `docs/RULES.md`, and the stack selection in
+`.code-server.stack.json` at the repo's root — to reflect the answers. The inherited documents
+under `.code-server/docs/agent/` are not edited: a rule that needs changing is changed in the
+template and arrives back through a bump.
 
 ## Ending initialization
 
@@ -171,5 +195,5 @@ one-time decisions and the rest of that file assumes them:
   and an import that was removed cannot be re-read. It also decides which language folder the other
   imports point at.
 
-Everything else is already recorded in RFC `0001`, which is what makes removing the import safe:
-the answers outlive the questions.
+Everything else is already recorded in the charter and the SRS, which is what makes removing the
+import safe: the answers outlive the questions.
