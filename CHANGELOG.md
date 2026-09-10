@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.10.0...v2.0.0) (2026-09-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* the inherited process documents are restructured. A project on the old RFC flow adopts the chain by running migrate-agent-docs.sh; the flat docs/RFC/ and docs/SCENARIOS/ folders are replaced by docs/PLANNING/ and docs/DEBTS/.
+
+### Features
+
+* branch initialization on new project vs sustaining an existing codebase ([ee8332e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/ee8332ec8f4294aa659145bafe1c6581f5f31508))
+* replace the RFC flow with the charter/SRS/story/task chain ([c915a01](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/c915a01406944e3a67035cc0b1132f76a9b56003))
+
 ## [1.10.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.9.0...v1.10.0) (2026-09-05)
 
 
