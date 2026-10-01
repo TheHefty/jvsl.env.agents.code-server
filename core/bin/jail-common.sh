@@ -57,10 +57,22 @@ JAIL_COMMON_ARGS=(
 # shell. Whoever exports GH_TOKEN is choosing to hand the agent that token, so
 # scope it narrowly and give it an expiry.
 #
-# **By name, never as NAME=VALUE.** `--env GH_TOKEN` copies the value across
-# without it ever appearing in this process's argv; writing the pair out puts
-# the secret in `ps` for every user on the box. That distinction is why the two
-# forms are mixed below and is not a style choice.
+# **By name, never as NAME=VALUE — and it is not enough.** `--env GH_TOKEN`
+# keeps the value out of *this* process's argv, and writing the pair out would
+# put it there, so the distinction is still worth keeping. But ai-jail then
+# re-expands it into `--setenv GH_TOKEN <value>` on the `bwrap` command line it
+# executes, and `bwrap` runs in the container's PID namespace. **So the token is
+# readable with `ps` from anywhere else in this container** — a terminal in the
+# editor, a build started from it, and therefore any dependency that build runs.
+# Observed on 2026-10-01 in a real environment.
+#
+# This comment used to assert the opposite, which is why nobody looked. The
+# whole finding, what is being done about it, and the one command that verifies
+# the replacement are in
+# docs/DEBTS/forwarded-secrets-land-in-the-sandbox-argv/OVERVIEW.md.
+#
+# Until that lands: treat anything forwarded here as readable by everything in
+# the container. Scope it narrowly and give it a short expiry.
 JAIL_COMMON_ARGS+=(--env GH_TOKEN)
 
 # RUSTUP_HOME is forwarded because ai-jail --clearenv's the sandbox and replants
