@@ -7,12 +7,16 @@ USER root
 
 # 1. System dependencies, Bubblewrap, Socat and Docker tools.
 #
-# The four Tauri `-dev` libraries below are the bundled launcher's, and the
-# launcher is gone: they exist only so its crate could be `cargo check`ed from
-# inside the container. They are removed by the task named
-# `the-image-stops-carrying-the-launchers-libraries`, separately, because that
-# is where "nothing in the image needed them" is actually tested — by the image
-# builds, against every stack.
+# **`libssl-dev` is the one of the launcher's five libraries that stayed.** The
+# other four — `libwebkit2gtk-4.1-dev`, `libxdo-dev`,
+# `libayatana-appindicator3-dev`, `librsvg2-dev` — existed only so the bundled
+# launcher's crate could be `cargo check`ed from inside the container, and went
+# with it. `libssl-dev` is in Tauri's prerequisite list too, but it is also what
+# any Rust crate linking OpenSSL needs, and the `rust` stack is selectable: the
+# cost of being wrong about it is `cannot find -lssl` forty seconds into
+# somebody's build, which is the failure mode this image is not supposed to
+# ship. `build-essential` stays for the same reason, and `file` because it is a
+# tool rather than a development library.
 #
 # `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` are what make the
 # nested *rootless* Docker daemon possible (see section 4 below and
@@ -76,11 +80,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iptables \
     nftables \
     file \
-    libwebkit2gtk-4.1-dev \
-    libxdo-dev \
     libssl-dev \
-    libayatana-appindicator3-dev \
-    librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 1.1 Installs Rust (stable, via rustup) system-wide, so the CLI/agent and

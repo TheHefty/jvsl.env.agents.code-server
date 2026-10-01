@@ -37,7 +37,7 @@ deprecation.
 | `start/` | the crate |
 | `dev` | does nothing but build the crate if stale and run it |
 | the launcher's half of `init` | the display and WSLg check, the five Tauri library checks, and the `cargo` requirement |
-| four Tauri `-dev` packages in the image | `libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` — present only so the crate could be `cargo check`ed from inside the container |
+| four Tauri `-dev` packages in the image | `libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` — present only so the crate could be `cargo check`ed from inside the container. **`libssl-dev` was the fifth and stayed**: any Rust crate linking OpenSSL needs it and the `rust` stack is selectable |
 | the `cargo-check` and `title-bar` CI jobs | nothing left for them to check |
 | the README's launcher section, `dev`'s half of `docs/overview/init-and-dev.md`, the launcher's part of `docs/overview/start.md` | nothing left to describe |
 
@@ -86,7 +86,7 @@ Two slices, split where the repository can be left working in between.
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/nothing-builds-or-runs-the-launcher.md`](tasks/nothing-builds-or-runs-the-launcher.md) | template | Done — #80 |
-| 2 | `tasks/the-image-stops-carrying-the-launchers-libraries.md` | template | not yet written |
+| 2 | [`tasks/the-image-stops-carrying-the-launchers-libraries.md`](tasks/the-image-stops-carrying-the-launchers-libraries.md) | template | Done — #81 |
 | 3 | `tasks/the-containers-documentation-stops-being-the-launchers.md` | template | not yet written |
 
 **The first is atomic by necessity.** `init` builds the crate and `dev` runs it, so deleting the

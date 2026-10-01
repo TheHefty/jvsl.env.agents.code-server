@@ -21,13 +21,16 @@ ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_
 # The emulator needs libX11 even to run headless — `emulator` itself, both qemu
 # binaries, and libgfxstream/libemugl/libandroid-emu-shared all carry
 # libX11.so.6 as a hard DT_NEEDED, so its absence fails at load time rather
-# than degrading to no-graphics. It does resolve in this image today, but only
-# by accident: core's Tauri build dependencies (libwebkit2gtk-4.1-dev and
-# friends, present to build `start`) drag the whole GTK/X11 stack in, and no
-# fragment declares an X library for the emulator's sake anywhere. Trimming
-# those -dev packages out of a runtime image — a perfectly reasonable cleanup —
-# would therefore break the emulator with nothing recording why. Declaring it
-# here puts the dependency where it actually belongs.
+# than degrading to no-graphics. It used to resolve by accident: core installed
+# the bundled launcher's Tauri `-dev` libraries, which dragged the whole GTK/X11
+# stack in, and no fragment declared an X library for the emulator's sake
+# anywhere. This comment predicted that trimming those packages — "a perfectly
+# reasonable cleanup" — would break the emulator with nothing recording why.
+#
+# **The cleanup happened, in the release that deleted the launcher, and the
+# prediction held: nothing broke, because this line exists.** That is what
+# declaring a dependency where it belongs buys, and it is the reason to write
+# the prediction down rather than only the fix.
 #
 # libx11-xcb1 is the same accident with a different failure mode, and the
 # measurement above is exactly why it was missed: it is not a DT_NEEDED of
