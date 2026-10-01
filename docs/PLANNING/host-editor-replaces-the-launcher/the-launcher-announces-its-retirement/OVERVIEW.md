@@ -84,7 +84,7 @@ leaves the repository telling a new reader to use the thing the binary has just 
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/the-launcher-says-where-to-go.md`](tasks/the-launcher-says-where-to-go.md) | template | Draft |
+| 1 | [`tasks/the-launcher-says-where-to-go.md`](tasks/the-launcher-says-where-to-go.md) | template | Done — #71 |
 
 **There is no new CI job, and the first draft of this story said there was.** It claimed the task
 would carry `start/`'s first test and the job to run it. Both halves are wrong: the crate has a
@@ -111,4 +111,11 @@ nothing else.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+The task is implemented in #71. The story's own status stays `Draft` until the `@manual` scenario has
+been run by a person: first run shows the dialog, dismissing it continues the launch, the second run
+shows none, and stderr carries the notice both times. Everything else in the feature file is covered
+by tests in this repository's CI.
+
+**The epic's sentence is true once that pass is done.** Opening a project in the host's editor is
+what this repository's own documentation now tells a reader to do, and the launcher says where to
+go. Removal in `3.0.0` is FR-52 and a scheduled consequence, not outstanding work.
