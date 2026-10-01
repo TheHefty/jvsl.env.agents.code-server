@@ -23,7 +23,7 @@ check() {
 
 # --- the case this change exists for.
 check "a planning document" docs-only "docs/PLANNING/epic/story/OVERVIEW.md"
-check "several documents" docs-only "docs/SRS.md" "docs/overview/start.md" "docs/agent/en/RULES.md"
+check "several documents" docs-only "docs/SRS.md" "docs/overview/sandbox.md" "docs/agent/en/RULES.md"
 check "documents plus a root readme" docs-only "docs/OVERVIEW.md" "README.md"
 check "a root markdown alone" docs-only "SECURITY.md"
 check "a feature file" docs-only "docs/PLANNING/e/s/s.feature"

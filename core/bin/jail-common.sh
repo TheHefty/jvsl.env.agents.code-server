@@ -26,7 +26,8 @@
 #                  API at all without this, and the containment that actually
 #                  bounds them is the container's, not the jail's: the jail is
 #                  here for the filesystem, and everything it hides is reachable
-#                  anyway through the nested daemon (see docs/overview/start.md).
+#                  anyway through the nested daemon (see
+#                  docs/overview/container-permissions.md).
 #   --agent-state  without it the agents' own state dirs (~/.claude, ~/.codex,
 #                  ~/.claude.json, ...) aren't mapped and HOME is a tmpfs, so
 #                  every run starts at onboarding with no credentials. It is
@@ -178,7 +179,7 @@ fi
 # daemon is nested in this container, its socket is an ordinary path, and a
 # read-write map is both enough and a narrower claim.
 #
-# What this grants is not narrow, though, and docs/overview/start.md says so
+# What this grants is not narrow, though, and docs/overview/sandbox.md says so
 # plainly: the daemon runs *in* this container, so `docker run -v /:/probe`
 # against it hands a container this container's own root filesystem, and
 # everything the sandbox hides is reachable that way. That was decided on

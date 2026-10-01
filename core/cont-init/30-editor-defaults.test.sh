@@ -142,7 +142,7 @@ check "the merged file is left writable by its owner and readable" \
 # — every selection in the terminal now replaces the clipboard — so the two ways
 # it can go wrong are worth pinning by name rather than trusting to the generic
 # merge tests to notice. See "Selecting text inside Claude Code" in
-# docs/overview/start.md for what it is for.
+# docs/overview/the-agent-in-the-terminal.md for what it is for.
 
 # Failure 1 — shipped and documented are two different things. A default that
 # is written up in the docs and missing from this file reaches nobody, and the
