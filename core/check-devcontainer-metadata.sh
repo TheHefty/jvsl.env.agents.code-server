@@ -69,6 +69,21 @@ echo "$raw" | jq -e '[.[] | select(.remoteUser == "abc")] | length == 1' >/dev/n
     || fail "devcontainer.metadata declares no entry with remoteUser \"abc\"; a client would fall \
 back to the image's USER, which is root"
 
+# A setting reaches the editor by three routes and only one of them is the
+# extension's code. This is the third: anything in this label's editor
+# customizations is applied by the tooling on every connection, to every project
+# using the image. A Workspace Trust setting arriving here would disable the
+# editor's own defence for everybody, through a change made for an unrelated
+# reason — and the next story starts writing to exactly this label, for per-stack
+# extensions. The guard exists before the door opens.
+if echo "$raw" | jq -e '
+    any(.[]; ((.customizations.vscode.settings // {}) | keys | any(startswith("security.workspace.trust"))))
+' >/dev/null 2>&1; then
+    fail "devcontainer.metadata carries a security.workspace.trust setting. Workspace Trust is the \
+editor's own defence against a task configured to run when a folder opens, and a setting here \
+disables it for every project using this image. It is never written by anything in this repository"
+fi
+
 if echo "$raw" | jq -e 'any(.[]; has("containerUser"))' >/dev/null 2>&1; then
     fail "devcontainer.metadata declares containerUser. The container must start as root so \
 s6-overlay can apply PUID/PGID and drop privileges to abc itself; declaring it stops the container \

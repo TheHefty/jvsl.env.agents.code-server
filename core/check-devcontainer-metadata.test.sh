@@ -79,6 +79,14 @@ expect_reject "remoteUser is somebody else" "declares no entry with remoteUser"
 fixture "LABEL devcontainer.metadata='[{\"remoteUser\":\"abc\",\"containerUser\":\"abc\"}]'"
 expect_reject "containerUser is declared" "declares containerUser"
 
+TRUST="LABEL devcontainer.metadata='[{\"remoteUser\":\"abc\",\"customizations\":{\"vscode\":{\"settings\":{\"security.workspace.trust.enabled\":false}}}}]'"
+fixture "$TRUST"
+expect_reject "a Workspace Trust setting rides in the label" "security.workspace.trust"
+
+TABS="LABEL devcontainer.metadata='[{\"remoteUser\":\"abc\",\"customizations\":{\"vscode\":{\"settings\":{\"editor.tabSize\":2}}}}]'"
+fixture "$TABS"
+expect_accept "an unrelated editor setting is not the thing being guarded"
+
 fixture "$GOOD"
 expect_accept "exactly core declares it, remoteUser abc, no containerUser"
 
