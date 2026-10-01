@@ -79,14 +79,19 @@ task that implements FR-34 has to find another — which is the same shape of su
 
 ## Tasks
 
-Three slices. The first is unblocked and fully verifiable; the second waits on one check only a
-person can run; the third is an assertion in the other repository.
+**Two slices, not three.** FR-33 was going to be a task of its own and is not one: it adds no
+behaviour, only an assertion that a setting is never written, and the inherited task process says
+that what a commit message can carry does not need a design document. It rides in the second task,
+which already touches the same protections.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/the-container-authenticates-as-itself.md`](tasks/the-container-authenticates-as-itself.md) | template | Draft |
-| 2 | `tasks/the-agent-cannot-write-what-runs-outside.md` | template | blocked on the `--map` check above |
-| 3 | `tasks/workspace-trust-is-never-disabled.md` | extension | not yet grilled |
+| 2 | [`tasks/the-agent-cannot-write-what-runs-outside.md`](tasks/the-agent-cannot-write-what-runs-outside.md) | both | Draft |
+
+**The `--map` check this section asks for has been run**, and the answer was a refusal naming its
+own cause — `Read-only file system`. So the second task was never blocked for long, and its design
+records the output rather than the question.
 
 ## Out of scope
 
