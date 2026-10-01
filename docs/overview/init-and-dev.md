@@ -1,5 +1,10 @@
 # `init` and `dev`
 
+> **`dev` is deprecated with the launcher it runs, and goes in `3.0.0`.** `init` is not — its host
+> checks and its image build stay. It keeps building the launcher until then, because removing that
+> now would break the deprecated path for everyone still on it. See [`start.md`](start.md).
+
+
 - **`init`** — the host side, once. It exists because each of the manual steps fails in a way that
   does not name its own cause: a missing `libwebkit2gtk-4.1-dev` surfaces forty seconds into
   `cargo build` as `cannot find -lwebkit2gtk-4.1`, a missing `whiptail` surfaces as `setup` exiting

@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/the-launcher-announces-its-retirement
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 71
 depends-on: []
 ---
 
@@ -170,4 +170,46 @@ design.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #71. Nine tests, `cargo check --release --locked` and `cargo test --locked` clean
+with no warnings. **Three things in this design were wrong, and implementing it is what found
+them.**
+
+**The dialog is `rfd`, not `tauri-plugin-dialog`.** Measured rather than argued: adding the plugin
+moved 55 packages in `Cargo.lock` — `wry` 0.55 → 0.57, `tao` with it — and pulled in a D-Bus and
+XDG-portal stack. `rfd` with `default-features = false, features = ["gtk3"]` adds one package and
+moves no version, because the GTK bindings are already in the tree via `tao`. The objection recorded
+above, "a second GUI toolkit binding", was wrong: there is no second binding. A webview bump as a
+side effect of adding a message box is not a trade worth making quietly, and the design would have
+made it.
+
+**It also retires this task's open question.** `rfd`'s synchronous dialog is the one meant to be
+called from the main thread, which is where `setup` runs, so the `blocking_show` main-thread
+question does not arise. Whether it holds in practice is still the `@manual` scenario, and the
+fallback is now the asynchronous API with the boot continued from its callback.
+
+**The documentation flip was larger than this design knew.** It said `README.md` and
+`docs/overview/start.md` were the only two files naming the launcher, confirmed by grep. True of the
+path and false of the subject: `init` and `dev` are the documented way in now, and both are about
+the launcher, so `docs/overview/init-and-dev.md` is in the change too. `init` keeps building the
+launcher and `dev` keeps running it — removing that now would break the deprecated path for everyone
+still on it, which is the one thing a deprecation may not do. `3.0.0`'s job, and all three documents
+say so.
+
+**The banner put `docs/overview/start.md` over the 50 KiB limit** at 51267 bytes, caught by
+`check-md-size.sh`. That file was already 400 bytes from the ceiling and
+`docs/overview/README.md` had been naming it as the next to divide. The split was not made a rider
+on this task — four subjects under one `## Implementation`, needing real headings first — so the
+banner is four lines, the reason the launcher is going moved to the index row that had room, and the
+index now says the split is overdue rather than next.
+
+**Two of the nine tests cannot fail against a stubbed decision**, and that is worth recording rather
+than counting them as red. Of the nine, seven failed against stubs (`configuration_is_ours → true`,
+`dialog_is_due → false`): 5 passed / 7 failed, restored to 12 / 0. The two that passed anyway are
+`both_notices_name_the_version_that_removes_it`, which holds whichever branch is taken because it is
+about the text, and `with_our_configuration_the_notice_names_the_command`, which is the branch the
+stub happened to return. Neither is useless — the first is the only thing holding FR-52's version in
+both texts — but neither was proven by that exercise.
+
+**Still owed**: the `@manual` scenario. First run shows the dialog, dismissing it continues the
+launch, the second run shows none, and stderr carries the notice both times. No agent can run it —
+there is no display here and the window is the thing under test.
