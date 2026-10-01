@@ -130,6 +130,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: the sandbox is handed what it cannot inherit
         run: bash core/bin/jail-wrappers.test.sh
+      # And nothing it should not be. A variable passed into the sandbox ends up
+      # on the launcher's own command line, where `ps` reads it from anywhere
+      # else in the container — so the set of names allowed to cross is a
+      # decision, and this is where it is enforced rather than remembered.
+      - name: only names that have been decided about cross as variables
+        run: bash core/bin/jail-env-allowlist.test.sh
 
   compose-versions:
     # core's pinned versions moved out of the middle of a RUN line and into

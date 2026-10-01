@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Open |
+| **Status** | Open — one exception left |
 | **Date** | 2026-10-01 |
 | **Kind** | hotfix |
 
@@ -42,7 +42,8 @@ version at the time: `v1.20.1`.
 
 ## Fix
 
-Three parts. **Only the first has landed.**
+Three parts. **The first two have landed, and the third is enforced with one exception named in
+it.**
 
 1. **The comment tells the truth** (`core/bin/jail-common.sh`). It now states that anything passed
    with `--env` reaches `bwrap`'s argv and is readable with `ps` from elsewhere in the container, and
@@ -60,34 +61,53 @@ Three parts. **Only the first has landed.**
    rather than a denylist of suspicious names, because `GH_TOKEN` would have been caught only by the
    luck of being called a token.
 
-**Part 2's premise is established.** Read with `docker exec` from the host:
+### Verified
+
+With `GH_TOKEN` unset and the mapping in place, run in the container and outside the sandbox:
+
+```
+env -u GH_TOKEN ai-jail --network --agent-state --no-save-config \
+    --map /config/.config/gh -- gh auth status
+```
+
+> ✓ Logged in to github.com account TheHefty (`/config/.config/gh/hosts.yml`)
+
+`gh` reads its own credentials from the mapped file. Nothing secret crosses as an argument.
+
+**Part 2's premise was established first.** Read with `docker exec` from the host:
 `/config/.config/gh/hosts.yml` is `-rw------- abc abc`, and every entry under `/config` belongs to
 `abc`. The credential is readable by the user the environment runs as, so mapping it is viable.
 
-**Parts 2 and 3 are not landed, because part 2 cannot be verified from inside the sandbox.**
-`ai-jail` masks `bwrap` within its own sandbox — nesting is refused with *"bwrap not found in
-trusted locations"* — so the behaviour that matters, `gh auth status` succeeding with `GH_TOKEN`
-unset, cannot be observed by an agent already inside one. Shipping a change to how the agent
-authenticates, into a template every project inherits, on the strength of reasoning alone is not
-something this repository does.
+### The one exception that remains
 
-The check is one command, run in the container but outside the sandbox:
+**`OPENAI_API_KEY` still crosses as a variable**, and has exactly the same exposure. It is Codex's
+equivalent of `GH_TOKEN` — the wrapper's own comment says so — and Codex keeps its full auth state
+in `~/.codex`, which `--agent-state` already maps, so the same file-based replacement should apply.
 
-```
-docker exec -u abc <container> env -u GH_TOKEN /usr/local/bin/ai-jail \
-    --network --agent-state --no-save-config --map /config/.config/gh -- gh auth status
-```
+It was not done, for one reason: **Codex has never been authenticated in the environment this was
+found in** — `/config/.codex` is empty — so the file-based path could not be verified for it the way
+it was for `gh`. An unverified change to how a second agent authenticates, shipped into a template
+every project inherits, is not something this repository does. The `overrideCommand` defect in the
+companion extension had a green unit test and still took a manual pass to catch.
 
-Parts 2 and 3 are held together on purpose: landing the rule while the code still forwards a token
-would leave the repository breaking a rule it ships.
+`core/bin/jail-env-allowlist.test.sh` carries it in a `KNOWN_EXCEPTIONS` list that the test pins:
+the check fails if any name crosses that is neither allowed nor already written there, so the rule
+has teeth against the next credential without pretending this one is solved. **That list may only
+shrink.**
+
+To retire it, somebody who uses Codex runs the equivalent of the command above and confirms it
+authenticates from `~/.codex` with `OPENAI_API_KEY` unset.
 
 ## Regression scenario
 
 **For part 3**, and it is the one that matters, because it is what stops the next secret being added
-without a thought: a `*.test.sh` beside `core/bin/jail-common.sh` that sources it and fails if the
-`--env` list carries a name outside the allowlist. It fails against today's list, which carries
-`GH_TOKEN`, and passes once part 2 removes it. Written before the fix, observed failing for that
-reason.
+without a thought: `core/bin/jail-env-allowlist.test.sh` reads the argv the real wrappers build,
+through a stubbed `ai-jail`, and fails if a forwarded name is neither allowed nor a written
+exception. Observed failing: a temporary `--env ACME_DEPLOY_SECRET` added to the shared list was
+rejected for both agents, with a message naming the name and saying what to do about it.
+
+An allowlist rather than a denylist of suspicious names, because `GH_TOKEN` would have been caught
+by a denylist only through the luck of being called a token.
 
 **For part 1** there is no test, and that is honest rather than lazy: nothing can assert that a
 comment is true.

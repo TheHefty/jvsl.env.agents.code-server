@@ -21,9 +21,16 @@ link relativo só pode estar certo num dos dois.
   carregando valores reais.
 - **`CLAUDE_CONFIG_DIR` (`/config/.claude`) não é candidato a controle de versão**, nem
   parcialmente: ele guarda credenciais, histórico de conversa e transcrições de sessão.
-- **Uma credencial só chega ao agente quando você entrega uma**, por um repasse explícito de
-  ambiente. Escope ao que ela precisa e dê validade — o ambiente do agente é um lugar de onde um
-  segredo pode ser lido e ecoado para dentro de uma transcrição.
+- **Uma credencial só chega ao agente quando você entrega uma**, por um repasse explícito. Escope
+  ao que ela precisa e dê validade — o ambiente do agente é um lugar de onde um segredo pode ser
+  lido e ecoado para dentro de uma transcrição.
+- **Entregue como arquivo, nunca como variável.** Uma variável repassada ao sandbox é reexpandida na
+  linha de comando do próprio lançador do sandbox, e esse lançador roda no namespace de processos do
+  container — então o valor é legível por `ps` de qualquer outro lugar do container, inclusive de um
+  build e de qualquer coisa que esse build execute. Não é hipótese: um token do GitHub foi
+  encontrado assim num ambiente rodando, debaixo de um comentário que afirmava que isso não podia
+  acontecer. Mapeie o diretório de configuração da credencial em modo somente leitura e deixe a
+  ferramenta ler a dela, o que também impede o agente de substituir a credencial que autentica você.
 
 ### O sandbox do agente
 

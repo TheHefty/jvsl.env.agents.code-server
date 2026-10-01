@@ -42,38 +42,39 @@ JAIL_COMMON_ARGS=(
   --no-save-config
 )
 
-# GH_TOKEN is forwarded so an agent can reach GitHub at all. It cannot get there
-# any other way: the sandbox synthesizes /config and does not map ~/.config, so
-# `gh` never sees its own hosts.yml, and the credential helper in ~/.gitconfig —
-# which the sandbox does map — resolves to a `gh` with nothing to authenticate
-# as. `gh` reads GH_TOKEN before any config file, so the variable alone is
-# enough to make both `gh` and `git push` work in there.
+# GitHub credentials reach the agent as a **file**, not as a variable.
 #
-# It stays opt-in per invocation, and costs nothing when unused: `--env NAME`
-# with the variable unset on the host is a silent no-op, so a plain `claude`
-# forwards nothing. Only GH_TOKEN is forwarded, deliberately — GITHUB_TOKEN is
-# the name other tooling sets for its own reasons, and a token exported for
-# something else should not reach an agent because it happened to be in the
-# shell. Whoever exports GH_TOKEN is choosing to hand the agent that token, so
-# scope it narrowly and give it an expiry.
-#
-# **By name, never as NAME=VALUE — and it is not enough.** `--env GH_TOKEN`
-# keeps the value out of *this* process's argv, and writing the pair out would
-# put it there, so the distinction is still worth keeping. But ai-jail then
-# re-expands it into `--setenv GH_TOKEN <value>` on the `bwrap` command line it
-# executes, and `bwrap` runs in the container's PID namespace. **So the token is
-# readable with `ps` from anywhere else in this container** — a terminal in the
-# editor, a build started from it, and therefore any dependency that build runs.
-# Observed on 2026-10-01 in a real environment.
-#
-# This comment used to assert the opposite, which is why nobody looked. The
-# whole finding, what is being done about it, and the one command that verifies
-# the replacement are in
+# This used to forward GH_TOKEN with `--env GH_TOKEN`, which keeps the value out
+# of *this* process's argv. ai-jail then re-expands it into
+# `--setenv GH_TOKEN <value>` on the bwrap command line it executes, and bwrap
+# runs in the container's PID namespace — so the token was readable with `ps`
+# from anywhere else in this container: a terminal in the editor, a build
+# started from it, any dependency that build runs. Observed in a real
+# environment on 2026-10-01; reported upstream as akitaonrails/ai-jail#147; the
+# whole finding is in
 # docs/DEBTS/forwarded-secrets-land-in-the-sandbox-argv/OVERVIEW.md.
 #
-# Until that lands: treat anything forwarded here as readable by everything in
-# the container. Scope it narrowly and give it a short expiry.
-JAIL_COMMON_ARGS+=(--env GH_TOKEN)
+# So the sandbox is given the `gh` configuration directory instead, and `gh`
+# reads its own credentials from it exactly as it would outside. Nothing secret
+# crosses as an argument. Verified: with GH_TOKEN unset and this mapping,
+# `gh auth status` inside the sandbox reports being logged in, naming
+# hosts.yml as the source.
+#
+# **Read-only, and the cost is real.** `--map` rather than `--rw-map`, because
+# the agent must not be able to replace or delete the credential that
+# authenticates the user. `gh` refreshes an OAuth token by rewriting that file,
+# so a read-only mapping cannot be refreshed and a long session loses access
+# when the token expires. The answer to that is a token with a long enough life
+# — the operator's decision — and not write access to a credential store.
+#
+# Absent rather than empty when there is nothing to map: `gh` has never been
+# authenticated in this container, and a missing path handed to --map is an
+# error rather than a no-op. `gh` then says it is not logged in, which is the
+# truth and names its own cause.
+GH_CONFIG_DIR="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"
+if [ -d "$GH_CONFIG_DIR" ]; then
+    JAIL_COMMON_ARGS+=(--map "$GH_CONFIG_DIR")
+fi
 
 # RUSTUP_HOME is forwarded because ai-jail --clearenv's the sandbox and replants
 # only an allowlist; PATH makes that allowlist and RUSTUP_HOME does not. So

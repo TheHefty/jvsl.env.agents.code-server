@@ -21,9 +21,16 @@ is — and a relative link can only be right in one of them.
   `.env` carrying real values.
 - **`CLAUDE_CONFIG_DIR` (`/config/.claude`) is not a candidate for version control**, not even
   partially: it holds credentials, conversation history and session transcripts.
-- **A credential reaches the agent only when you hand it one**, through an explicit environment
-  passthrough. Scope it to what it needs and give it an expiry — the agent's environment is a
-  place a secret can be read from and echoed into a transcript.
+- **A credential reaches the agent only when you hand it one**, through an explicit passthrough.
+  Scope it to what it needs and give it an expiry — the agent's environment is a place a secret can
+  be read from and echoed into a transcript.
+- **Hand it over as a file, never as a variable.** A variable passed into the sandbox is re-expanded
+  onto the sandbox launcher's own command line, and that launcher runs in the container's process
+  namespace — so the value is readable with `ps` from anywhere else in the container, including a
+  build and anything that build runs. This is not a hypothetical: a GitHub token was found that way
+  in a running environment, under a comment asserting it could not happen. Map the credential's
+  configuration directory in read-only instead and let the tool read its own, which is also what
+  stops the agent replacing the credential that authenticates you.
 
 ### The agent's sandbox
 
