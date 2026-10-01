@@ -32,6 +32,15 @@ fi
 
 if [ -f "$MANIFEST" ]; then
     CURRENT="$(cat "$MANIFEST")"
+    # Refused rather than replaced. This file is the only per-project record of
+    # intent, and the next thing this script does is write over it — so a
+    # manifest it cannot read is a manifest whose contents would be destroyed by
+    # proceeding. A person is sitting in front of this and can fix the JSON.
+    if ! jq -e . >/dev/null 2>&1 <<<"$CURRENT"; then
+        echo "setup: $MANIFEST is not valid JSON, so it cannot be rewritten without losing" >&2
+        echo "setup: whatever it holds. Fix the file and run this again." >&2
+        exit 1
+    fi
 else
     CURRENT='{}'
 fi
@@ -76,10 +85,25 @@ for name in "${SELECTED_STACKS[@]}"; do
     done < <(jq -r '.[]' "$requires_file")
 done
 
-# For each selected stack, asks for the version (using the manifest's
-# current version, if any, as the default) and builds the new manifest from
-# scratch — unchecked stacks simply don't get included, no uninstall logic.
-NEW_MANIFEST='{}'
+# The new manifest starts as the current one with everything this script owns
+# stripped out: every stack name it knows about, and `limits`. What it owns it
+# rewrites below; what it does not own it must not touch.
+#
+# It used to start from '{}', which meant a stack unchecked here disappeared —
+# correct, and the reason it was written that way — **and so did anything a
+# project had put in this file by hand.** Silently: the write succeeds and the
+# key is simply gone on the next read. That stopped a feature from being able to
+# keep its own setting here at all — see the Open questions of
+# docs/PLANNING/host-editor-replaces-the-launcher/opening-a-configured-project/
+# tasks/generating-the-dev-container-configuration.md — and it would have eaten
+# any other just as quietly.
+#
+# Stripping the stack names rather than keeping only the selected ones is what
+# preserves the "no uninstall logic" behaviour: a deselected stack is absent
+# because its key was removed here and not re-added below.
+STRIP="$(printf '%s\n' "${CHECKLIST_ARGS[@]}" | awk 'NR % 3 == 1' | jq -R . | jq -s '. + ["limits"]')"
+NEW_MANIFEST="$(jq --argjson strip "$STRIP" \
+    'with_entries(select(.key as $k | $strip | index($k) | not))' <<<"$CURRENT")"
 for name in "${SELECTED_STACKS[@]}"; do
     versions_file="$STACKS_DIR/$name/versions.json"
     VERSION_MENU_ARGS=()

@@ -58,6 +58,22 @@ jobs:
       - name: every dependency is named in every package manager
         run: bash packages.test.sh
 
+  setup-manifest:
+    # `setup` rewrites the project's own .code-server.stack.json, which is the
+    # only per-project record of intent and a file a project may have written
+    # things into by hand. It used to rebuild that file from `{}`, so anything it
+    # had not asked about was silently gone on the next read — which is what
+    # stopped a feature from being able to keep its own setting there at all.
+    #
+    # The test drives the real script with whiptail and docker stubbed, against a
+    # throwaway repository root, because the behaviour worth guarding is what
+    # ends up in the file and not what a function returns.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup keeps what it does not own
+        run: bash setup.test.sh
+
   state-ownership:
     # The hook that gives the editor's and gpg's state directories back to 'abc'
     # after a connection left them owned by somebody else. /config is a named
@@ -327,7 +343,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, setup-manifest, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
