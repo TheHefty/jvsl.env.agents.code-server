@@ -59,7 +59,7 @@ is a different kind of decision from a cpuset calculation.
 | 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Accepted, shipped in v2.1.0 |
 | 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Accepted, shipped in v2.2.0 |
 | 3 | [`tasks/extension-activates-on-a-template-project.md`](tasks/extension-activates-on-a-template-project.md) | extension | Accepted, shipped in v0.1.0 |
-| 4 | [`tasks/generating-the-dev-container-configuration.md`](tasks/generating-the-dev-container-configuration.md) | extension | Draft |
+| 4 | [`tasks/generating-the-dev-container-configuration.md`](tasks/generating-the-dev-container-configuration.md) | extension | Accepted, shipped in v0.2.0 |
 
 Tasks 3 and 4 are the extension's half and their pull requests land in the other repository, but
 their design documents live here with the story they belong to — same reason the story itself does.
@@ -80,4 +80,36 @@ their design documents live here with the story they belong to — same reason t
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+**Every task has shipped. The story is not done.**
+
+| | |
+|---|---|
+| template | `v2.1.0` — the image declares the user a client connects as |
+| template | `v2.2.0` — ownership of the state directories is repaired |
+| extension | `v0.1.0` — the extension exists and wakes up on a template project |
+| extension | `v0.2.0` — the configuration is generated and the open is handed over |
+
+What is left is the four scenarios tagged `@manual` in the `.feature` beside this file, and they
+are left because **no CI available to either repository can observe an editor window**. Three of
+them are the behaviour a person experiences — the editor connecting, the first connection running
+as the container's own user and leaving nothing owned by anybody else, and the editor's own process
+staying out of the container's `cpuset` while a build runs. The fourth is a debt the epic's spike
+left: the image metadata merge was measured against the reference implementation and the published
+manifest, not against the editor extension itself.
+
+Saying the story is closed before those have been run once would be the exact failure the `@manual`
+tag exists to prevent: a criterion everybody assumes is covered. The status stays `Draft` until a
+person has run them.
+
+Two things the tasks changed about the criteria above, both recorded in their own Outcome sections
+rather than edited into the scenarios:
+
+- **The scenarios assert the running container, not the generated configuration.** Agreed at this
+  gate, and it earned its keep immediately: Docker reports `--cap-add SYS_ADMIN` back as
+  `CAP_SYS_ADMIN`, and `systempaths=unconfined` is not recorded as a security option at all — it
+  empties the masked and read-only paths instead. Asserting the file would have passed and proven
+  nothing; asserting the flags sent would have failed against a container that is correct.
+- **"Repairing is safe to repeat" needed the damage created first.** A fresh container has nothing
+  to repair, so there is no repair to observe. The harness makes the damage, restarts, and only
+  then asserts — and counts boots rather than filtering the log by a timestamp, which included the
+  previous boot and made every assertion run too early.
