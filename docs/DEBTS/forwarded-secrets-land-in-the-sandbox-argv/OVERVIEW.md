@@ -128,10 +128,14 @@ Parts 2 and 3 retire this debt. The trigger that says they can no longer be defe
 a credential of any kind is added to the forwarded set, or a `gh` token leaking from a build is
 actually observed rather than reasoned about.
 
-An issue is also to be opened against `ai-jail` describing the class of problem and pointing at
-`bwrap --args`. Its repository has no security policy, so a public issue is the only channel. If it
-is fixed upstream, part 2 becomes a defence in depth rather than the only defence — but the local
-mitigation stands on its own and does not wait.
+**Reported upstream:** [`akitaonrails/ai-jail#147`](https://github.com/akitaonrails/ai-jail/issues/147),
+describing the class of problem and pointing at `bwrap --args`. That repository has no security
+policy, so a public issue was the only channel; the report carries no credential and no extraction
+recipe beyond `ps`, which is the mechanism rather than a technique.
+
+If it is fixed upstream, part 2 becomes defence in depth rather than the only defence. The local
+mitigation stands on its own and does not wait for it — a pinned dependency's fix arrives when
+somebody bumps the pin, and this is readable today.
 
 ## Outcome
 
