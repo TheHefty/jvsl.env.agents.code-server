@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.1.0...v2.2.0) (2026-10-01)
+
+
+### Features
+
+* repair state directory ownership left behind by a root session ([35f7b40](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/35f7b407758ac1c035ac355b55cc4292892d6404))
+
+
+### Bug Fixes
+
+* assert what the ownership hook says, not that it ran ([dcee229](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/dcee2294b6a8ce7f307b922431a6b2657526d326))
+* count boots instead of timing them, and let the harness be run locally ([c80a098](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/c80a098f5b641b0295ac2847c9bf11a60072d93d))
+
 ## [2.1.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.0.0...v2.1.0) (2026-10-01)
 
 
