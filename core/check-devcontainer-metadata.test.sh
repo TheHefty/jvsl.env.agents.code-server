@@ -7,10 +7,22 @@
 # It drives the real checker with its paths overridden at fixtures, rather than
 # reimplementing the rules. A copy of a rule is a rule that goes the other way
 # six months from now and nobody notices.
+#
+# **The rule inverted when the label became composed.** It used to be "exactly
+# one fragment declares it, and it is core's"; it is now "no fragment declares
+# it, and the composed Dockerfile declares exactly one". So the fixtures supply
+# two things: the fragments, and what a stub composer prints. The value-level
+# cases below are unchanged in substance and now read the composed output,
+# which is where the value lives.
+#
+# The last two cases use no overrides at all and drive the real tree, because a
+# harness of fixtures can be perfectly green while the repository it guards is
+# broken.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="${CHECK_UNDER_TEST:-$HERE/check-devcontainer-metadata.sh}"
+COMPOSE="$HERE/compose-dockerfile.sh"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -18,11 +30,23 @@ trap 'rm -rf "$work"' EXIT
 pass=0
 fail=0
 
+check() {
+    if [ "$2" = "$3" ]; then
+        echo "ok      $1"; pass=$((pass + 1))
+    else
+        echo "NOT OK  $1" >&2
+        echo "        expected: $3" >&2
+        echo "        got:      $2" >&2
+        fail=$((fail + 1))
+    fi
+}
+
 # Runs the checker against a fixture tree and asserts the outcome.
 #   expect_reject <name> <substring of the message> ; expect_accept <name>
 run_check() {
     METADATA_CHECK_CORE_FRAG="$work/core.frag" \
     METADATA_CHECK_STACKS_DIR="$work/stacks" \
+    METADATA_CHECK_COMPOSE="$work/compose.sh" \
         bash "$CHECK" 2>&1
 }
 
@@ -54,18 +78,40 @@ expect_accept() {
     fi
 }
 
-fixture() { mkdir -p "$work/stacks/java"; printf '%s\n' "$1" > "$work/core.frag"; printf '%s\n' "${2:-RUN true}" > "$work/stacks/java/Dockerfile.frag"; }
-
 GOOD="LABEL devcontainer.metadata='[{\"remoteUser\":\"abc\"}]'"
 
-fixture "RUN true"
-expect_reject "no fragment declares the label" "no fragment declares"
+# fixture <composed Dockerfile> [core fragment] [stack fragment]
+#
+# The composer is stubbed rather than run: these cases are about the checking,
+# and a fixture stack with no versions.json cannot be composed for real. What
+# the real composer produces is asserted at the bottom, against the real tree.
+fixture() {
+    mkdir -p "$work/stacks/java"
+    printf '%s\n' "${1:-RUN true}" > "$work/composed"
+    printf '%s\n' "${2:-RUN true}" > "$work/core.frag"
+    printf '%s\n' "${3:-RUN true}" > "$work/stacks/java/Dockerfile.frag"
+    cat > "$work/compose.sh" <<'STUB'
+#!/usr/bin/env bash
+cat "$(dirname "$0")/composed"
+STUB
+    chmod +x "$work/compose.sh"
+}
+
+# --- the inversion itself.
 
 fixture "$GOOD" "$GOOD"
-expect_reject "two fragments declare it" "fragments declare"
+expect_reject "core's fragment still declares the label" "fragment declares"
 
-fixture "RUN true" "$GOOD"
-expect_reject "only a stack declares it" "instead of by core"
+fixture "$GOOD" "RUN true" "$GOOD"
+expect_reject "a stack fragment declares the label" "fragment declares"
+
+fixture "RUN true"
+expect_reject "the composed Dockerfile declares none" "composed Dockerfile declares no"
+
+fixture "$(printf '%s\n%s' "$GOOD" "$GOOD")"
+expect_reject "the composed Dockerfile declares it twice" "declares it 2 times"
+
+# --- the value, unchanged in substance, now read from the composed output.
 
 fixture "LABEL devcontainer.metadata='[{\"remoteUser\":\"abc\",'"
 expect_reject "the value is not valid JSON" "not valid JSON"
@@ -88,7 +134,27 @@ fixture "$TABS"
 expect_accept "an unrelated editor setting is not the thing being guarded"
 
 fixture "$GOOD"
-expect_accept "exactly core declares it, remoteUser abc, no containerUser"
+expect_accept "no fragment declares it and the composed output declares one"
+
+# --- the real tree. A green fixture harness over a broken repository is the
+# failure mode this pair exists to close.
+
+if out="$(bash "$CHECK" 2>&1)"; then
+    echo "ok      the repository's own tree passes"; pass=$((pass + 1))
+else
+    echo "NOT OK  the repository's own tree fails the check" >&2
+    echo "        output: $out" >&2
+    fail=$((fail + 1))
+fi
+
+# The one assertion that says story 1 did not regress. `remoteUser` is how the
+# editor connects as `abc`; if the label moving changed its value, the first
+# connection to a stackless project lands as root and leaves root-owned state
+# directories behind — which is the failure image-declares-its-user and
+# 10-state-ownership.sh exist to have fixed once.
+composed_value="$(bash "$COMPOSE" | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'[[:space:]]*$/\1/p")"
+check "a stackless project's label is byte-for-byte what it was before" \
+    "$composed_value" '[{"remoteUser":"abc"}]'
 
 echo
 echo "check-devcontainer-metadata.test: $pass passed, $fail failed."

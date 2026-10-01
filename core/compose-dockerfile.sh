@@ -31,6 +31,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 STACKS_DIR="$ROOT_DIR/stacks"
 CORE_FRAG="$SCRIPT_DIR/Dockerfile.frag"
 CORE_VERSIONS="${CORE_VERSIONS:-$SCRIPT_DIR/versions.json}"
+CORE_DEVCONTAINER="${CORE_DEVCONTAINER:-$SCRIPT_DIR/devcontainer.json}"
 
 # Zero stacks is a valid selection, not a usage error: deselecting
 # everything in `setup`'s checklist is documented as producing an image with
@@ -102,3 +103,53 @@ for name in "${ordered[@]}"; do
     echo
     sed "s/{{VERSION}}/$version/g" "$STACKS_DIR/$name/Dockerfile.frag"
 done
+
+# The devcontainer.metadata label, composed and emitted last.
+#
+# A LABEL whose key is already set *replaces* it rather than merging, so this
+# key may be declared exactly once — and here, after every fragment, is the one
+# position where no fragment can take it away. That is not a convention to
+# remember; it is the absence of the hazard. No fragment declares it, and
+# check-devcontainer-metadata.sh enforces both halves of that.
+#
+# Core contributes its entry from core/devcontainer.json like any stack, so the
+# merge has one rule instead of a special case for whoever happens to be first.
+#
+# The value is a JSON *array* of metadata entries, which the dev container
+# tooling merges itself, so composing is concatenation: `jq -s add`. A deep
+# merge here would be reimplementing somebody else's merge semantics slightly
+# differently, which is the kind of near-copy that diverges without anybody
+# noticing. If it turns out the tooling does not union `extensions` across
+# entries, this is the one function to change.
+metadata_files=("$CORE_DEVCONTAINER")
+for name in "${ordered[@]}"; do
+    stack_metadata="$STACKS_DIR/$name/devcontainer.json"
+    # Optional, like requires.json: a stack with nothing to say has no file.
+    [ -f "$stack_metadata" ] && metadata_files+=("$stack_metadata")
+done
+
+for f in "${metadata_files[@]}"; do
+    if ! jq -e 'type == "array"' "$f" >/dev/null 2>&1; then
+        echo "compose-dockerfile: $f is not a JSON array of devcontainer metadata entries. The \
+composed devcontainer.metadata label would be unreadable, and a client that cannot parse it falls \
+back to the image's USER, which is root." >&2
+        exit 1
+    fi
+done
+
+metadata="$(jq -s -c 'add' "${metadata_files[@]}")"
+
+# The value is single-quoted below. No `publisher.name` extension identifier
+# contains a single quote, so this never fires in practice — but if it ever
+# did, the quote would end the LABEL early and produce a Dockerfile that fails
+# somewhere other than the file that caused it.
+case "$metadata" in
+    *\'*)
+        echo "compose-dockerfile: the composed devcontainer.metadata contains a single quote, \
+which would end the LABEL's quoting early: $metadata" >&2
+        exit 1
+        ;;
+esac
+
+echo
+echo "LABEL devcontainer.metadata='$metadata'"

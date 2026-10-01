@@ -427,4 +427,8 @@ RUN chmod +x /custom-cont-init.d/40-ai-memory.sh
 # editor's per-stack extensions will want to) needs a mechanism that does not
 # exist yet; until it does, a second declaration is a bug, and the same test
 # catches it.
-LABEL devcontainer.metadata='[{"remoteUser":"abc"}]'
+# The devcontainer.metadata label is not declared here any more. It is composed
+# from core/devcontainer.json and each selected stack's, and emitted by
+# core/compose-dockerfile.sh as the last line of the generated Dockerfile —
+# the only position a later LABEL cannot replace. core/devcontainer.json is
+# where this image's own entry lives now.
