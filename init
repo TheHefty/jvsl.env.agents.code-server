@@ -2,8 +2,9 @@
 # Everything the host needs, once: check where we are, check what is missing,
 # offer to install it, and build the image.
 #
-# It exists because a missing `whiptail` surfaces as `setup` exiting with
-# nothing on screen, which is a failure that names nothing.
+# It exists because a missing `jq` or an unusable `docker` surfaces far from
+# the thing that needed it, and because the package names differ per
+# distribution.
 #
 # **It used to check a great deal more.** A display, WSLg on WSL, five Tauri
 # libraries through `pkg-config`, a `cc`, and `cargo` — which it refused to
@@ -44,16 +45,16 @@ fi
 # --- what is missing ---------------------------------------------------------
 #
 # Checked by name. The package names differ per distribution and are listed
-# rather than guessed from the command name: `whiptail` comes from `newt` on
-# Fedora and `libnewt` on Arch, and getting that wrong installs something else
-# entirely.
+# rather than guessed from the command name: `docker` comes from `docker.io` on
+# Debian, and getting that wrong installs something else entirely.
 #
-# Three, and it used to be eleven. The other eight — `curl`, `wget`, `file`,
-# `pkg-config`, `cc` and the four libraries checked through it — were Tauri's
-# documented prerequisite list, for building the launcher that no longer exists.
+# Two, and it used to be eleven. Eight of the nine that went were Tauri's
+# documented prerequisite list, for building the launcher that no longer exists;
+# the ninth was `whiptail`, which `setup` stopped needing when it started asking
+# with `read`.
 
 MISSING_COMMANDS=()
-for command_ in jq whiptail docker; do
+for command_ in jq docker; do
     command -v "$command_" >/dev/null 2>&1 || MISSING_COMMANDS+=("$command_")
 done
 

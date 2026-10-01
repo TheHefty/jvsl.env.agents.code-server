@@ -26,7 +26,7 @@ reference consumer.
 .code-server/init
 ```
 
-Checks the host — `jq`, `whiptail`, `docker` — names anything missing, offers to install it, and
+Checks the host — `jq` and `docker` — names anything missing, offers to install it, and
 builds the image.
 
 Then open the project in **your own editor, on the host**, with the
@@ -48,8 +48,9 @@ and refuses a push straight to `main`. The image builds stay in CI, where they c
 
 ### The same thing by hand
 
-Prerequisites on the host: `jq`, `whiptail`, `docker`. **Rust is not one of them any more** — it was
-needed to build the bundled launcher, which `3.0.0` deleted.
+Prerequisites on the host: `jq` and `docker`. **Rust and `whiptail` are not among them any more** —
+Rust built the bundled launcher that `3.0.0` deleted, and `whiptail` drew the menus `setup` now draws
+with `read`.
 
 1. **Build the image** — interactive stack selection, generates `.code-server/Dockerfile`, and
    builds it:

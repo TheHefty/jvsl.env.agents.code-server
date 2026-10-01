@@ -191,8 +191,11 @@
   the path as one level above its own script directory (`$SCRIPT_DIR/..`), the same "`.code-server`
   sits directly under the consuming repo's root" assumption `start`'s `default_workspace_dir()`
   already made independently.
-- **Menu** — interactive multi-select via `whiptail --checklist`, pre-checked with what's already
-  in the manifest; each selected stack's version is then asked in turn.
+- **Questions** — asked with `read`, and only when standard input is a terminal: which stacks,
+  then a version for each one chosen, then the limits. Each prompt defaults to what the manifest
+  already says. With no terminal nothing is asked and the manifest is taken as it stands, which is
+  how the editor drives it. It was `whiptail --checklist` until `whiptail` was retired; the
+  validation the menus made unnecessary is now the script's.
 - **`limits`** — what the *container* runs under, read by `start` and by nothing in the image, so a
   change needs the container recreated rather than the image rebuilt. Asked after the stacks
   because it is usually left alone. All three fields are optional and every default is what `start`
@@ -240,7 +243,7 @@
   always rebuilt from scratch from the generated Dockerfile.
 - **No stack is mandatory** — deselecting everything in the checklist is a valid choice, producing
   an image with just `core/Dockerfile.frag` (code-server, Claude Code CLI, `ai-jail`, DooD). Found
-  a bug here while confirming it: an empty `whiptail` selection makes `SELECTED_RAW` an empty
+  a bug here while confirming it: an empty selection makes `SELECTED_RAW` an empty
   string, and `xargs -n1 <<<""` (a here-string always appends a trailing newline) still emits one
   blank token, so `SELECTED_STACKS` ended up as a one-element array holding `""` instead of a truly
   empty array — the loop then tried to read `stacks//versions.json` and crashed. Fixed by only
@@ -274,9 +277,9 @@
 ## Implementation
 
 `.code-server/setup` (bash) + `.code-server/core/` + `.code-server/stacks/{java,cpp,dotnet,python,
-golang,ruby,php}/`. Requires `jq`, `whiptail`, and `docker` on the host — runs before any
+golang,ruby,php}/`. Requires `jq` and `docker` on the host — runs before any
 container exists, so it can't depend on anything from inside the image. `bash -n`-clean; the
-interactive `whiptail` flow itself hasn't been run end-to-end, but every stack's actual
+interactive flow is driven in `setup.test.sh` through a pty, and every stack's actual
 `docker build` + the resulting interpreter/toolchain binary has been (see per-stack notes below).
 
 Each stack picks the lowest-maintenance install path that still allows per-version selection,

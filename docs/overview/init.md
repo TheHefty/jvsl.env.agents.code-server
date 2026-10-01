@@ -1,8 +1,8 @@
 # `init`
 
-- **`init`** — the host side, once. It checks `jq`, `whiptail` and `docker`, offers to install
-  whatever is missing, and runs `setup`. It exists because a missing `whiptail` surfaces as `setup`
-  exiting with nothing on screen, which is a failure that names nothing.
+- **`init`** — the host side, once. It checks `jq` and `docker`, offers to install whatever is
+  missing, and runs `setup`. It exists because the package names differ per distribution and a
+  missing one surfaces far from the thing that needed it.
 - **It offers to install what is missing**, mapping each dependency to its name per package manager
   in `packages.sh` — a separate file so `init` and `packages.test.sh` read the same table. The
   risk being guarded is specific: a wrong name installs the wrong thing on somebody's host, and an

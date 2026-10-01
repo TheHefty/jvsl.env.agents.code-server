@@ -81,7 +81,7 @@ Written after this gate, not before.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/setup-asks-without-whiptail.md`](tasks/setup-asks-without-whiptail.md) | template | Draft |
+| 1 | [`tasks/setup-asks-without-whiptail.md`](tasks/setup-asks-without-whiptail.md) | template | Done — #90 |
 
 One task. An intermediate state where `setup` uses `read` while `init` still demands `whiptail` be
 installed is a worse place to stop than either end.

@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: the-editor-composes-and-builds/the-template-stops-asking
 epic: the-editor-composes-and-builds
-pr:
+pr: 90
 depends-on: []
 ---
 
@@ -144,4 +144,47 @@ answered above with `< /dev/null` and its risk named.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #90. 11 files, 379 insertions, 130 deletions. `setup.test.sh` is at 21 assertions,
+`whiptail` is named nowhere as something to install, and `scripts/no-whiptail.test.sh` guards that.
+
+**The design was wrong about how to test the interactive path, and the error is worth more than the
+fix.** It said the answers would be fed on standard input, "which is simpler than what it replaces".
+Feeding standard input makes `[ -t 0 ]` **false** — it turns off the very path it was meant to
+exercise. What works is `script -q -e -c`, which provides a pty and passes this file's own standard
+input through to it. `-e` is load-bearing: without it `script` always exits 0 and every refusal test
+passes for the wrong reason.
+
+So no new seam was added to `setup`. The alternative was an environment override for the
+interactivity decision — the same shape as `CORE_VERSIONS` and `STACKS_DIR` — and it was not needed.
+
+**One scenario was asserted and was wrong about which path it was on.** "Input that runs out mid
+question is refused rather than looped on" got exit 124: a twenty-second hang. The hang is **correct**
+— under a pty, input never runs out, because a terminal waits — and down a pipe `setup` never asks at
+all. The condition the assertion describes belongs to a caller that arranges a pty and then stops
+answering, which is the editor without its `</dev/null`, which is failure scenario 1 and is *supposed*
+to stop visibly. The test is replaced by a comment saying all of that; the `ask` guard stays as
+defence that this harness cannot reach.
+
+**And a reporting error of mine, which the above is how it surfaced.** I reported "21 assertions
+green, 0 failures" by counting `ok` lines with `grep -c`. The suite was exiting non-zero at the time:
+`set -e` ended it on the non-zero that the last test was looking for, before the line that captured
+the status. Counting output is not checking an exit code, and the file now says so where the fix is.
+
+**`whiptail` left nine places, not five.** The design listed `setup`'s check, `init`'s check,
+`packages.sh`, `packages.test.sh` and the README. It is also in `docs/overview/setup.md` three times —
+including a prerequisite sentence and a note that the interactive flow "hasn't been run end-to-end",
+which is no longer true now that a pty drives it — in `docs/overview/init.md`, and in a CI comment
+describing the stub that no longer exists.
+
+**The guard is about requirement, not mention**, and that distinction took two attempts. `whiptail`
+is still named in the inherited rules as the example of a failure that names nothing, in `setup`'s own
+comment explaining why its validation exists, and in `setup.md`'s record of what the questions used to
+be. Deleting that history is not the point. So the guard strips comment lines before searching the
+code, does not search prose at all, and checks the README for the two sentence shapes that *are* the
+contract — `Prerequisites on the host` and `Checks the host`. Its first version matched any line and
+failed on the very sentence saying `whiptail` is no longer needed, because the sentence wraps and the
+allowance looked for its escape hatch on one line.
+
+**Still owed, and named in Verification:** one pass by hand. A pty driven by a here-document is not a
+person reading a prompt, and whether the wording and the defaults are clear is not what any of these
+21 assertions exercise.

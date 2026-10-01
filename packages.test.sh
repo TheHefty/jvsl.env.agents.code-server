@@ -15,7 +15,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The list `init` checks for, kept here as the specification of what the table
 # must cover. A dependency added there and forgotten here is caught by the last
 # case below.
-WANTED=(jq whiptail docker)
+WANTED=(jq docker)
 
 failures=0
 for manager in apt dnf pacman; do
