@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Accepted
 story: host-editor-replaces-the-launcher/opening-a-configured-project
 epic: host-editor-replaces-the-launcher
-pr:
+pr: https://github.com/TheHefty/jvsl.env.agents.code-server/pull/48
 depends-on: []
 ---
 
@@ -155,4 +155,33 @@ editor's own behaviour — which no CI available to either repository can observ
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Accepted by João Lima on 2026-10-01, from the grilling that produced it.
+
+What the grilling changed, against what went in:
+
+- **`containerUser` was going to be declared alongside `remoteUser`**, on the reasoning that an
+  image declaring its user should declare it completely. Reading the image's own statement about
+  s6-overlay needing root killed it: the complete-looking version does not boot. It is the reason
+  failure scenario 1 exists and why the absence is argued rather than merely left.
+- **The label was going to be composed** so that stacks could contribute, since story 4 needs
+  that. Held back: one contributor is not enough to know the shape, and it would have changed
+  `core/compose-dockerfile.sh` — which every build depends on — from inside a task about declaring
+  a user.
+- **One test became two.** The first plan asserted the shell on the built image only. The
+  booted-container job exists because `--entrypoint` bypasses s6 and LinuxServer's init rewrites
+  `abc` at runtime, so a build-time fix silently undone at boot would have shipped green.
+- **The booted-container harness moved into this task** from the next one, where it was first
+  going to live. It has a consumer here already, and infrastructure built ahead of its first use
+  is built to the wrong shape.
+
+The sections above are as written at the gate, except where the implementation note below says
+otherwise.
+
+### Implementation note, 2026-10-01
+
+The proposal said `core/image.test.sh` would run *inside* the image, following the pattern
+`stacks/<stack>/image.test.sh` already uses. Half of it cannot: a container cannot read its own
+image's labels, so the label assertion has to be made from outside with `docker inspect`. The test
+therefore runs on the CI runner and takes the image name as an argument, doing the label check from
+outside and the shell check through a `docker run`. The scenarios it holds are unchanged; only
+where it executes moved.
