@@ -7,7 +7,7 @@
 # name is worse — the package silently drops out of the list, the install
 # succeeds, and the dependency is still missing.
 #
-# The names are not derived from the command: `whiptail` comes from `newt` on
+# The names are not derived from the command: `docker` comes from `docker.io` on
 # Fedora and `libnewt` on Arch, `cc` from `build-essential`, `gcc` or
 # `base-devel`, and the pkg-config names are their own thing again.
 
@@ -15,9 +15,6 @@ packages_for() {
     local manager="$1" want="$2"
     case "$manager:$want" in
         apt:jq|dnf:jq|pacman:jq) echo jq ;;
-        apt:whiptail) echo whiptail ;;
-        dnf:whiptail) echo newt ;;
-        pacman:whiptail) echo libnewt ;;
         apt:docker) echo docker.io ;;
         dnf:docker|pacman:docker) echo docker ;;
         *) echo "" ;;

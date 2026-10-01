@@ -72,5 +72,6 @@ echo "pre-push: the CI scripts that gate everything else"
 bash scripts/changed-scope.test.sh
 bash scripts/ci-green.test.sh
 bash scripts/no-launcher.test.sh
+bash scripts/no-whiptail.test.sh
 
 echo "pre-push: ok"

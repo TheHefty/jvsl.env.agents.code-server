@@ -63,6 +63,8 @@ jobs:
         run: bash scripts/ci-green.test.sh
       - name: nothing builds or runs the launcher
         run: bash scripts/no-launcher.test.sh
+      - name: nothing requires whiptail
+        run: bash scripts/no-whiptail.test.sh
 
   bash-syntax:
     runs-on: ubuntu-latest
@@ -92,7 +94,7 @@ jobs:
     # had not asked about was silently gone on the next read — which is what
     # stopped a feature from being able to keep its own setting there at all.
     #
-    # The test drives the real script with whiptail and docker stubbed, against a
+    # The test drives the real script with docker stubbed, against a
     # throwaway repository root, because the behaviour worth guarding is what
     # ends up in the file and not what a function returns.
     runs-on: ubuntu-latest
