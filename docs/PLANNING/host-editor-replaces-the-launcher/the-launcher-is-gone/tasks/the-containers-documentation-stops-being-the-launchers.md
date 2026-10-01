@@ -2,7 +2,7 @@
 status: Done
 story: host-editor-replaces-the-launcher/the-launcher-is-gone
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 83
 depends-on: [nothing-builds-or-runs-the-launcher]
 ---
 
@@ -86,6 +86,23 @@ The branches were deliberately not stacked: a pull request in this repository wi
 `main` gets **no CI run at all**, which cost two stuck pull requests to learn.
 
 ## Outcome
+
+**CI found two leftovers in the new files, and the reason it found them and I did not is a flaw in
+the guard.** `scripts/no-launcher.test.sh` read `git ls-files`, which lists **tracked** files — and
+the five documents had not been added yet when I ran it locally, so it reported 9 passed over a tree
+that did not include them. CI checks out a clean tree where everything is tracked, and saw both:
+
+- `sandbox.md` carried "installs Rust so `start/` can be verified from inside the container", which
+  was the old justification for `rustup` and is the exact sentence three other files were corrected
+  away from in task 1;
+- `the-agent-in-the-terminal.md` carried "**Confirmed end-to-end**: `./target/release/start` brings
+  up/detects the container", which is a verification of a deleted binary.
+
+Both are now historical rather than present-tense, and the `rustup` one says what actually depends on
+it. **The guard reads `git ls-files --cached --others --exclude-standard` now**, so a file that has
+not been added yet is still checked. A local run that cannot see what you just wrote is worse than no
+local run, because it answers — and this is the third time in this story that a check's scope, rather
+than its logic, was the thing wrong with it.
 
 The guard's `docs/overview/start.md` exclusion is gone, as this task's definition of done required.
 The one for `core/Dockerfile.frag` goes with #82.

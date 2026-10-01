@@ -139,9 +139,8 @@ rather than something to remember.
     and advises `rustup default stable` — pointing at the network, for a toolchain already in
     `/usr/local/rustup/toolchains` whose `settings.toml` has named it the default all along. The
     failure named the wrong cause, which is the failure mode this whole template was built against.
-    Section 1.1 of `core/Dockerfile.frag` installs Rust so `start/` can be verified from inside the
-    container as well as on the host, and inside the jail — where the agent always is — that had
-    never once been true. Fixed by `--env "RUSTUP_HOME=${RUSTUP_HOME:-/usr/local/rustup}"` in
+    Section 1.1 of `core/Dockerfile.frag` installs Rust for the `rust` stack and for the agent's
+    own use, and inside the jail — where the agent always is — `cargo` had never once worked. Fixed by `--env "RUSTUP_HOME=${RUSTUP_HOME:-/usr/local/rustup}"` in
     `core/bin/claude.sh`, the same shape as `DOCKER_HOST`.
     - **`CARGO_HOME` is deliberately not forwarded with it**, and the symmetry is the trap. `/usr`
       is bound in read-only, so the `/usr/local/cargo` the image sets is unwritable in the sandbox
@@ -150,9 +149,11 @@ rather than something to remember.
       as a variable that should not have been sent. Unset, it falls back to `$HOME/.cargo` on the
       persistent volume: writable, and still warm next run. The cost is that a jailed build and a
       terminal build keep separate registries — disk, not correctness.
-    - Verified end to end inside the jail rather than argued: `cargo test --release --locked` in
-      `start/` with `RUSTUP_HOME` set and `CARGO_HOME` unset finished the release build and passed
-      3/3, writing 197 MB of registry into `/config/.cargo`. Guarded by
+    - Verified end to end inside the jail rather than argued: `cargo test --release --locked` in a
+      real crate, with `RUSTUP_HOME` set and `CARGO_HOME` unset, finished the release build and
+      passed, writing 197 MB of registry into `/config/.cargo`. (The crate it was measured against
+      was the template's own launcher, since deleted; the measurement is about the sandbox, not
+      about that crate.) Guarded by
       `core/bin/claude.test.sh`, which stubs `ai-jail` and reads the argv the wrapper really built.
 - **`ai-jail` is pinned to a release and verified against its digest, not tracked at
   `releases/latest`.** Its minor versions are where its threat model moves, not just its features:

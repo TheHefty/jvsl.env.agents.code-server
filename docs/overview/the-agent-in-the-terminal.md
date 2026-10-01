@@ -39,5 +39,6 @@ file of its own rather than a paragraph in somebody else's.
     volume predates it receives it anyway, and that turning it off survives a restart — the last
     one verified by inverting the merge and watching it go red.
 
-**Confirmed end-to-end**: `./target/release/start` brings up/detects the container, waits for
-code-server to respond, and opens the window correctly.
+**Confirmed end-to-end** at the time, against the bundled launcher that brought the container up and
+opened a window onto code-server. That launcher is gone; the finding is kept because the editor
+default it explains is still shipped.

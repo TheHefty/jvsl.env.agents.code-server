@@ -23,10 +23,17 @@ fail=0
 
 cd "$ROOT"
 
-# Tracked files only: the generated Dockerfile, build outputs and anything
-# gitignored are not this check's business, and `start/target` used to be the
-# largest directory in the tree.
-mapfile -t tracked < <(git ls-files 2>/dev/null || true)
+# Tracked files, **plus files that are new and not ignored**. The generated
+# Dockerfile and build outputs are not this check's business, and `start/target`
+# used to be the largest directory in the tree — so gitignored paths stay out.
+#
+# `--others --exclude-standard` is not tidiness: with `git ls-files` alone this
+# check could not see a file that had not been added yet, and the five documents
+# the launcher's manual was split into came back green locally for exactly that
+# reason. CI saw them, because CI checks out a clean tree where everything is
+# tracked. A local run that cannot see what you just wrote is worse than no
+# local run, because it answers.
+mapfile -t tracked < <(git ls-files --cached --others --exclude-standard 2>/dev/null || true)
 
 # --- the floor. Everything below is meaningless without it.
 if [ "${#tracked[@]}" -lt 40 ]; then
