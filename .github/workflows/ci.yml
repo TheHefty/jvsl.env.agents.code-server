@@ -74,6 +74,27 @@ jobs:
       - name: setup keeps what it does not own
         run: bash setup.test.sh
 
+  git-credential-helper:
+    # Git inside the container must ask the container's own GitHub CLI, and
+    # nothing belonging to the person at the keyboard: a helper inherited from
+    # the host does not fail, it makes a `push` authenticate as somebody else.
+    #
+    # The requirement was already satisfied when it was first measured — and by
+    # accident, because somebody had run `gh auth setup-git` in a container once
+    # and nothing in this image had configured anything. This job is what turns
+    # that into a fact somebody would notice stopping.
+    #
+    # Two of its assertions are worth knowing about. The hook must be **silent**
+    # when there is nothing to do, which is the only observable proof that a
+    # healthy boot did no work. And it must configure an absolute path that is
+    # executable, because a value that merely looks right makes every push fail
+    # naming the remote rather than this.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: git asks the container's own CLI, and says when it changed that
+        run: bash core/cont-init/15-git-credential-helper.test.sh
+
   state-ownership:
     # The hook that gives the editor's and gpg's state directories back to 'abc'
     # after a connection left them owned by somebody else. /config is a named
@@ -343,7 +364,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, setup-manifest, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

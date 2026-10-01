@@ -180,6 +180,28 @@ RUN usermod -s /bin/bash abc
 COPY core/cont-init/10-state-ownership.sh /custom-cont-init.d/10-state-ownership.sh
 RUN chmod +x /custom-cont-init.d/10-state-ownership.sh
 
+# 5.0.2 Git asks **this container's** GitHub CLI for credentials, and nothing
+# belonging to the person at the keyboard. A helper inherited from the host does
+# not fail: it makes a `push` authenticate as somebody else.
+#
+# Two halves, because a fix only sticks in one place for each file. This one is
+# the system-wide configuration, which belongs to the image: removing it here is
+# true before any boot, and a rebuild is both necessary and sufficient. The
+# user's own /config/.gitconfig lives on the named volume — Docker seeds that
+# from the image only on its first mount — so it is asserted at boot by the hook
+# below instead.
+#
+# Removed rather than emptied: git simply reads no system configuration, which
+# is the state wanted, and an empty file invites something to append to it. What
+# this does not cover is something writing /etc/gitconfig at *runtime*; the
+# container tooling can be told to put its helper there by a setting this image
+# does not control. That is named as a known gap in the task rather than guarded
+# against here.
+RUN rm -f /etc/gitconfig
+
+COPY core/cont-init/15-git-credential-helper.sh /custom-cont-init.d/15-git-credential-helper.sh
+RUN chmod +x /custom-cont-init.d/15-git-credential-helper.sh
+
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
 # group's gid with the host device's — only acts when `start` passed KVM_GID
 # (i.e. the host exposed /dev/kvm; see start/src/main.rs and
