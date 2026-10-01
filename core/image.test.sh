@@ -65,5 +65,33 @@ esac
 docker run --rm --network none --entrypoint /bin/sh "$IMAGE" -c "test -x '$shell'" \
     || fail "$USER_NAME's shell is $shell, which is not executable in this image"
 
-echo "image.test: $IMAGE declares remoteUser $USER_NAME, declares no containerUser, and gives \
-$USER_NAME a usable login shell ($shell)."
+# --- what the launcher left behind, and what it did not -------------------
+#
+# The release that deleted the launcher removed four `-dev` libraries that
+# existed only so its crate could be built from inside the container. Two
+# claims are worth holding here rather than in prose.
+
+absent="$(docker run --rm --entrypoint /bin/bash "$IMAGE" \
+    -c "dpkg-query -W -f='\${Package}\n' libwebkit2gtk-4.1-dev libxdo-dev \
+        libayatana-appindicator3-dev librsvg2-dev 2>/dev/null" 2>/dev/null || true)"
+[ -z "$absent" ] || fail "the image still installs the launcher's libraries, which nothing needs \
+now that the launcher is gone: $(printf '%s' "$absent" | tr '\n' ' ')"
+
+# **rustup is not the launcher's, and it is the thing most likely to be deleted
+# by mistake** — it sits in the same section of the fragment and used to be
+# justified by it. The `rust` stack selects a toolchain rather than installing
+# rustup itself, and the agent's sandbox is handed RUSTUP_HOME because a `cargo`
+# on PATH without it is a shim that cannot find the toolchain it shims. So this
+# asserts the toolchain answers, not merely that a binary is on PATH.
+toolchain="$(docker run --rm --entrypoint /bin/bash "$IMAGE" \
+    -c 'rustup toolchain list 2>/dev/null | head -1' 2>/dev/null || true)"
+case "$toolchain" in
+    *stable*) ;;
+    *) fail "rustup does not report a stable toolchain in this image (got: '$toolchain'). It is \
+not the launcher's: the rust stack selects a toolchain rather than installing rustup, and the \
+sandbox forwards RUSTUP_HOME so the agent's cargo can find one" ;;
+esac
+
+echo "image.test: $IMAGE declares remoteUser $USER_NAME, declares no containerUser, gives \
+$USER_NAME a usable login shell ($shell), installs none of the launcher's libraries, and still \
+has a rust toolchain ($toolchain)."

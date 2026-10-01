@@ -63,19 +63,25 @@ fi
 #                             the permissiveness audit, the sandbox map,
 #                             ai-memory, the Android AVD. Split, not deleted,
 #                             by `the-containers-documentation-stops-being-the-launchers`.
-#   core/Dockerfile.frag    — still installs the four Tauri libraries, removed
-#                             by `the-image-stops-carrying-the-launchers-libraries`.
 #
 # docs/PLANNING is excluded permanently: it is the record of the launcher having
 # existed and of it being removed, and erasing that is not the point. So is
 # CHANGELOG.md, which only grows and is written by release-please.
+# check_absent <description> <pattern> [path filter]
+#
+# The optional third argument narrows which tracked files the pattern applies
+# to, and exists because one assertion needed it rather than because it is
+# tidy: "the image does not install these libraries" is about Dockerfile
+# fragments, and matched anywhere it flagged both the comment explaining the
+# removal and the test asserting it. A guard failing on its own explanation is
+# a guard with the wrong scope, not a file that needs excluding.
 check_absent() {
-    local what="$1" pattern="$2" hits
+    local what="$1" pattern="$2" only="${3:-}" hits
     hits="$(grep -rnE "$pattern" -- "${tracked[@]}" 2>/dev/null \
+        | { [ -n "$only" ] && grep -E "$only" || cat; } \
         | grep -v '^docs/PLANNING/' \
         | grep -v '^CHANGELOG.md:' \
         | grep -v '^docs/overview/start.md:' \
-        | grep -v '^core/Dockerfile.frag:' \
         | grep -v '^docs/agent/' \
         | grep -v "^scripts/$(basename "${BASH_SOURCE[0]}"):" || true)"
     if [ -z "$hits" ]; then
@@ -91,8 +97,22 @@ check_absent() {
 check_absent "no tracked file names the launcher crate's directory" '(^|[^a-zA-Z0-9_./-])start/'
 check_absent "no tracked file names the launcher binary" 'target/release/start'
 check_absent "no tracked file invokes the dev helper" '\.code-server/dev'
-check_absent "no CI job builds or checks the launcher" 'cargo-check|title-bar|title_bar'
+# `title-bar` on its own is deliberately not in this pattern: it is also what
+# the editor calls its own title bar, and a Copilot setting in the Dockerfile
+# says "title-bar chat entry point". The deleted job is covered anyway by
+# ci-green.test.sh, which refuses a needs list naming a job that does not exist.
+check_absent "no CI job builds or checks the launcher" 'cargo-check|title_bar'
 check_absent "no tracked file requires cargo on the host" 'cargo build --release'
+# The image's half, which was excluded while the libraries were still installed.
+# `libssl-dev` is deliberately not in this pattern: it stayed, because any Rust
+# crate linking OpenSSL needs it and the `rust` stack is selectable.
+# Anchored at the start of a continuation line, which is how an apt list entry
+# looks and prose does not. The first version matched anywhere and flagged the
+# comment three lines above the list explaining which libraries had been
+# removed — a guard failing on the explanation of what it is guarding.
+check_absent "the image does not install the launcher's libraries" \
+    '^[[:space:]]+lib(webkit2gtk|xdo-dev|ayatana-appindicator|rsvg2-dev)' \
+    '^[^:]*Dockerfile\.frag:'
 # **Every pattern here is path-shaped, and that is a limit rather than a style.**
 # A pattern on the subject was tried — `Tauri` — and it could not tell "this
 # needs Tauri" from "this used to need Tauri": it flagged a leftover in
