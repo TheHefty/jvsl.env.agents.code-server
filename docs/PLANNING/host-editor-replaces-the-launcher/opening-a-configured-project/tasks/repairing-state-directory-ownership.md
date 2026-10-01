@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Accepted
 story: host-editor-replaces-the-launcher/opening-a-configured-project
 epic: host-editor-replaces-the-launcher
-pr:
+pr: https://github.com/TheHefty/jvsl.env.agents.code-server/pull/51
 depends-on: [image-declares-its-user]
 ---
 
@@ -159,4 +159,24 @@ anywhere; the restart assertion runs in the `core-booted` job.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Accepted by João Lima on 2026-10-01, from the grilling that produced it.
+
+What the grilling changed, against what went in:
+
+- **The scan was the obvious design and lost.** Walking `/config` for anything not owned by `abc`
+  finds the third damaged directory before a person does; what it also does is run a broad
+  recursive `chown` over agent credentials and the memory store on every boot, and silently undo
+  any directory that one day belongs to someone else on purpose. The list is closed instead, and a
+  third directory is meant to go unfixed until somebody notices.
+- **The compromise was rejected too.** Repairing the named list while warning about other
+  unexpected owners sounded strictly better; it would fire in legitimate environments and teach
+  everyone to ignore this script's output, which costs more than the case it covers.
+- **The depth question was decided against completeness.** The top-level owner decides, so a
+  healthy boot costs one `stat` per directory, and files owned by root inside a directory owned by
+  `abc` go unfound. That gap is recorded as an open question with what would settle it, rather than
+  closed by walking thousands of extension files on every boot of every project.
+- **A failed repair reports and lets the boot continue**, rather than aborting it. Aborting was the
+  stricter option and converts a permission problem into a container with no editor and no
+  terminal to investigate from — against the convention the image already practises.
+
+The sections above are as written at the gate.
