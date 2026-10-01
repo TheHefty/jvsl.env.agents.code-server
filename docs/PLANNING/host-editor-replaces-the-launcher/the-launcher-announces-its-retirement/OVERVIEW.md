@@ -84,7 +84,7 @@ leaves the repository telling a new reader to use the thing the binary has just 
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | `tasks/the-launcher-says-where-to-go.md` | template | not yet written |
+| 1 | [`tasks/the-launcher-says-where-to-go.md`](tasks/the-launcher-says-where-to-go.md) | template | Draft |
 
 **There is no new CI job, and the first draft of this story said there was.** It claimed the task
 would carry `start/`'s first test and the job to run it. Both halves are wrong: the crate has a
