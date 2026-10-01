@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Accepted
 story: host-editor-replaces-the-launcher/opening-a-configured-project
 epic: host-editor-replaces-the-launcher
-pr:
+pr: https://github.com/TheHefty/jvsl.env.agents.code-server/pull/54
 depends-on: [image-declares-its-user, repairing-state-directory-ownership]
 ---
 
@@ -154,4 +154,22 @@ None. The one thing deliberately left for later — attaching the `.vsix` to the
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Accepted by João Lima on 2026-10-01, from the grilling that produced it.
+
+What the grilling changed, against what went in:
+
+- **This task did not exist.** It was going to be one task — generating the configuration — and the
+  generation had nowhere to live until an extension did. Splitting it also separated two kinds of
+  decision that were about to share a document: a packaging contract, and arithmetic over a host's
+  hardware.
+- **The activation marker changed on evidence.** `.code-server/` was the obvious choice and is
+  wrong: an uninitialized submodule leaves it empty, so the event never fires in exactly the case
+  the refusals exist for. Checked with a fresh clone rather than argued.
+- **The version check was taken back out.** Declaring `templateMinVersion` and enforcing it in the
+  same change is the obvious pairing; FR-22 belongs to story 2, and delivering a requirement from a
+  story that does not list it makes the SRS stop describing reality.
+- **Attaching the `.vsix` to the template's releases was dropped** to a story of its own. The
+  charter promises coupled distribution, which made it tempting to deliver here; it crosses two
+  repositories and blocks nothing in the first release.
+
+The sections above are as written at the gate.
