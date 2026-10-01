@@ -128,13 +128,14 @@ done
 
 # The limits the container runs under. Asked after the stacks because they are
 # usually left alone: the defaults offered are whatever the manifest already
-# says, and whatever `start` would use on its own the first time round.
+# says, and whatever the generated configuration would use on its own the first
+# time round.
 #
 # They live in the same manifest for the same reason the stack selection does —
 # they are per-project intent, they depend on the machine this is checked out
 # on, and anything kept inside `.code-server/` is the submodule's own tree.
 #
-# `start` reads them; nothing in the image does, so changing one needs the
+# the host-side client reads them; nothing in the image does, so changing one needs the
 # container recreated, not rebuilt.
 CURRENT_MEMORY="$(jq -r '.limits.memory // "6g"' <<<"$CURRENT")"
 CURRENT_SWAP="$(jq -r '.limits.memorySwap // empty' <<<"$CURRENT")"
@@ -153,7 +154,7 @@ if ! [[ "$MEMORY" =~ ^[0-9]+[mg]$ ]]; then
 fi
 
 # Total memory *plus* swap, which is why it can never be below memory — Docker
-# refuses the pair and its message names neither value. Left empty, `start`
+# refuses the pair and its message names neither value. Left empty, the client
 # derives memory + 2g.
 if ! SWAP=$(whiptail --title "setup" --inputbox \
         "Memory plus swap, e.g. 8g against 6g of memory. Never below the memory above.\n\nLeave empty to let it derive memory + 2g. On a host with no swap configured this grants nothing whatever it says." \

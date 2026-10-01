@@ -125,9 +125,9 @@ fi
 # the toolchain already sitting in /usr/local/rustup/toolchains, and whose
 # settings.toml has named it the default the whole time. A failure naming the
 # wrong cause is the one thing this image is not supposed to ship. Section 1.1
-# of core/Dockerfile.frag installs Rust so that start/ can be verified from
-# inside the container as well as on the host; until this line, that had never
-# once been true inside the jail, which is where the agent always is.
+# of core/Dockerfile.frag installs Rust for the `rust` stack and for the
+# agent's own use; until this line, `cargo` had never once worked inside the
+# jail, which is where the agent always is.
 #
 # CARGO_HOME is deliberately *not* forwarded beside it, and the symmetry is the
 # trap. /usr is bound into the sandbox read-only, so the /usr/local/cargo the

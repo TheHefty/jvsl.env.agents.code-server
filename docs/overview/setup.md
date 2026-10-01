@@ -5,8 +5,7 @@
   `/usr/local/bin/claude` so the `claude` that PATH resolves is the sandboxed one — see "Why the
   container is this permissive" in [`start.md`](start.md)), `ai-jail`, `ai-memory` (long-term memory across
   sessions and across agent CLIs, off unless the project opts in — same section), `jq` (required
-  by `setup` to read and edit the manifest), Rust via `rustup` + the Tauri Linux libs,
-  `docker.io` + `docker-compose-v2`
+  by `setup` to read and edit the manifest), Rust via `rustup`, `docker.io` + `docker-compose-v2`
   (`docker compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't
   pull it in — confirmed missing by actually running `docker compose version` inside a built image
   before adding it; Ubuntu's own repo package is `docker-compose-v2`, not `docker-compose-plugin`
@@ -15,8 +14,8 @@
   that turns them into a nested rootless daemon. `docker compose` here is for the monorepo's own
   services from inside the environment, talking to that nested daemon rather than to the host's
   socket (see "Why the container is this permissive" in [`start.md`](start.md) for why the host
-  socket was removed) — it doesn't change how the dev environment itself is brought up, which stays
-  `start`'s `docker run` on the host.
+  socket was removed) — it doesn't change how the dev environment itself is brought up, which is
+  the editor's dev container client on the host.
 - **Two agent CLIs, one sandbox, one list of flags.** Claude Code and the OpenAI Codex CLI are both
   installed, and both are shadowed on PATH by a wrapper that re-execs them inside `ai-jail` —
   `core/bin/claude.sh` at `/usr/local/bin/claude`, `core/bin/codex.sh` at `/usr/local/bin/codex`.
@@ -125,15 +124,13 @@
   Docker copies an image directory's existing content into the named `/config` volume the first
   time it's mounted, so this is only picked up on first container creation, not on every rebuild of
   an existing environment.
-- **Rust/Tauri deps live in `core/`, not a selectable stack.** They're there to build/verify
-  `.code-server/start` itself (the template's own launcher), not for the monorepo's application
-  code — every project needs it regardless of which stacks it picks, same reasoning as Node.js
-  being mandatory for the Claude Code CLI. Lets `cargo check`/`cargo build` run from inside the
-  dev container too, closing the verification gap noted while making the port-publishing fix
-  (`.code-server/start` could previously only be checked on the host). Actually *running* the
-  built Tauri binary still needs a host display, so `start` itself is still built and launched
-  from the host as documented below — this only makes editing `main.rs` from inside the
-  environment checkable without a round-trip to the host.
+- **`rustup` lives in `core/`, not in the selectable `rust` stack.** It was put there to build the
+  template's own launcher from inside the container; the launcher is gone and `rustup` stayed,
+  because two other things had come to depend on it. The `rust` stack selects a toolchain rather
+  than installing rustup itself, and the agent's sandbox is handed `RUSTUP_HOME` because a `cargo`
+  on PATH without it is a shim that cannot find the toolchain it shims. Deleting it with the
+  launcher's libraries is the mistake this paragraph exists to prevent: it sits in the same section
+  of the fragment and used to be justified by the launcher.
 - **Base image is pinned to `tag@digest`** (`lscr.io/linuxserver/code-server:4.129.0@sha256:...`),
   not `:latest`. Found out the hard way while debugging the port issue below: `:latest` means the
   build can change under you with zero warning, and the image's internals (e.g. the exact

@@ -61,7 +61,7 @@ about.
   rootless uid mapping (container-root maps to `abc`), not by `ai-jail`. This was measured rather
   than assumed, and the socket was kept knowingly; the reasoning is in
   [`docs/overview/start.md`](docs/overview/start.md) under "Why the container is this permissive".
-- **code-server runs with no password.** `start` passes an empty `PASSWORD=`, so any user or process
+- **code-server runs with no password.** An empty `PASSWORD=` is passed, so any user or process
   on the host that can reach the published loopback port gets the editor, and through it a shell in
   the container. This is a single-user-workstation assumption, not an oversight.
 - **`--cap-add=SYS_ADMIN` and `--security-opt seccomp=unconfined` / `systempaths=unconfined`.**

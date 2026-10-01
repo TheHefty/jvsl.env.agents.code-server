@@ -71,7 +71,7 @@ wait_for_boot() {
     done
 }
 
-# The security options `start` passes, minus the volumes and the conditional
+# The security options the generated dev container configuration passes, minus the volumes and the conditional
 # devices: this asserts what the image does on boot, and a host device it may or
 # may not have is a different test. PASSWORD is empty for the same reason the
 # launcher leaves it empty — and that is what makes code-server unauthenticated,

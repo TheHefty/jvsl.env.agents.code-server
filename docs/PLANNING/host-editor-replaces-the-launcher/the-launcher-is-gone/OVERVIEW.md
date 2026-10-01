@@ -85,7 +85,7 @@ Two slices, split where the repository can be left working in between.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/nothing-builds-or-runs-the-launcher.md`](tasks/nothing-builds-or-runs-the-launcher.md) | template | Draft |
+| 1 | [`tasks/nothing-builds-or-runs-the-launcher.md`](tasks/nothing-builds-or-runs-the-launcher.md) | template | Done — #80 |
 | 2 | `tasks/the-image-stops-carrying-the-launchers-libraries.md` | template | not yet written |
 | 3 | `tasks/the-containers-documentation-stops-being-the-launchers.md` | template | not yet written |
 

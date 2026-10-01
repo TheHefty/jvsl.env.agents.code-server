@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # custom-cont-init.d script: runs as root, before s6-overlay drops
 # privileges to 'abc'. Seeds the runtime AVD directory under /config (the
-# persistent named volume — see start/src/main.rs) from the golden copy
+# persistent named volume — see the extension's generated configuration) from the golden copy
 # baked into the image at build time ($ANDROID_HOME/avd, created in
 # stacks/android/Dockerfile.frag), whenever that golden copy differs from
 # what the volume already carries (see the guard below).

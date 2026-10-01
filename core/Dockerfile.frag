@@ -5,10 +5,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 USER root
 
-# 1. System dependencies, Bubblewrap, Socat, Docker tools, and the Tauri
-# Linux libs (so `.code-server/start` can be `cargo check`/`build`-verified
-# from inside the container too, not just on the host — see rustup install
-# below and .code-server/docs/OVERVIEW.md)
+# 1. System dependencies, Bubblewrap, Socat and Docker tools.
+#
+# The four Tauri `-dev` libraries below are the bundled launcher's, and the
+# launcher is gone: they exist only so its crate could be `cargo check`ed from
+# inside the container. They are removed by the task named
+# `the-image-stops-carrying-the-launchers-libraries`, separately, because that
+# is where "nothing in the image needed them" is actually tested — by the image
+# builds, against every stack.
 #
 # `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` are what make the
 # nested *rootless* Docker daemon possible (see section 4 below and
@@ -80,9 +84,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 1.1 Installs Rust (stable, via rustup) system-wide, so the CLI/agent and
-# user 'abc' both have `cargo` — needed to verify changes to
-# `.code-server/start/src/main.rs` (a Tauri app; actually running the built
-# binary still requires a host display, only building/checking works here)
+# user 'abc' both have `cargo`.
+#
+# **This is not the launcher's, and it is the thing most likely to be deleted
+# by mistake** — it sits in the same section as the launcher's libraries and
+# used to be justified by it. Two things depend on it now: the `rust` stack,
+# which selects a toolchain rather than installing rustup itself, and the
+# agent's sandbox, which is handed `RUSTUP_HOME` because a `cargo` on PATH
+# without it is a shim that cannot find the toolchain it shims.
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
@@ -203,9 +212,9 @@ COPY core/cont-init/15-git-credential-helper.sh /custom-cont-init.d/15-git-crede
 RUN chmod +x /custom-cont-init.d/15-git-credential-helper.sh
 
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
-# group's gid with the host device's — only acts when `start` passed KVM_GID
-# (i.e. the host exposed /dev/kvm; see start/src/main.rs and
-# stacks/android/Dockerfile.frag). A no-op cont-init step on any host/stack
+# group's gid with the host device's — only acts when the caller passed
+# KVM_GID (i.e. the host exposed /dev/kvm; see stacks/android/Dockerfile.frag,
+# and the extension, which passes `--device /dev/kvm` when the host has it). A no-op cont-init step on any host/stack
 # that doesn't need it. (There used to be a sibling script doing the same for
 # the host Docker socket's gid; it went away with the socket itself — see
 # section 4.)
@@ -293,9 +302,10 @@ RUN /app/code-server/bin/code-server \
 # Selection and the rest — instead of the single hamburger the web build shows
 # by default. Two reasons, and the second is the load-bearing one: the menus are
 # how anything without a keybinding is reached in a window with no browser
-# chrome around it, and **`start` puts the window's own buttons in that row**
-# (see start/src/title_bar.js). Hidden, there is no `.part.titlebar` for the
-# script to find, so it injects nothing and the window loses its close button.
+# chrome around it. The bundled launcher used to put its own window buttons in
+# that row through an injected script, and hiding the row left it with no close
+# button; the launcher is gone, and the setting stays because the row is still
+# the only way to reach what has no keybinding.
 # The setting therefore belongs to the image and not to a preference somebody
 # sets later.
 #

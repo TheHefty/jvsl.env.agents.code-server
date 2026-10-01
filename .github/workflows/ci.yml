@@ -61,6 +61,8 @@ jobs:
         run: bash scripts/changed-scope.test.sh
       - name: ci-green can still fail
         run: bash scripts/ci-green.test.sh
+      - name: nothing builds or runs the launcher
+        run: bash scripts/no-launcher.test.sh
 
   bash-syntax:
     runs-on: ubuntu-latest
@@ -71,38 +73,6 @@ jobs:
           find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \
               -o -name 'run' \) -print0 \
             | xargs -0 -n1 bash -n
-
-  cargo-check:
-    needs: changes
-    if: needs.changes.outputs.scope != 'docs-only'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Tauri Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: start
-      - name: cargo check
-        working-directory: start
-        # --locked so a Cargo.lock left behind by a release bump fails here, on the release
-        # PR itself, instead of turning up as a dirty submodule in a consuming monorepo.
-        run: cargo check --release --locked
-      - name: cargo test
-        working-directory: start
-        run: cargo test --release --locked
 
   host-packages:
     # `init` offers to install what the table in packages.sh names, so a wrong
@@ -287,24 +257,6 @@ jobs:
       - name: the size check can actually fail
         run: bash scripts/check-md-size.test.sh
 
-  title-bar:
-    # The one piece of this launcher that runs inside somebody else's page, and the
-    # one written to fail quietly: if code-server stops calling its title bar
-    # `.part.titlebar`, nothing is injected and nothing complains. Silence is the
-    # right behaviour there and the reason this job exists — the failure is
-    # otherwise invisible until somebody opens the window and wonders where the
-    # buttons went.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      # No package.json and no dependencies: the runner is node's own, and the
-      # script under test is read from disk as the binary embeds it.
-      - name: node --test
-        run: node --test start/src/title_bar.test.mjs
-
   core-build:
     needs: changes
     if: needs.changes.outputs.scope != 'docs-only'
@@ -439,7 +391,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [changes, ci-scripts, bash-syntax, cargo-check, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
+    needs: [changes, ci-scripts, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
