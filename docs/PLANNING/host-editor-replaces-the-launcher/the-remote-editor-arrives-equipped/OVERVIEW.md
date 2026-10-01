@@ -83,13 +83,46 @@ this file. Agreed at the story gate, before any task is written.
 One scenario is `@manual` for the usual reason: no CI available to either repository can look at an
 editor's installed extensions. The rest are assertions about the composed image, which CI can make.
 
+## Decisions taken at the task gate
+
+**The registry is checked once, by hand, and the result is written down.** Every declared identifier
+has to exist where the editor will look for it, and the three ways to hold that were weighed: a job
+on every pull request, a scheduled job, or one measurement recorded in the task. The measurement
+won. A per-PR job makes this repository's CI depend on the Marketplace being up, in a queue already
+saturated by image builds; a scheduled job that nobody reads is the thing the inherited
+observability rules name as worse than no signal at all. **So the risk is accepted explicitly: a
+typo is caught today, and an extension removed from the registry next year is caught by somebody
+hitting it.** That sentence is the deliverable, not a caveat on one.
+
+**An identifier the registry does not have is the Dev Containers extension's problem, and this
+story verifies rather than implements.** What installs extensions is that extension, not this
+project's. Writing code to pre-validate the list would duplicate somebody else's decision and add a
+second reader of the label. So the behaviour is observed once, with a deliberately bogus identifier,
+and what it does is recorded — including if it turns out to fail silently, which is the answer that
+would change the next story.
+
+**The checker composes twice: with no stacks and with all of them.** The first proves core alone
+declares the label correctly; the second proves ten stacks contribute without overwriting each
+other, which is the failure that fails nothing while it happens. Per-stack composition and synthetic
+fixtures were the alternatives — the first for naming which stack is broken, the second for covering
+shapes the real stacks do not have. Both were judged more machinery than two composition runs of
+`jq`.
+
 ## Tasks
 
-Written after this gate, not before.
+Three slices. The third has no code in it, and is written that way on purpose.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| — | — | — | — |
+| 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Draft |
+| 2 | `tasks/a-stack-declares-what-it-wants.md` | template | not yet written |
+| 3 | `tasks/what-the-list-does-not-guarantee.md` | template | not yet written |
+
+**Task 3 is a verification task and is labelled as one.** With the registry measured once and the
+failure path verified rather than implemented, it contains no code and no new test: two measurements
+and a record of what they said. It is kept separate rather than folded into task 2 because it is the
+only part of this story a person executes, and burying that inside a code PR is how it quietly does
+not happen.
 
 ## Out of scope
 
