@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Done |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 
@@ -59,7 +59,7 @@ is a different kind of decision from a cpuset calculation.
 | 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Accepted, shipped in v2.1.0 |
 | 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Accepted, shipped in v2.2.0 |
 | 3 | [`tasks/extension-activates-on-a-template-project.md`](tasks/extension-activates-on-a-template-project.md) | extension | Accepted, shipped in v0.1.0 |
-| 4 | [`tasks/generating-the-dev-container-configuration.md`](tasks/generating-the-dev-container-configuration.md) | extension | Draft |
+| 4 | [`tasks/generating-the-dev-container-configuration.md`](tasks/generating-the-dev-container-configuration.md) | extension | Accepted, shipped in v0.2.0 |
 
 Tasks 3 and 4 are the extension's half and their pull requests land in the other repository, but
 their design documents live here with the story they belong to — same reason the story itself does.
@@ -80,4 +80,81 @@ their design documents live here with the story they belong to — same reason t
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Done. Four tasks released — the template's `v2.1.0` and `v2.2.0`, the extension's `v0.1.0`,
+`v0.2.0` and the `v0.2.1` that the manual pass forced — and the `@manual` scenarios run by a person
+on 2026-10-01.
+
+| | |
+|---|---|
+| template | `v2.1.0` — the image declares the user a client connects as |
+| template | `v2.2.0` — ownership of the state directories is repaired |
+| extension | `v0.1.0` — the extension exists and wakes up on a template project |
+| extension | `v0.2.0` — the configuration is generated and the open is handed over |
+| extension | `v0.2.1` — the image's own command is allowed to run |
+
+### What a person measured
+
+| Scenario | Result |
+|---|---|
+| opening connects the editor to its container | the native "Reopen in Container" offered; the workspace is `/config/workspace` inside it |
+| the very first connection is not root | the session runs as `abc`; `/config/.vscode-server` and `/config/.gnupg` both owned by `abc` |
+| the editor is not subject to the container's limits | **`taskset -pc` on the editor's process: `0-15`. The container: `0-7`.** |
+| the image's declaration is honoured by the editor, not only by the reference tooling | `remoteUser` is absent from the generated configuration and the session is `abc` anyway |
+
+The third is what this project exists for. The fourth settles the debt the epic's spike left open,
+where the metadata merge had been measured against the reference implementation and the published
+manifest rather than against the editor extension itself.
+
+**The affinity choice is now measured rather than argued.** Inside the container `nproc` reports
+**8** while `/proc/cpuinfo` lists **16** processors. A CFS quota would have been invisible to
+`nproc`, so everything that sizes itself from the CPU count — `make -j$(nproc)`, ninja, Gradle and
+Jest worker pools — would have oversubscribed by two against a capped memory limit. That reasoning
+was inherited from `start`; this is the first time anybody observed it holding.
+
+### What the manual pass found that four releases of green CI had not
+
+**The generated configuration was missing `overrideCommand: false`**, so the tooling replaced the
+container's command — s6-overlay — with its own sleep loop. The editor connected, the session was
+`abc`, the limits were right, and the container had no nested Docker daemon, no `ai-memory` server
+and not one `cont-init` script, including the ownership repair that `v2.2.0` exists for. **Nothing
+failed anywhere.** Fixed in the extension's `v0.2.1`, with the regression observed failing first at
+both levels — the integration one on a throwaway branch, since it needed a container to fail in.
+
+This is the whole argument for the `@manual` tag, and the reason this story was not closed when its
+tasks shipped: no CI available to either repository can observe an editor window.
+
+### What was not exercised, and is not claimed
+
+**"An environment damaged by an earlier connection is repaired" did not run here.** By the time a
+person opened the project the image already declared its user, so the state directories were created
+as `abc` and there was never any damage to repair. The scenario is covered by the template's
+`core-booted` job, which injects the damage deliberately — but it has not been observed on a real
+environment, and saying otherwise would be exactly what the `@manual` tag exists to prevent.
+
+### What the tasks changed about the criteria above
+
+Recorded here rather than edited into the scenarios, so the agreed text stays as agreed:
+
+- **The scenarios assert the running container, not the generated configuration.** Agreed at this
+  gate, and it earned its keep immediately: Docker reports `--cap-add SYS_ADMIN` back as
+  `CAP_SYS_ADMIN`, and `systempaths=unconfined` is not recorded as a security option at all — it
+  empties the masked and read-only paths instead. Asserting the file would have passed and proven
+  nothing; asserting the flags sent would have failed against a container that is correct.
+- **"Repairing is safe to repeat" needed the damage created first.** A fresh container has nothing
+  to repair, so there is no repair to observe. The harness makes the damage, restarts, and only then
+  asserts — and counts boots rather than filtering the log by a timestamp, which included the
+  previous boot and made every assertion run too early.
+
+### Three things that misled the diagnosis, for the next reader
+
+Two of them are the agent's own mistakes, written down because they sent somebody to act on bad
+evidence:
+
+- **`docker ps`'s COMMAND column says nothing about `overrideCommand`.** It shows
+  `/bin/sh -c 'echo Co…'` either way: the tooling's wrapper remains the command and, when told not
+  to override, `exec`s the image's own. What settles it is whether the image's services are running
+  — `docker info` answering from inside.
+- **`/proc/<pid>/cpuset` does not exist on cgroup v2.** `taskset -pc <pid>` works on both, and is
+  what produced the numbers above.
+- **`/proc/uptime` inside a container reports the host's uptime.** It was used three times as
+  evidence that the container had not been recreated, and proves nothing whatsoever.
