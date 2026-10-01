@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/host-secrets-stay-on-the-host
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 68, jvsl.env.agents.vscode#14
 depends-on: [the-container-authenticates-as-itself]
 ---
 
@@ -152,4 +152,28 @@ only thing that would catch it is the `@manual` pass that the story already requ
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #68 (template) and `jvsl.env.agents.vscode#14` (extension). The wrapper creates
+`.vscode/` and `.devcontainer/` when absent and maps both read-only; `jail-wrappers.test.sh` carries
+38 assertions, including that nothing else in the workspace is locked and that a workspace which
+does not exist maps nothing.
+
+**The mechanism was confirmed by a person before the code was written**, which is why this task was
+never blocked for long: a read-only `--map` over a subpath of the read-write workspace refuses the
+write with `Read-only file system`. No agent could have checked it — `ai-jail` masks `bwrap` inside
+its own sandbox and refuses to nest.
+
+**The third Workspace Trust assertion moved repositories.** This design put all three in the
+extension's repository. The label one belongs here instead, where the label is composed and already
+validated by `core/check-devcontainer-metadata.sh` — the extension does not own that label and could
+only have asserted over a copy of it. The checker now refuses a `security.workspace.trust*` key
+under `customizations.vscode.settings`, with a fixture proving an unrelated editor setting is still
+accepted, so the guard is about the key rather than about `customizations` existing. The other two
+assertions are in the extension, over its own sources and its own generated output.
+
+**A mistake worth keeping in the record.** Adding that fixture, I anchored a text replacement on a
+string that appeared more than once and silently deleted four existing assertions. What caught it
+was the pass count dropping from 8 to 6 — not review, and not the exit code of the script that made
+the edit. Restored from git and redone with the anchor asserted unique. Two separate edits in this
+story were wrong in the same way, and the lesson is the same both times: an edit applied by script
+is verified by reading the result, with `grep -F`, not by trusting that the script did what it
+said.

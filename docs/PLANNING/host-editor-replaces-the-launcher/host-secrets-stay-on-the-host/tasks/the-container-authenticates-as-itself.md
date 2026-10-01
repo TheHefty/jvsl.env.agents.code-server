@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/host-secrets-stay-on-the-host
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 65
 depends-on: []
 ---
 
@@ -138,4 +138,15 @@ failure scenario 3, with the condition that would make it this hook's problem.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #65. `core/cont-init/15-git-credential-helper.sh` with eleven assertions in its
+`*.test.sh` and a `git-credential-helper` job in CI.
+
+**It uses `git config`, not `gh auth setup-git`.** That was not a preference: `gh auth setup-git`
+cannot write `/config/.gitconfig` in this image, which is the finding that made a hook necessary in
+the first place rather than a one-off command somebody runs.
+
+**One test in it passed only on this machine** and had to be fixed: it read `GH_CONFIG_DIR` from the
+environment, which happened to be `/config/workspace` here. It now uses the suite's own temporary
+directory, verified from a different working directory and `HOME`. That failure mode — a test that
+asserts about a path which happens to exist on the machine running it — is now named in every task
+written after this one.
