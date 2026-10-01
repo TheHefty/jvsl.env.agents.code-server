@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# What `core` is, rather than that `core` built. `stack-build` already runs an
+# optional `stacks/<stack>/image.test.sh` for the same reason — a successful
+# `docker build` proves apt-get ran and nothing else — and until now `core` had
+# no equivalent.
+#
+# **This runs on the host, not inside the image**, which is where it differs
+# from the per-stack tests. Half of what it checks is a label, and a container
+# cannot read its own image's labels: `docker inspect` is the only way, and it
+# is the runner that can call it. The shell half is a `docker run` from here
+# rather than a script copied in, so both halves live in one file.
+#
+# **It is blind to anything runtime does.** `--entrypoint` bypasses s6-overlay,
+# so nothing a `cont-init` script writes and nothing LinuxServer's init rewrites
+# is visible here. That is the whole reason a second, booted test exists beside
+# it; this one answers "did the build do it", and that one answers "did the
+# runtime keep it". Keeping them apart is what makes a red CI name which half
+# broke.
+set -euo pipefail
+
+IMAGE="${1:-${CORE_TEST_IMAGE:-core-ci}}"
+USER_NAME="${CORE_TEST_USER:-abc}"
+
+fail() { echo "image.test: FAIL: $*" >&2; exit 1; }
+
+docker image inspect "$IMAGE" >/dev/null 2>&1 \
+    || fail "no such image: $IMAGE (pass it as the first argument, or set CORE_TEST_IMAGE)"
+
+# --- the label, from outside ---------------------------------------------
+
+metadata="$(docker image inspect "$IMAGE" \
+            --format '{{index .Config.Labels "devcontainer.metadata"}}' 2>/dev/null || true)"
+
+[ -n "$metadata" ] || fail "the image declares no devcontainer.metadata label, so a dev container \
+client has nothing to read and connects as the image's USER, which is root"
+
+echo "$metadata" | jq -e 'type == "array"' >/dev/null 2>&1 \
+    || fail "devcontainer.metadata is not a JSON array: $metadata"
+
+echo "$metadata" | jq -e --arg u "$USER_NAME" '[.[] | select(.remoteUser == $u)] | length == 1' \
+    >/dev/null 2>&1 \
+    || fail "devcontainer.metadata does not declare remoteUser \"$USER_NAME\": $metadata"
+
+if echo "$metadata" | jq -e 'any(.[]; has("containerUser"))' >/dev/null 2>&1; then
+    fail "devcontainer.metadata declares containerUser. This image must start as root so \
+s6-overlay can drop privileges itself; declaring it stops the container booting"
+fi
+
+# --- the shell, from inside ----------------------------------------------
+#
+# --network none because an image test asserts what is IN the image; anything
+# it had to fetch would be testing something else. Same reasoning as the
+# per-stack tests.
+shell="$(docker run --rm --network none --entrypoint /bin/sh "$IMAGE" \
+         -c "getent passwd '$USER_NAME' | cut -d: -f7" 2>/dev/null || true)"
+
+[ -n "$shell" ] || fail "user $USER_NAME does not exist in the image"
+
+case "$shell" in
+    */false|*/nologin)
+        fail "$USER_NAME's shell is $shell, which cannot be logged in as — a client that opens a \
+terminal as this user gets nothing, and the session looks broken rather than refused" ;;
+esac
+
+docker run --rm --network none --entrypoint /bin/sh "$IMAGE" -c "test -x '$shell'" \
+    || fail "$USER_NAME's shell is $shell, which is not executable in this image"
+
+echo "image.test: $IMAGE declares remoteUser $USER_NAME, declares no containerUser, and gives \
+$USER_NAME a usable login shell ($shell)."

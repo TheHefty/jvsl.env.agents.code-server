@@ -149,6 +149,25 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-dockerd-rootless/run \
 RUN mkdir -p /config/.claude /config/.codex \
     && chown -R abc:abc /config/.claude /config/.codex
 
+# 5.0 A login shell for 'abc'. The base image gives it /bin/false, which is
+# sound while the only way in is code-server's own terminal — it runs as 'abc'
+# already and never logs in. It stops being sound the moment something
+# *connects* as that user: a host editor attaching over the dev container
+# protocol opens a shell, gets /bin/false, and presents a session that looks
+# broken rather than one that was refused.
+#
+# In the Dockerfile and not in a cont-init hook, deliberately. /etc/passwd is
+# not under /config, so the problem that 30-editor-defaults.sh exists to work
+# around — a named volume seeded from the image only on its first mount, so
+# later defaults never arrive — does not apply: a rebuild is both necessary and
+# sufficient. A hook would run on every boot to change nothing.
+#
+# What this gives up, recorded because it is a loosening and not housekeeping:
+# `su abc` from root now yields a shell. The container runs no sshd and already
+# hands out interactive shells through the editor, so it widens little — but it
+# widens something.
+RUN usermod -s /bin/bash abc
+
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
 # group's gid with the host device's — only acts when `start` passed KVM_GID
 # (i.e. the host exposed /dev/kvm; see start/src/main.rs and
@@ -350,3 +369,28 @@ RUN chmod +x /custom-cont-init.d/40-ai-memory.sh
 # Stack fragments (stacks/*/Dockerfile.frag) are concatenated after this
 # block as additional RUN steps — this doesn't affect USER root, which is
 # only resolved at runtime by s6-overlay.
+
+# Which is exactly why a dev container client has to be told something the
+# image's USER does not say. Left to itself, a client connects as USER — root —
+# and the first connection writes root-owned state into /config, which is a
+# persistent volume: the damage outlives every rebuild. Observed, not feared.
+#
+# `remoteUser` governs only the client's own processes (its server, terminals,
+# tasks, debuggers), which is the whole scope wanted here.
+#
+# **`containerUser` is deliberately absent, and must stay absent.** It sets the
+# user the container is *started* as, and the paragraph above is why that has to
+# be root. Declaring it would stop the container booting at all, with an error
+# naming neither this label nor s6. It is not written down as root either: a
+# field a later reader completes because it looks half-filled is worse than a
+# comment saying why it is not there. core/check-devcontainer-metadata.sh enforces the
+# absence rather than trusting this paragraph to be read.
+#
+# **Exactly one fragment may declare this key.** The fragments are concatenated
+# into one Dockerfile, and a LABEL whose key is already set replaces it rather
+# than merging — so a stack declaring its own would take remoteUser away for
+# that stack alone, silently. Letting several parts contribute (the remote
+# editor's per-stack extensions will want to) needs a mechanism that does not
+# exist yet; until it does, a second declaration is a bug, and the same test
+# catches it.
+LABEL devcontainer.metadata='[{"remoteUser":"abc"}]'

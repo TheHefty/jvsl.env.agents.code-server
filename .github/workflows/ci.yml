@@ -137,6 +137,25 @@ jobs:
       - name: migration never destroys what a project wrote
         run: bash migrate-agent-docs.test.sh
 
+  devcontainer-metadata:
+    # The image has to tell a dev container client which user to connect as:
+    # left to itself a client uses the image's USER, which is root here because
+    # s6-overlay needs it, and the first connection then writes root-owned
+    # state into a volume that survives every rebuild. Observed by hand before
+    # it was a requirement.
+    #
+    # Static, so it costs a second and catches two things where they are cheap:
+    # a second fragment declaring the same label (a later LABEL replaces rather
+    # than merges, so one stack would silently lose remoteUser), and a
+    # containerUser field, which would stop the container booting at all.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: exactly one fragment declares the label, and it declares the right thing
+        run: bash core/check-devcontainer-metadata.sh
+      - name: the check can actually fail
+        run: bash core/check-devcontainer-metadata.test.sh
+
   md-size:
     # A Markdown file past 50 KiB stops being read and starts being skimmed,
     # which is worse than being short: it still looks authoritative. Nothing
@@ -180,6 +199,39 @@ jobs:
         run: |
           core/compose-dockerfile.sh > "$RUNNER_TEMP/core.Dockerfile"
           docker build -f "$RUNNER_TEMP/core.Dockerfile" -t core-ci .
+
+      # A successful build proves the RUN steps ran. It does not prove the
+      # image declares the user a client should connect as, or that that user
+      # has a shell worth opening — the same gap stacks/<stack>/image.test.sh
+      # exists for, which core had no equivalent of until now.
+      #
+      # Unlike the per-stack tests this runs on the runner rather than inside
+      # the image, because a container cannot read its own image's labels.
+      - name: image checks for core
+        run: bash core/image.test.sh core-ci
+
+  core-booted:
+    # What the image is after it has started, which core-build cannot see: its
+    # image check runs with --entrypoint and so bypasses s6-overlay entirely.
+    # LinuxServer's init rewrites 'abc' at runtime — that is why /etc/subuid is
+    # keyed by name — so a build-time change to that user could be undone on
+    # every boot with every other job still green.
+    #
+    # Its own job rather than another step in core-build, so that a red says
+    # which half broke: "the build did not do it" and "the runtime undid it"
+    # are fixed in different places. The cost is a second core build, paid
+    # deliberately; sharing the image between jobs would mean exporting a
+    # multi-gigabyte tarball through the artifact store, which is not obviously
+    # cheaper and is certainly less legible.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker build core only
+        run: |
+          core/compose-dockerfile.sh > "$RUNNER_TEMP/core.Dockerfile"
+          docker build -f "$RUNNER_TEMP/core.Dockerfile" -t core-ci .
+      - name: the user survives the boot
+        run: bash core/booted.test.sh core-ci
 
   discover-stacks:
     runs-on: ubuntu-latest
@@ -241,7 +293,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, md-size, title-bar, core-build, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded
