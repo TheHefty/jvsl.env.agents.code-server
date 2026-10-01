@@ -58,4 +58,41 @@ check "an unfilled placeholder stops the compose" \
 check "and it exits non-zero rather than composing something unbuildable" \
     "$(CORE_VERSIONS="$work/empty.json" bash "$COMPOSE" >/dev/null 2>&1; echo $?)" "1"
 
+# Failure 4 — a metadata file that is not an array of entries. `jq -s add` over
+# an object produces something that is not a metadata array, the LABEL is
+# written anyway, and a client that cannot read it falls back to the image's
+# USER — which is root. So it has to stop here, naming the file, because the
+# alternative surfaces days later as root-owned files in one project.
+printf '%s' '{"remoteUser":"abc"}' > "$work/not-an-array.json"
+out="$(CORE_DEVCONTAINER="$work/not-an-array.json" bash "$COMPOSE" 2>&1 >/dev/null || true)"
+check "a metadata file that is not an array stops the compose, by name" \
+    "$({ printf '%s' "$out" | grep -c -F 'not-an-array.json' || true; })" "1"
+check "and it exits non-zero" \
+    "$(CORE_DEVCONTAINER="$work/not-an-array.json" bash "$COMPOSE" >/dev/null 2>&1; echo $?)" "1"
+
+# Failure 5 — a single quote in the value. The LABEL is single-quoted, so the
+# quote ends it early and the Dockerfile fails somewhere other than the file
+# that caused it. No `publisher.name` identifier contains one, which is exactly
+# why this would never be noticed until it happened.
+printf '%s' '[{"remoteUser":"abc","customizations":{"vscode":{"extensions":["a.b'"'"'c"]}}}]' \
+    > "$work/quoted.json"
+out="$(CORE_DEVCONTAINER="$work/quoted.json" bash "$COMPOSE" 2>&1 >/dev/null || true)"
+check "a single quote in the metadata stops the compose" \
+    "$({ printf '%s' "$out" | grep -c -F 'single quote' || true; })" "1"
+
+# The label is emitted last, which is the only position a later LABEL cannot
+# replace. Asserted as the last non-empty line rather than as "present
+# somewhere", because present-somewhere is true of the arrangement this change
+# replaced.
+check "the label is the last line of the composed Dockerfile" \
+    "$(bash "$COMPOSE" | grep -v '^[[:space:]]*$' | tail -1 \
+       | sed -E "s/^LABEL devcontainer\.metadata='.*'$/LABEL-LAST/")" "LABEL-LAST"
+
+# A stack that declares nothing contributes nothing: the story's own scenario.
+# `rust` has no devcontainer.json, and when it gains one this assertion should
+# be moved to a stack that still has none rather than deleted.
+label_of() { bash "$COMPOSE" "$@" | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'$/\1/p"; }
+check "a stack that declares nothing changes the label not at all" \
+    "$(label_of rust)" "$(label_of)"
+
 exit "$failures"

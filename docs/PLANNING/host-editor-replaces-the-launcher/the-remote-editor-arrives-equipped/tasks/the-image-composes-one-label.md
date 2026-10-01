@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/the-remote-editor-arrives-equipped
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 74
 depends-on: []
 ---
 
@@ -153,4 +153,42 @@ the story already puts it.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #74. `core/devcontainer.json` holds core's entry, `core/Dockerfile.frag` line 430 is
+gone, `compose-dockerfile.sh` emits the label as the generated Dockerfile's last line, and
+`check-devcontainer-metadata.sh` inverted. 13 assertions in the checker's test (was 11), 10 in the
+composer's (was 5).
+
+**Red was observed where red was possible, and not claimed where it was not.** The inverted checker:
+2 passed / 11 failed against the old checker, then 13 / 0. The composer's two new guards: disabled
+by hand, three assertions went red, restored. But **one assertion in the list was green before the
+change and is green after** — "a stackless project's label is byte-for-byte what it was before".
+That is not a failure of the exercise, it is the point of that assertion: it is an invariant across
+the change, and an invariant that went red at any moment would mean story 1 had regressed. It is
+listed here so nobody reads the pass count as thirteen things proven by failing.
+
+**Two guards that did not exist in the design arrived from writing it.** The label is asserted to be
+the **last** non-empty line, not merely present — present-somewhere was true of the arrangement this
+replaced, so it would have held through the bug. And a metadata file that is not a JSON array is
+refused **by name**, because `jq -s add` over an object produces something that is not a metadata
+array, the `LABEL` gets written anyway, and the client falls back to root.
+
+**The single-quote guard will never fire, and is kept.** No `publisher.name` identifier contains
+one. That is exactly why it would not be noticed until it happened, and the failure it prevents is a
+Dockerfile that breaks somewhere other than the file that caused it.
+
+**`core/image.test.sh` turned out to be the end-to-end half and needed no change.** It reads
+`devcontainer.metadata` off the built image with `docker inspect` and asserts the array, the
+`remoteUser` and the absence of `containerUser`. So the claim that the composed label survives
+`docker build` is held by a test that already existed, in the `core-build` job — which is a better
+position than anything this task would have added.
+
+**The merge-semantics assumption is still unverified, as designed.** What is proven is that the
+declaration contains everything contributed; whether the tooling unions `extensions` across the
+array's entries is the story's `@manual` scenario and task 3's. Nothing in this task would notice if
+it did not.
+
+**One assertion is pinned to a stack and says so in a comment.** "A stack that declares nothing
+changes the label not at all" uses `rust`, which has no `devcontainer.json`. When task 2 gives it
+one, that assertion moves to a stack that still has none rather than being deleted — which is the
+kind of instruction that is worth writing down because the alternative is a green test that stopped
+testing anything.

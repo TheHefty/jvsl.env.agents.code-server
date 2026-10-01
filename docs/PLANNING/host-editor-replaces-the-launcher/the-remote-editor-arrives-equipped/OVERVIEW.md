@@ -114,7 +114,7 @@ Three slices. The third has no code in it, and is written that way on purpose.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Draft |
+| 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Done — #74 |
 | 2 | `tasks/a-stack-declares-what-it-wants.md` | template | not yet written |
 | 3 | `tasks/what-the-list-does-not-guarantee.md` | template | not yet written |
 
