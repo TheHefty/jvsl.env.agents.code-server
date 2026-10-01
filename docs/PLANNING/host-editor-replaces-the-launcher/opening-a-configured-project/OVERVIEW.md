@@ -58,8 +58,8 @@ is a different kind of decision from a cpuset calculation.
 |---|---|---|---|
 | 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Accepted, shipped in v2.1.0 |
 | 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Accepted, shipped in v2.2.0 |
-| 3 | [`tasks/extension-activates-on-a-template-project.md`](tasks/extension-activates-on-a-template-project.md) | extension | Draft |
-| 4 | `tasks/generating-the-dev-container-configuration.md` | extension | not yet grilled |
+| 3 | [`tasks/extension-activates-on-a-template-project.md`](tasks/extension-activates-on-a-template-project.md) | extension | Accepted, shipped in v0.1.0 |
+| 4 | [`tasks/generating-the-dev-container-configuration.md`](tasks/generating-the-dev-container-configuration.md) | extension | Draft |
 
 Tasks 3 and 4 are the extension's half and their pull requests land in the other repository, but
 their design documents live here with the story they belong to — same reason the story itself does.
