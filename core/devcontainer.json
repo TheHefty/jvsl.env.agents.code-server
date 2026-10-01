@@ -1,5 +1,14 @@
 [
   {
-    "remoteUser": "abc"
+    "remoteUser": "abc",
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "file-icons.file-icons",
+          "alexkrechik.cucumberautocomplete",
+          "cweijan.vscode-database-client2"
+        ]
+      }
+    }
   }
 ]
