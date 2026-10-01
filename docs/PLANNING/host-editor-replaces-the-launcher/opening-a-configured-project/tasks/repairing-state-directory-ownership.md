@@ -131,7 +131,7 @@ discovered: the cost of this script being wrong is paid on data that no rebuild 
 
 ## Verification
 
-**Nothing is implemented yet; this is the design.** What was measured:
+What was measured while designing it:
 
 - The damage is real and was observed by hand: `/config/.vscode-server` and `/config/.gnupg` owned
   by `root` after a first connection made before the previous task existed.
@@ -144,10 +144,24 @@ discovered: the cost of this script being wrong is paid on data that no rebuild 
   `30-editor-defaults.sh` writes only when something is actually missing. Both patterns are copied
   rather than invented.
 
+What was run while implementing it:
+
+- `core/cont-init/10-state-ownership.test.sh` **before** the hook existed → 6 failures, the last
+  of them `No such file or directory`. Red first.
+- The same test after writing the hook → **9 of 9**: a mismatched owner repaired once per
+  directory; the report naming the directory and the owner it had; the repair reaching files below
+  the directory; the owner passed by name and never as a number; a healthy tree untouched; a
+  healthy tree reported in silence; a directory never created passed over quietly; a failed repair
+  not aborting the boot; a failed repair saying so.
+- `bash -n` over every shell script and extensionless executable, and the workflow parsed as YAML:
+  18 jobs, `state-ownership` among them, nothing left out of `ci-green`.
+- `core/check-devcontainer-metadata.sh` still passes, so nothing here disturbed the previous task.
+
 **Not verifiable from the development environment**: `/config` inside the sandbox is synthesized,
 so the real volume's ownership cannot be inspected from here, and the image cannot be built here
 either — `/config` is a tmpfs holding the Docker root under a 6 GiB cap. The unit test runs
-anywhere; the restart assertion runs in the `core-booted` job.
+anywhere; the restart assertions run in the `core-booted` job and have never executed against a
+real container.
 
 ## Open questions
 
@@ -179,4 +193,47 @@ What the grilling changed, against what went in:
   stricter option and converts a permission problem into a container with no editor and no
   terminal to investigate from — against the convention the image already practises.
 
-The sections above are as written at the gate.
+The sections above are as written at the gate, except where the implementation note below says
+otherwise.
+
+### Implementation note, 2026-10-01
+
+The proposal said the harness "starts the container, restarts it, and asserts the repair happened
+on the first boot". A fresh container has nothing to repair, so there is no repair to observe: the
+test has to **create the damage** first — `mkdir` plus `chown -R root:root` inside the running
+container, as root — and only then restart. Obvious in hindsight and not in the design.
+
+That also forced a second change. Asserting "it said nothing this time" cannot be done against the
+whole log, because the previous boot's repair line is still in it. Each restart now records the
+moment it began and the assertions read only that boot's output.
+
+### What CI found that the design did not, 2026-10-01
+
+The booted assertions failed twice, both times in the harness rather than in the hook, and both
+times for a reason that only a real container exposes. They are written down because the second one
+changed how the harness works and the first changed what it is allowed to assert.
+
+1. **The base image announces every custom-init script by filename, on every boot** —
+   `[custom-init] 10-state-ownership.sh: executing...`. So "this boot's log does not mention the
+   hook" is a condition that can never hold, and the silence assertion failed on a boot where the
+   hook had printed nothing at all. What is matched now is what the hook *says* — that it repaired
+   something, or that it could not — never that it ran.
+2. **Boots cannot be told apart by a clock.** The harness filtered the log with
+   `docker logs --since` and a timestamp truncated to the second, which includes the tail of the
+   previous boot: the wait returned immediately and every assertion after it ran before the hook
+   had. Boots are counted now, and a count cannot be fooled by truncation.
+
+A third hazard was found while diagnosing the first and fixed with it: under `set -o pipefail`, a
+long producer piped into `grep -q` fails with 141, because grep exits on the first match and the
+producer dies of SIGPIPE — so the pipeline reports failure *because* the pattern was found.
+`docker logs` on a booted container is long enough. The previous task's init wait had the same
+shape and passed only because early-boot output is short.
+
+**The real correction is structural.** Each of those cost a full CI round trip because the harness
+could not be run anywhere else — the real image needs more memory than the development environment
+has. So `core/booted.test.fixture/` is a stand-in image carrying only the boot contract the harness
+depends on: the per-script announcements, the hooks running as root, the init-done marker, and
+staying up across a restart. The harness now runs against it in a second, locally and as the first
+step of the CI job, and it was observed both passing and failing there — failing with the hook left
+uninstalled, and failing with an unusable login shell. It proves nothing about the real image, and
+that was never its job.

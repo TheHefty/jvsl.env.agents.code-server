@@ -168,6 +168,18 @@ RUN mkdir -p /config/.claude /config/.codex \
 # widens something.
 RUN usermod -s /bin/bash abc
 
+# 5.0.1 LinuxServer custom-cont-init.d hook, giving the editor's and gpg's
+# state directories back to 'abc' when an earlier connection left them owned by
+# somebody else. Numbered below the others because nothing depends on it and it
+# depends on nothing — it repairs state, it does not create any.
+#
+# It exists because the fix above only *prevents*: /config is a named volume,
+# seeded from the image on its first mount alone, so a directory a root session
+# created there outlives every rebuild. The reasoning is at the top of the
+# script, with what it deliberately does not do.
+COPY core/cont-init/10-state-ownership.sh /custom-cont-init.d/10-state-ownership.sh
+RUN chmod +x /custom-cont-init.d/10-state-ownership.sh
+
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
 # group's gid with the host device's — only acts when `start` passed KVM_GID
 # (i.e. the host exposed /dev/kvm; see start/src/main.rs and

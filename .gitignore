@@ -1,3 +1,9 @@
-Dockerfile
+# Anchored to the root on purpose. Unanchored, `Dockerfile` matches a file of
+# that name at *any* depth, so adding one anywhere in the tree — a test fixture,
+# for instance — silently never gets committed. The generated Dockerfile this
+# line exists for is only ever at the root, written by `setup` from the
+# fragments; the fragments themselves are `Dockerfile.frag` and were never
+# matched.
+/Dockerfile
 start/target/
 start/gen/schemas/
