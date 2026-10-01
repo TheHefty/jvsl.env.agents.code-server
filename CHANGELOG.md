@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.3.0...v3.0.0) (2026-10-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* `start` and `dev` are gone. Opening a project is the host editor's job, through the jvsl.env.agents.vscode extension. Rust is no longer a host prerequisite.
+
+### Features
+
+* delete the launcher and everything that only served it ([d4f6199](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/d4f61999860d1ecd13b18fd097de8f071db9b3a6))
+
 ## [2.3.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.2.0...v2.3.0) (2026-10-01)
 
 
