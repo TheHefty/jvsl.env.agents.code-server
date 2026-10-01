@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Done, bar one `@manual` pass |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 | **Supersedes** | [`the-launcher-announces-its-retirement`](../the-launcher-announces-its-retirement/) |
@@ -126,4 +126,48 @@ during this story.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Three tasks, #80, #82 and #83. `start/` and `dev` are gone, the image stops carrying four libraries,
+and the launcher's 50.8 KiB manual became five documents about the container plus 11 KiB deleted.
+Template `v3.0.0`, and `4.0.0` for the rest — see below for why that is two majors instead of one.
+
+**What the story was for, and whether it worked.** The epic's sentence was "`start` is retired", and
+retiring it by announcing it would have been FR-51: a notice, a deprecation period, a `@manual`
+scenario nobody would run. It is gone instead, because there is one user and he asked for that. What
+the superseded story left behind was not wasted — the measured list of everything that existed only
+for the launcher came out of the documentation flip its task performed.
+
+**Thirteen things referenced the crate and the design predicted nine.** The four it missed were all
+silent: an `extra-files` entry in `release-please-config.json` that fails at release time, eleven
+dead `packages.sh` mappings asserted correct by a one-directional test, two `echo` labels in the
+pre-push hook announcing steps whose commands were already removed, and five documents making claims
+about the launcher that are now false. A broken build announces itself; none of those would have.
+
+**`scripts/no-launcher.test.sh` is the thing to keep from this story**, and what it taught is about
+scope rather than logic. It fired on what guards it three times — the comment explaining a removal,
+the test asserting one, and its own explanatory block — which is a check whose scope is wrong, not a
+file that needs excluding, so it grew a path filter instead of an exclusion list. It read `git
+ls-files` and therefore could not see the five documents the split created until they were staged,
+reporting green over a tree that did not contain them; CI caught both leftovers. It reads
+`--cached --others --exclude-standard` now. And a pattern on the *subject* rather than the path was
+tried and dropped: `Tauri` cannot tell "this needs" from "this used to need".
+
+**Two exclusions existed and both are gone**, each because a named task owned removing it rather
+than a list of paths accumulating. That is the part worth copying next time.
+
+**The Android stack predicted task 2 by name before it happened** — "trimming those -dev packages out
+of a runtime image, a perfectly reasonable cleanup, would therefore break the emulator with nothing
+recording why" — and then declared `libx11-6`, `libx11-xcb1` and `libxkbfile1` itself. Nothing broke
+because that line exists. A prediction written down and later confirmed is worth more than a fix
+with no record of what it prevented.
+
+**`v3.0.0` was cut by accident, by me, between tasks 1 and 2.** A `gh pr merge 81` meant for #82
+enabled auto-merge on the release pull request. Cutting a release is the user's call and this was not
+one; the consequence is that the library removal, which is breaking, becomes `4.0.0` rather than
+riding in `3.0.0` — two majors in a day for one story. `v3.0.0` therefore ships the launcher deleted
+while the image still carries its libraries and the manual still describes it. The decision taken
+afterwards was to let `4.0.0` happen, because it is the correct number.
+
+**One `@manual` scenario is owed**: with no launcher anywhere in the working copy, a project still
+opens in the host's editor and the container comes up as before. It is the only scenario here that a
+person has to run, and everything else in the feature file is an assertion about absence that CI
+makes.
