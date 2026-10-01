@@ -48,12 +48,33 @@ if hook_repaired "$SILENT" /config/.vscode-server; then
     bad "a silent boot did not repair anything" "it claimed a repair that never happened"
 else ok "a silent boot did not repair anything"; fi
 
-if init_finished "$SILENT"; then ok "a finished init is recognised"
-else bad "a finished init is recognised" "$SILENT"; fi
+if [ "$(init_count "$SILENT")" -eq 1 ]; then ok "one finished boot counts as one"
+else bad "one finished boot counts as one" "got $(init_count "$SILENT")"; fi
 
-if init_finished "[migrations] started"; then
-    bad "an unfinished init is not mistaken for a finished one" "it would stop waiting too early"
-else ok "an unfinished init is not mistaken for a finished one"; fi
+if [ "$(init_count "[migrations] started")" -eq 0 ]; then ok "an unfinished boot counts as none"
+else bad "an unfinished boot counts as none" "it would stop waiting too early"; fi
+
+# The bug this replaced: boots were told apart with `docker logs --since` and a
+# timestamp truncated to the second, which includes the tail of the previous
+# boot — so the wait returned immediately and every assertion after it ran
+# before the hook had. A count of three boots is three whatever the clock says.
+THREE="$SILENT
+$SILENT
+$SILENT"
+if [ "$(init_count "$THREE")" -eq 3 ]; then ok "three finished boots count as three"
+else bad "three finished boots count as three" "got $(init_count "$THREE")"; fi
+
+if [ "$(hook_count "$SILENT")" -eq 0 ]; then ok "a silent boot adds nothing to the hook's count"
+else bad "a silent boot adds nothing to the hook's count" \
+        "the base image's [custom-init] announcement was counted as the hook acting"; fi
+
+if [ "$(hook_count "$NOISY")" -eq 1 ]; then ok "one repair counts as one"
+else bad "one repair counts as one" "got $(hook_count "$NOISY")"; fi
+
+if [ "$(hook_count "$NOISY
+$FAILED")" -eq 2 ]; then ok "a repair and a failed repair count as two"
+else bad "a repair and a failed repair count as two" "got $(hook_count "$NOISY
+$FAILED")"; fi
 
 # The landmine found while diagnosing: under pipefail, a long producer piped
 # into `grep -q` fails with 141 even when the pattern is there. The matchers

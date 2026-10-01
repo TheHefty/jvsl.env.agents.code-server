@@ -251,6 +251,15 @@ jobs:
       # the filename; it failed on a boot where the hook had printed nothing.
       - name: the log matchers say what they mean
         run: bash core/booted.matchers.test.sh
+      # The harness itself, against a stand-in image that emulates only the boot
+      # contract it depends on. It exists because the real image cannot be built
+      # everywhere, so without it every mistake in the harness costs a full round
+      # trip through this job — two did, and both were in the harness rather than
+      # in what it was testing.
+      - name: the harness works, against a stand-in
+        run: |
+          docker build -q -f core/booted.test.fixture/Dockerfile -t booted-fixture .
+          bash core/booted.test.sh booted-fixture
       - name: docker build core only
         run: |
           core/compose-dockerfile.sh > "$RUNNER_TEMP/core.Dockerfile"

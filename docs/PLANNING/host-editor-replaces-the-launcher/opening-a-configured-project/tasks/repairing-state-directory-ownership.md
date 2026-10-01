@@ -206,3 +206,34 @@ container, as root — and only then restart. Obvious in hindsight and not in th
 That also forced a second change. Asserting "it said nothing this time" cannot be done against the
 whole log, because the previous boot's repair line is still in it. Each restart now records the
 moment it began and the assertions read only that boot's output.
+
+### What CI found that the design did not, 2026-10-01
+
+The booted assertions failed twice, both times in the harness rather than in the hook, and both
+times for a reason that only a real container exposes. They are written down because the second one
+changed how the harness works and the first changed what it is allowed to assert.
+
+1. **The base image announces every custom-init script by filename, on every boot** —
+   `[custom-init] 10-state-ownership.sh: executing...`. So "this boot's log does not mention the
+   hook" is a condition that can never hold, and the silence assertion failed on a boot where the
+   hook had printed nothing at all. What is matched now is what the hook *says* — that it repaired
+   something, or that it could not — never that it ran.
+2. **Boots cannot be told apart by a clock.** The harness filtered the log with
+   `docker logs --since` and a timestamp truncated to the second, which includes the tail of the
+   previous boot: the wait returned immediately and every assertion after it ran before the hook
+   had. Boots are counted now, and a count cannot be fooled by truncation.
+
+A third hazard was found while diagnosing the first and fixed with it: under `set -o pipefail`, a
+long producer piped into `grep -q` fails with 141, because grep exits on the first match and the
+producer dies of SIGPIPE — so the pipeline reports failure *because* the pattern was found.
+`docker logs` on a booted container is long enough. The previous task's init wait had the same
+shape and passed only because early-boot output is short.
+
+**The real correction is structural.** Each of those cost a full CI round trip because the harness
+could not be run anywhere else — the real image needs more memory than the development environment
+has. So `core/booted.test.fixture/` is a stand-in image carrying only the boot contract the harness
+depends on: the per-script announcements, the hooks running as root, the init-done marker, and
+staying up across a restart. The harness now runs against it in a second, locally and as the first
+step of the CI job, and it was observed both passing and failing there — failing with the hook left
+uninstalled, and failing with an unusable login shell. It proves nothing about the real image, and
+that was never its job.

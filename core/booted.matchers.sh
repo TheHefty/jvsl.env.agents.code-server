@@ -35,7 +35,17 @@ hook_repaired() {
     printf '%s\n' "${1:-}" | grep -qF "state-ownership: repaired: ${2:-}"
 }
 
-# Did this boot's init finish?
-init_finished() {
-    printf '%s\n' "${1:-}" | grep -qE 'ls\.io-init.*done'
+# How many times init has finished in this log. Counting rather than filtering
+# by time, because `docker logs --since` takes a timestamp and a timestamp
+# truncated to the second includes the tail of the previous boot: the wait then
+# returns immediately, and the assertion after it runs before the hook has run.
+# That is the second way this harness was wrong, and it cost a CI round trip.
+# A count cannot be fooled by a clock.
+init_count() {
+    printf '%s\n' "${1:-}" | grep -cE 'ls\.io-init.*done' || true
+}
+
+# How many times the ownership hook has said it did something, or could not.
+hook_count() {
+    printf '%s\n' "${1:-}" | grep -cE 'state-ownership: (repaired:|could not repair)' || true
 }
