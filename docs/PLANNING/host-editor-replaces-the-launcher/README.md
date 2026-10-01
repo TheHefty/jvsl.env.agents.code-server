@@ -21,7 +21,7 @@ CI, which is the only one that builds images.
 
 | # | Story | Status |
 |---|---|---|
-| 1 | [`opening-a-configured-project`](opening-a-configured-project/) | Draft |
+| 1 | [`opening-a-configured-project`](opening-a-configured-project/) | **Done** — template `v2.1.0`, `v2.2.0`; extension `v0.1.0`, `v0.2.0`, `v0.2.1` |
 | 3 | host secrets stay on the host | not yet grilled |
 | 4 | the remote editor arrives equipped | not yet grilled |
 | 5 | the launcher announces its retirement | not yet grilled |
