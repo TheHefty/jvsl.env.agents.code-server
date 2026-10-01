@@ -71,9 +71,48 @@ JAIL_COMMON_ARGS=(
 # authenticated in this container, and a missing path handed to --map is an
 # error rather than a no-op. `gh` then says it is not logged in, which is the
 # truth and names its own cause.
+# Created rather than checked for. The guard this replaces existed because a
+# missing path handed to --map was *assumed* to be an error rather than a no-op,
+# and that assumption was never verified. An empty gh configuration directory is
+# indistinguishable in effect from an absent one — gh says it is not logged in
+# either way — so creating it removes the assumption instead of leaving it to be
+# discovered.
 GH_CONFIG_DIR="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}"
-if [ -d "$GH_CONFIG_DIR" ]; then
-    JAIL_COMMON_ARGS+=(--map "$GH_CONFIG_DIR")
+mkdir -p "$GH_CONFIG_DIR" 2>/dev/null || true
+[ -d "$GH_CONFIG_DIR" ] && JAIL_COMMON_ARGS+=(--map "$GH_CONFIG_DIR")
+
+# The two files in a project that something *outside* the sandbox executes.
+#
+# `.vscode/tasks.json` can declare `runOn: folderOpen`, which the editor runs
+# when the folder opens — on the host side of the boundary, with the person's
+# own privileges. `.devcontainer/devcontainer.json` can declare
+# `postCreateCommand`, which the container tooling runs at container creation:
+# earlier, with more reach, and in a file that is generated and gitignored, so
+# no diff review would ever show a line added to it.
+#
+# **Read-only, not denied.** The agent has to be able to read a launch
+# configuration written for it, and to inspect the generated configuration when
+# diagnosing. `--deny-path` would take that away.
+#
+# Verified in a real sandbox rather than reasoned: a read-only map over a
+# subpath of the workspace ai-jail already maps read-write wins, and the write
+# is refused with "Read-only file system". No agent could check that — ai-jail
+# masks bwrap inside its own sandbox and refuses to nest.
+#
+# **Created first, and that is the point.** `--map` needs its path to exist, so
+# mapping only what is already there would protect a project that has been
+# opened once and leave every new project open — which is when an agent has the
+# most room and the least review. An empty directory is invisible to git: it
+# does not appear in `git status`, cannot be committed, and shows in no diff.
+#
+# There is no escape flag, deliberately: the escape is the person, whose editor
+# runs on the host outside the sandbox with full write access.
+WORKSPACE_DIR="${WORKSPACE_DIR:-/config/workspace}"
+if [ -d "$WORKSPACE_DIR" ]; then
+    for sub in .vscode .devcontainer; do
+        mkdir -p "$WORKSPACE_DIR/$sub" 2>/dev/null || true
+        [ -d "$WORKSPACE_DIR/$sub" ] && JAIL_COMMON_ARGS+=(--map "$WORKSPACE_DIR/$sub")
+    done
 fi
 
 # RUSTUP_HOME is forwarded because ai-jail --clearenv's the sandbox and replants
