@@ -7,6 +7,61 @@ on:
     branches: [main]
 
 jobs:
+  # What scope is this change? A documentation-only pull request used to run the
+  # whole conveyor — a dozen `docker build`s for a Markdown file — which
+  # saturated the runner queue badly enough that a docs PR took the better part
+  # of twenty minutes to become mergeable and held up the code behind it.
+  #
+  # The decision lives in scripts/changed-scope.sh, with a test, because this is
+  # what decides whether an image is built at all. It fails safe towards
+  # building: anything it does not recognise as documentation makes the whole
+  # answer `full`, and so does an empty or undeterminable diff.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        name: documentation only, or everything
+        run: |
+          case "${{ github.event_name }}" in
+            pull_request) base='${{ github.event.pull_request.base.sha }}' ;;
+            push)         base='${{ github.event.before }}' ;;
+            *)            base='' ;;
+          esac
+          # No usable base: an event this does not know, or the all-zero sha a
+          # branch's first push carries. An undetermined scope is a reason to
+          # build, not a reason to skip.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "no usable base ref for event ${{ github.event_name }}: scope is full"
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! paths="$(git diff --name-only "$base" HEAD)"; then
+            echo "git diff against $base failed: scope is full"
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed paths:"
+          printf '%s\n' "$paths" | sed 's/^/  /'
+          scope="$(printf '%s\n' "$paths" | bash scripts/changed-scope.sh)"
+          echo "scope: $scope"
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+
+  # The two scripts the gate above and `ci-green` below are made of. Never
+  # gated: they are seconds, and they are what makes the gating trustworthy.
+  ci-scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the scope decision can be wrong in both directions
+        run: bash scripts/changed-scope.test.sh
+      - name: ci-green can still fail
+        run: bash scripts/ci-green.test.sh
+
   bash-syntax:
     runs-on: ubuntu-latest
     steps:
@@ -18,6 +73,8 @@ jobs:
             | xargs -0 -n1 bash -n
 
   cargo-check:
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs-only'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -249,6 +306,8 @@ jobs:
         run: node --test start/src/title_bar.test.mjs
 
   core-build:
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs-only'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -284,6 +343,8 @@ jobs:
     # deliberately; sharing the image between jobs would mean exporting a
     # multi-gigabyte tarball through the artifact store, which is not obviously
     # cheaper and is certainly less legible.
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs-only'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -311,6 +372,8 @@ jobs:
         run: bash core/booted.test.sh core-ci
 
   discover-stacks:
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs-only'
     runs-on: ubuntu-latest
     outputs:
       stacks: ${{ steps.list.outputs.stacks }}
@@ -321,7 +384,13 @@ jobs:
           echo "stacks=$(ls stacks | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
 
   stack-build:
-    needs: discover-stacks
+    # Gated explicitly rather than relying on its dependency being skipped.
+    # `discover-stacks` produces this job's matrix, and a skipped dependency
+    # leaving an empty `fromJSON` input is a shape I am not willing to guess at
+    # on the one check branch protection requires. Its own condition cannot be
+    # wrong about it.
+    needs: [changes, discover-stacks]
+    if: needs.changes.outputs.scope != 'docs-only'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -370,13 +439,19 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
+    needs: [changes, ci-scripts, bash-syntax, cargo-check, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
-      - name: fail unless every job above succeeded
-        run: |
-          results='${{ join(needs.*.result, ' ') }}'
-          echo "results: $results"
-          for r in $results; do
-            [ "$r" = "success" ] || exit 1
-          done
+      - uses: actions/checkout@v4
+      - name: fail unless every job above succeeded or was deliberately skipped
+        # `skipped` is green now, which is what lets a documentation-only change
+        # go without building images. That is the dangerous half of the change,
+        # so the decision is in a script with a test behind it rather than in
+        # six lines of YAML that cannot be seen failing — scripts/ci-green.sh
+        # and its ci-green.test.sh, run by the ci-scripts job above, which is in
+        # this needs list for that reason.
+        #
+        # `changes` is in the list too: if the job that decides the scope fails,
+        # every gated job reports `skipped` and this would otherwise call that
+        # green.
+        run: bash scripts/ci-green.sh ${{ join(needs.*.result, ' ') }}
