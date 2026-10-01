@@ -86,9 +86,13 @@ leaves the repository telling a new reader to use the thing the binary has just 
 |---|---|---|---|
 | 1 | `tasks/the-launcher-says-where-to-go.md` | template | not yet written |
 
-The task carries `start/`'s **first test**. CI runs `cargo check --release --locked` on that crate
-today and nothing else, so the job is part of the task rather than a follow-up — a test with no job
-behind it runs nowhere.
+**There is no new CI job, and the first draft of this story said there was.** It claimed the task
+would carry `start/`'s first test and the job to run it. Both halves are wrong: the crate has a
+`#[cfg(test)] mod tests` with three tests in it, and `.github/workflows/ci.yml` already runs
+`cargo test --release --locked` beside `cargo check`. The error came from reading a prose summary of
+what CI does instead of the workflow, and it mattered — it would have put a redundant job in the
+task and claimed novelty for a harness that already exists. The task adds tests to that module and
+nothing else.
 
 ## Out of scope
 
