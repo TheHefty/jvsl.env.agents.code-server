@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v3.0.0...v3.0.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* the split carried two launcher references, and the guard could not see them ([90ded7e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/90ded7e9430941feba78296a054339855a11eabc))
+
 ## [3.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.3.0...v3.0.0) (2026-10-01)
 
 
