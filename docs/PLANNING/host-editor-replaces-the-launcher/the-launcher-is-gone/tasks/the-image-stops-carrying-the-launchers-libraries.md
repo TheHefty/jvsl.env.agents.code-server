@@ -2,7 +2,7 @@
 status: Done
 story: host-editor-replaces-the-launcher/the-launcher-is-gone
 epic: host-editor-replaces-the-launcher
-pr: 81
+pr: 82
 depends-on: [nothing-builds-or-runs-the-launcher]
 ---
 
@@ -82,7 +82,7 @@ find the assertion already passing.
 
 ## Outcome
 
-Implemented in #81, with the Android finding above as the thing worth keeping from it. The guard's
+Implemented in #82, with the Android finding above as the thing worth keeping from it. The guard's
 pattern had to be scoped to `Dockerfile.frag` files after it flagged, in order: the comment
 explaining the removal, and then the test asserting it. **Three times in two tasks the guard fired on
 what guards it**, which is the shape of a check whose scope is wrong rather than a file that needs

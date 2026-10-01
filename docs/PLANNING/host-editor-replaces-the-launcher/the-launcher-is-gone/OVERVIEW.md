@@ -86,7 +86,7 @@ Two slices, split where the repository can be left working in between.
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/nothing-builds-or-runs-the-launcher.md`](tasks/nothing-builds-or-runs-the-launcher.md) | template | Done — #80 |
-| 2 | [`tasks/the-image-stops-carrying-the-launchers-libraries.md`](tasks/the-image-stops-carrying-the-launchers-libraries.md) | template | Done — #81 |
+| 2 | [`tasks/the-image-stops-carrying-the-launchers-libraries.md`](tasks/the-image-stops-carrying-the-launchers-libraries.md) | template | Done — #82 |
 | 3 | `tasks/the-containers-documentation-stops-being-the-launchers.md` | template | not yet written |
 
 **The first is atomic by necessity.** `init` builds the crate and `dev` runs it, so deleting the
