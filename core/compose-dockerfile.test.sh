@@ -88,11 +88,76 @@ check "the label is the last line of the composed Dockerfile" \
     "$(bash "$COMPOSE" | grep -v '^[[:space:]]*$' | tail -1 \
        | sed -E "s/^LABEL devcontainer\.metadata='.*'$/LABEL-LAST/")" "LABEL-LAST"
 
-# A stack that declares nothing contributes nothing: the story's own scenario.
-# `rust` has no devcontainer.json, and when it gains one this assertion should
-# be moved to a stack that still has none rather than deleted.
+# --- what each stack declares for the host editor.
+
 label_of() { bash "$COMPOSE" "$@" | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'$/\1/p"; }
+
+# Every real declaration has to be a one-entry array carrying extensions. A
+# file with the right name and the wrong shape composes into a label the client
+# cannot use, and the composer's array check does not look inside the entry.
+for f in "$HERE/devcontainer.json" "$HERE/../stacks"/*/devcontainer.json; do
+    [ -f "$f" ] || continue
+    name="${f#"$HERE/../"}"
+    check "$name is a one-entry array" \
+        "$(jq -r 'if type == "array" and length == 1 then "yes" else "no" end' "$f")" "yes"
+done
+
+for f in "$HERE/../stacks"/*/devcontainer.json; do
+    [ -f "$f" ] || continue
+    name="${f#"$HERE/../"}"
+    check "$name declares at least one extension" \
+        "$(jq -r '[.[].customizations.vscode.extensions[]?] | length > 0' "$f")" "true"
+done
+
+# Every stack must declare something, or the assertion above is vacuous for the
+# ones that do not exist. The count is the whole point: a stack added without a
+# declaration arrives at a bare editor and nothing else says so.
+stack_count="$(find "$HERE/../stacks" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+declared_count="$(find "$HERE/../stacks" -mindepth 2 -maxdepth 2 -name devcontainer.json | wc -l)"
+check "every stack declares something" "$declared_count" "$stack_count"
+
+# The one identifier the story's rule changes, and the reason the rule exists.
+# muhammad-sammy.csharp is a fork that exists on Open VSX because the
+# first-party extension is licensed for Microsoft's own build of the editor —
+# which is the build this epic committed to.
+dotnet_label="$(label_of dotnet)"
+check "the .NET stack declares the vendor's extension" \
+    "$({ printf '%s' "$dotnet_label" | grep -c -F 'ms-dotnettools.csharp' || true; })" "1"
+check "and not the fork the code-server list installs" \
+    "$({ printf '%s' "$dotnet_label" | grep -c -F 'muhammad-sammy.csharp' || true; })" "0"
+
+# Core's three cross unchanged, and the Gherkin one is not decoration: the
+# inherited rules name it as the reason the image ships it, because .feature
+# files are how acceptance criteria get written and reviewed here.
+core_label="$(label_of)"
+for id in file-icons.file-icons alexkrechik.cucumberautocomplete cweijan.vscode-database-client2; do
+    check "core declares $id" \
+        "$({ printf '%s' "$core_label" | grep -c -F "$id" || true; })" "1"
+done
+
+# --- the mechanism, against stacks this test makes itself.
+#
+# Pointed at a fixture tree through STACKS_DIR rather than at a real stack that
+# happens to declare nothing. Before this task `rust` was that stack and the
+# assertion was pinned to it with a comment saying to move it; after this task
+# no real stack declares nothing, so the pinned version would have quietly
+# stopped testing anything.
+fixture_stacks="$work/stacks"
+mkdir -p "$fixture_stacks/quiet" "$fixture_stacks/loud"
+for name in quiet loud; do
+    printf 'RUN true\n' > "$fixture_stacks/$name/Dockerfile.frag"
+    printf '["1.0"]\n' > "$fixture_stacks/$name/versions.json"
+done
+printf '%s\n' '[{"customizations":{"vscode":{"extensions":["fixture.loud"]}}}]' \
+    > "$fixture_stacks/loud/devcontainer.json"
+
+fixture_label() { STACKS_DIR="$fixture_stacks" bash "$COMPOSE" "$@" \
+    | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'$/\1/p"; }
+
 check "a stack that declares nothing changes the label not at all" \
-    "$(label_of rust)" "$(label_of)"
+    "$(fixture_label quiet)" "$(fixture_label)"
+check "a stack that declares one extension adds exactly it" \
+    "$(fixture_label loud | jq -c '[.[].customizations.vscode.extensions[]?]')" \
+    "$(fixture_label | jq -c '[.[].customizations.vscode.extensions[]?] + ["fixture.loud"]')"
 
 exit "$failures"

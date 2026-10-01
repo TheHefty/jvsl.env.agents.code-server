@@ -28,7 +28,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-STACKS_DIR="$ROOT_DIR/stacks"
+# Overridable for the same reason CORE_VERSIONS and CORE_DEVCONTAINER are: so
+# the test beside this file can drive the real script against stacks it makes
+# itself. It needs that for the one case the real tree no longer has — a
+# stack that declares no extensions — which used to be asserted against
+# whichever stack happened not to have a file yet.
+STACKS_DIR="${STACKS_DIR:-$ROOT_DIR/stacks}"
 CORE_FRAG="$SCRIPT_DIR/Dockerfile.frag"
 CORE_VERSIONS="${CORE_VERSIONS:-$SCRIPT_DIR/versions.json}"
 CORE_DEVCONTAINER="${CORE_DEVCONTAINER:-$SCRIPT_DIR/devcontainer.json}"

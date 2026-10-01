@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/the-remote-editor-arrives-equipped
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 77
 depends-on: [the-image-composes-one-label]
 ---
 
@@ -172,4 +172,44 @@ measurement says otherwise.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #77. Eleven files — `core/devcontainer.json` plus one per stack — and one line in the
+composer. The checker's test is at 16 assertions (was 13), the composer's at 19 (was 10). Seven were
+watched failing before the files existed.
+
+**What ships, read off the composed label rather than asserted:**
+
+```
+$ core/compose-dockerfile.sh $(ls stacks) | tail -1
+LABEL devcontainer.metadata='[... 13 extensions ...]'
+```
+
+`file-icons.file-icons`, `alexkrechik.cucumberautocomplete`, `cweijan.vscode-database-client2`,
+`redhat.java`, `fwcd.kotlin`, `llvm-vs-code-extensions.vscode-clangd`, **`ms-dotnettools.csharp`**,
+`golang.go`, `dbaeumer.vscode-eslint`, `bmewburn.vscode-intelephense-client`, `ms-python.python`,
+`shopify.ruby-lsp`, `rust-lang.rust-analyzer`.
+
+**An assertion from task 1 had to change, and that is worth more than the files.** It compared the
+stackless label against the literal `[{"remoteUser":"abc"}]`, which was the whole claim of the task
+that moved the label out of the fragment: the content was not allowed to change. This task changes
+it on purpose, so a literal would have had to be edited to whatever the new value happened to be —
+an assertion that agrees with the code by construction, which is no assertion.
+
+It now compares the stackless label against `core/devcontainer.json` itself. With no stacks
+selected the label *is* core's declaration, so it still fails if the composer drops anything, and it
+does not need editing the next time core declares something. A separate assertion keeps
+`remoteUser abc` named explicitly, because that is the part whose loss costs a root-owned `/config`.
+
+**A guard that was not in the design:** every stack must have a declaration, asserted by counting
+directories against files. Without it, "every stack's declaration is a valid array" is vacuously
+true for a stack that has none — and a stack added without one arrives at a bare editor with nothing
+saying so.
+
+**The two undecided identifiers ship as the image's.** Gherkin keeps
+`alexkrechik.cucumberautocomplete` and Kotlin keeps `fwcd.kotlin`, by the rule's fallback half,
+because deciding otherwise needs a registry lookup that is task 3's and a person's. Both are a
+one-line change in one file afterwards.
+
+**Not proven here, and the story says where:** that the editor installs any of them. These tests see
+the declaration. Whether the tooling unions `extensions` across the array's entries — the assumption
+task 1 named and did not verify — is still only visible to the `@manual` scenario, and it is now
+load-bearing for thirteen identifiers rather than for none.

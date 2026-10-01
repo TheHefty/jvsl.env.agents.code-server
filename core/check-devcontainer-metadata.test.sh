@@ -147,14 +147,61 @@ else
     fail=$((fail + 1))
 fi
 
-# The one assertion that says story 1 did not regress. `remoteUser` is how the
-# editor connects as `abc`; if the label moving changed its value, the first
-# connection to a stackless project lands as root and leaves root-owned state
-# directories behind — which is the failure image-declares-its-user and
-# 10-state-ownership.sh exist to have fixed once.
+# The assertion that says story 1 did not regress. `remoteUser` is how the
+# editor connects as `abc`; if the label lost it, the first connection to a
+# stackless project lands as root and leaves root-owned state directories
+# behind — the failure image-declares-its-user and 10-state-ownership.sh exist
+# to have fixed once.
+#
+# **It used to compare against the literal `[{"remoteUser":"abc"}]`**, which was
+# right while the label's content was not allowed to change: that was the whole
+# claim of the task that moved it out of the fragment. The task that gave core
+# its three editor extensions changed the content on purpose, so a literal here
+# would have had to be edited to whatever the new value happened to be — which
+# is an assertion that agrees with the code by construction.
+#
+# What it compares now is the stackless label against `core/devcontainer.json`
+# itself. With no stacks selected the label *is* core's declaration, so this
+# still fails if anything is dropped on the way through the composer, and it
+# does not need editing the next time core declares something.
 composed_value="$(bash "$COMPOSE" | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'[[:space:]]*$/\1/p")"
-check "a stackless project's label is byte-for-byte what it was before" \
-    "$composed_value" '[{"remoteUser":"abc"}]'
+check "a stackless project's label is exactly core's declaration" \
+    "$(printf '%s' "$composed_value" | jq -S -c .)" \
+    "$(jq -S -c . "$HERE/devcontainer.json")"
+check "and it still names remoteUser abc" \
+    "$(printf '%s' "$composed_value" | jq -r '[.[] | select(.remoteUser == "abc")] | length')" "1"
+
+# Thirteen contributors, one label. This is the story's second scenario at the
+# level this repository can see it: a later LABEL replaces an earlier one, so
+# nine stacks losing their extensions while the tenth keeps them is the failure
+# that fails nothing while it happens.
+#
+# What it does NOT prove is that the editor installs them — the array's entries
+# have to be merged by the tooling, which is the story's @manual scenario.
+all_stacks=()
+for dir in "$HERE/../stacks"/*/; do
+    [ -d "$dir" ] || continue
+    all_stacks+=("$(basename "$dir")")
+done
+
+all_value="$(bash "$COMPOSE" "${all_stacks[@]}" \
+    | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'[[:space:]]*$/\1/p")"
+declared="$(printf '%s' "$all_value" | jq -r '[.[].customizations.vscode.extensions[]?] | length')"
+
+expected=0
+for f in "$HERE/devcontainer.json" "$HERE/../stacks"/*/devcontainer.json; do
+    [ -f "$f" ] || continue
+    n="$(jq -r '[.[].customizations.vscode.extensions[]?] | length' "$f")"
+    expected=$((expected + n))
+done
+
+check "every declared extension survives composing all ${#all_stacks[@]} stacks" \
+    "$declared" "$expected"
+
+# And the thing three earlier tasks exist to have fixed once: remoteUser must
+# still be there with thirteen entries in the array, not only with one.
+check "remoteUser survives $expected contributors" \
+    "$(printf '%s' "$all_value" | jq -r '[.[] | select(.remoteUser == "abc")] | length')" "1"
 
 echo
 echo "check-devcontainer-metadata.test: $pass passed, $fail failed."
