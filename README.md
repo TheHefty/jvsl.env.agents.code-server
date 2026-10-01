@@ -27,13 +27,17 @@ reference consumer.
 ```
 
 Checks the host — Linux desktop or WSL, and on WSL that WSLg is actually running — names anything
-missing and offers to install it, builds the image, builds the launcher, and leaves you a `dev`:
+missing and offers to install it, and builds the image.
 
-```bash
-.code-server/dev
-```
+Then open the project in **your own editor, on the host**, with the
+[`jvsl.env.agents.vscode`](https://github.com/TheHefty/jvsl.env.agents.vscode) extension installed:
+it brings this project's container up with the same limits and devices the bundled launcher used,
+and attaches the editor to it. The editor runs on the host and the work runs in the container, which
+is the point — sharing one CPU set between the editor and a build is what froze the old
+arrangement.
 
-which rebuilds the launcher when its source has changed and opens the environment.
+The bundled launcher still works and is **deprecated**; it is removed in `3.0.0`. See
+[Deprecated: the bundled launcher](#deprecated-the-bundled-launcher).
 
 `cargo` is the one thing `init` will not install: a packaged Rust is usually too old for the Tauri
 crates and says so only as a compile error inside a dependency, so it points you at `rustup`
@@ -52,7 +56,8 @@ in CI, where they cannot be skipped.
 ### The same thing by hand
 
 Prerequisites on the host: `jq`, `whiptail`, `docker` (for `setup`); Rust/`cargo` + the Tauri Linux
-libs (for `start` — see [`docs/overview/start.md`](docs/overview/start.md) for the exact packages per distro).
+libs if you are building the deprecated launcher (see
+[`docs/overview/start.md`](docs/overview/start.md) for the exact packages per distro).
 
 1. **Build the image** — interactive stack selection, generates `.code-server/Dockerfile`, and
    builds it:
@@ -61,20 +66,35 @@ libs (for `start` — see [`docs/overview/start.md`](docs/overview/start.md) for
    ```
    Rerun any time you want to add or remove a stack.
 
-2. **Build the launcher app** (only needed once, or again after editing `start/src/main.rs`):
-   ```bash
-   cd .code-server/start && cargo build --release
-   ```
+2. **Open the folder in your editor on the host**, with the extension installed. It generates a
+   gitignored `.devcontainer/devcontainer.json` from this project's manifest and this machine's
+   hardware, and hands the container's lifecycle to the Dev Containers extension.
 
-3. **Bring up the environment**:
-   ```bash
-   .code-server/start/target/release/start
-   ```
-   Opens a native window pointed at code-server, creating the container on first run and just
-   starting it on subsequent ones. No configuration is needed as long as it stays inside the repo
-   structure it was built in. `docker` inside the container is a nested rootless daemon rather than
-   the host's socket, so it needs `/dev/fuse` and `/dev/net/tun`; `start` passes both through when
-   the host has them, and without `/dev/fuse` the daemon stays down instead of crash-looping.
+   `docker` inside the container is a nested rootless daemon rather than the host's socket, so it
+   needs `/dev/fuse` and `/dev/net/tun`; they are passed through when the host has them, and without
+   `/dev/fuse` the daemon stays down instead of crash-looping.
+
+### Deprecated: the bundled launcher
+
+`start` — a Tauri window pointed at code-server running **inside** the container — was how this
+template was used until the editor moved to the host. **It still works, unchanged, and it is removed
+in `3.0.0`.** It says so on every run.
+
+```bash
+.code-server/dev
+```
+
+rebuilds it when its source has changed and runs it; by hand that is
+`cd .code-server/start && cargo build --release` followed by
+`.code-server/start/target/release/start`.
+
+Why it is going: the editor and the project's builds shared one `--cpuset-cpus`, and a build that
+saturated it froze the editor along with everything else. Moving the editor to the host is the fix,
+and it cannot be done from inside the container.
+
+`init` still builds the launcher, and `dev` still runs it. Taking that out is `3.0.0`'s job — doing
+it now would break the deprecated path for everyone still on it, which is the one thing a
+deprecation is not allowed to do.
 
 ## Available stacks
 

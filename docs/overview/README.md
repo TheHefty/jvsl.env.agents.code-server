@@ -24,10 +24,15 @@ made it long would have thrown away the part worth keeping.
 | [`setup.md`](setup.md) | Selecting stacks, the manifest and why it lives outside the submodule, composing the Dockerfile, building the image. |
 | [`pre-push-hook.md`](pre-push-hook.md) | The gate before a push, what it deliberately leaves to CI, and why it is not branch protection. |
 | [`init-and-dev.md`](init-and-dev.md) | The host-side helpers, and the rule that a failure has to name its own cause. |
-| [`start.md`](start.md) | The launcher, and everything the running container grants: the permissiveness audit, the sandbox map, `ai-memory`, the Android AVD, the Tauri build prerequisites per distro. |
+| [`start.md`](start.md) | **Deprecated, removed in `3.0.0`.** The launcher, and everything the running container grants: the permissiveness audit, the sandbox map, `ai-memory`, the Android AVD, the Tauri build prerequisites per distro. Only the launcher itself is going — the editor moved to the host because it and the project's builds shared one `--cpuset-cpus`, and a build that saturated it froze the editor with it. The rest of the document describes the container, which is not going anywhere. |
 | [`process-documents.md`](process-documents.md) | How `docs/agent/` is delivered, what is imported versus linked, the languages, the charter/SRS/story/task chain, and migrating a project that already exists. |
 | [`versioning-and-releases.md`](versioning-and-releases.md) | release-please, the tag discipline, and what a consuming repo has to do after a bump. |
 
-`start.md` is 43 KiB and is the next one to divide. It is not a byte problem to solve with scissors:
-it carries four distinct subjects under a single `## Implementation`, and separating them means
-giving them real headings first, which is an edit to the document rather than a move of it.
+`start.md` is **50.8 KiB and 400 bytes from the ceiling**, so dividing it is no longer the next job
+on a list — it is the next edit to that file, whatever the edit was meant to be. Adding a four-line
+deprecation banner to it took two attempts: the first one put it over the limit and CI said so.
+
+It is still not a byte problem to solve with scissors. It carries four distinct subjects under a
+single `## Implementation`, and separating them means giving them real headings first, which is an
+edit to the document rather than a move of it — which is exactly why it keeps not happening, and why
+the next person to touch that file will be doing this instead of what they came for.

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::env;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant};
 
@@ -361,6 +362,180 @@ fn wait_for_code_server(url: &str, timeout: Duration) -> bool {
     false
 }
 
+/// The version that removes this launcher. FR-52 schedules the removal there;
+/// a deprecation notice that does not name a version is not a schedule.
+const REMOVED_IN: &str = "3.0.0";
+
+/// Where to go instead. Named here and nowhere else in this crate — a
+/// migration path written down twice drifts.
+const EXTENSION_URL: &str = "https://github.com/TheHefty/jvsl.env.agents.vscode";
+
+/// The property the extension writes into every configuration it generates,
+/// and the only thing that makes such a file ours. `isOurs()` in that
+/// repository's `src/devcontainer.ts` reads the same key.
+const GENERATED_BY: &str = "x-jvsl-generated";
+
+/// Recorded under the user's state directory once the dialog has been shown.
+const DIALOG_MARKER: &str = "deprecation-shown";
+
+/// What to say, and which of the two cases the project is in.
+struct Notice {
+    lines: Vec<String>,
+    migrated: bool,
+}
+
+/// Whether this project already has a configuration **this toolchain
+/// generated**.
+///
+/// A file that cannot be read, cannot be parsed, is not an object, or carries
+/// no `x-jvsl-generated` is treated as absent. Never as migrated: telling
+/// somebody their project is already set up because a file with the right name
+/// exists sends them after an editor command that will do nothing.
+///
+/// That includes a `devcontainer.json` with comments in it, which the
+/// specification allows and `serde_json` refuses. Such a file is somebody
+/// else's work by definition — the generated one is written by
+/// `JSON.stringify` — so landing in the not-migrated branch is the right
+/// answer rather than a limitation.
+fn configuration_is_ours(workspace: &Path) -> bool {
+    let path = workspace.join(".devcontainer").join("devcontainer.json");
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return false;
+    };
+    match serde_json::from_str::<serde_json::Value>(&raw) {
+        Ok(serde_json::Value::Object(map)) => map.contains_key(GENERATED_BY),
+        _ => false,
+    }
+}
+
+/// The notice, for this project, in the case this project is actually in.
+///
+/// Both branches name the removal version, because that is the part a reader
+/// needs in order to decide when to act.
+fn deprecation_notice(workspace: &Path) -> Notice {
+    if configuration_is_ours(workspace) {
+        return Notice {
+            migrated: true,
+            lines: vec![
+                format!("deprecated — it is removed in {REMOVED_IN}."),
+                "This project is already configured for the host's editor.".to_string(),
+                "Open the folder there and run: Dev Container: Open Project.".to_string(),
+            ],
+        };
+    }
+
+    Notice {
+        migrated: false,
+        lines: vec![
+            format!("deprecated — it is removed in {REMOVED_IN}."),
+            "The editor now runs on the host and the project runs in the container.".to_string(),
+            format!("Install the extension from {EXTENSION_URL}, then open this folder."),
+        ],
+    }
+}
+
+/// Every run, to standard error, before anything else happens.
+///
+/// This is what FR-51 asks for literally and it is the only channel that costs
+/// nothing. It is also the one a desktop entry or a file-manager double-click
+/// throws away, which is the entire reason the dialog below exists.
+fn print_notice(notice: &Notice) {
+    for line in &notice.lines {
+        eprintln!("start: {line}");
+    }
+}
+
+/// The first run on a machine, and then not again.
+///
+/// **`rfd` on its GTK backend, not `tauri-plugin-dialog`.** The design chose
+/// the plugin; the measurement reversed it. Adding the plugin moved 55 packages
+/// in `Cargo.lock`, `wry` 0.55 → 0.57 and `tao` with it, and pulled in a D-Bus
+/// and XDG-portal stack — a webview bump as a side effect of adding a message
+/// box. `rfd` with `default-features = false, features = ["gtk3"]` adds exactly
+/// one package and moves no version, because the GTK bindings it needs are
+/// already in the tree via `tao`. The design's objection to it — "a second GUI
+/// toolkit binding" — was simply wrong: there is no second binding.
+///
+/// `rfd`'s synchronous dialog is the one meant to be called from the main
+/// thread, which is where `setup` runs. Whether that holds in practice is the
+/// `@manual` scenario; if it ever hangs, the symptom is no dialog, no window
+/// and no container, and the fallback is the asynchronous API with the boot
+/// continued from its callback.
+fn show_deprecation_dialog(notice: &Notice) {
+    // A project still to migrate has something to do; one already configured
+    // only has to open the folder somewhere else. The level is the one piece of
+    // the dialog that says which, without a second text to keep in step.
+    let level = if notice.migrated {
+        rfd::MessageLevel::Info
+    } else {
+        rfd::MessageLevel::Warning
+    };
+
+    let _ = rfd::MessageDialog::new()
+        .set_level(level)
+        .set_title("This launcher is deprecated")
+        .set_description(notice.lines.join("\n\n"))
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+}
+
+/// `$XDG_STATE_HOME/jvsl-start`, or `$HOME/.local/state/jvsl-start`.
+///
+/// `None` when neither variable says anything, which the caller treats as "the
+/// dialog is due" rather than as "already shown".
+fn dialog_state_dir() -> Option<PathBuf> {
+    let base = env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty())
+        .or_else(|| {
+            env::var_os("HOME")
+                .map(PathBuf::from)
+                .filter(|p| !p.as_os_str().is_empty())
+                .map(|home| home.join(".local").join("state"))
+        })?;
+    Some(base.join("jvsl-start"))
+}
+
+/// Whether the first-run dialog is still owed to this person.
+///
+/// **Fails open on purpose.** No state directory, an unreadable one, a marker
+/// that cannot be stat'd: the dialog is due. A read-only or absent `$HOME` must
+/// not silently turn the announcement off, and the whole reason the dialog
+/// exists is the launch where stderr goes nowhere. Being wrong in this
+/// direction costs one extra dialog; being wrong in the other costs the
+/// mechanism.
+fn dialog_is_due(state_dir: Option<&Path>) -> bool {
+    match state_dir {
+        None => true,
+        Some(dir) => !dir.join(DIALOG_MARKER).is_file(),
+    }
+}
+
+/// Records that the dialog has been shown, and says so when it cannot.
+///
+/// A failure here is not fatal — the next run shows the dialog again, which is
+/// the harmless direction — but it is never silent, because "the dialog keeps
+/// coming back" is otherwise indistinguishable from a bug in the check.
+fn mark_dialog_shown(state_dir: Option<&Path>) {
+    let Some(dir) = state_dir else {
+        eprintln!(
+            "start: neither XDG_STATE_HOME nor HOME is set, so the deprecation dialog \
+             cannot be recorded as shown — it will appear again next run."
+        );
+        return;
+    };
+    let marker = dir.join(DIALOG_MARKER);
+    let wrote = std::fs::create_dir_all(dir)
+        .and_then(|()| std::fs::write(&marker, format!("removed in {REMOVED_IN}\n")));
+    if let Err(err) = wrote {
+        eprintln!(
+            "start: could not write {} ({err}) — the deprecation dialog will appear again \
+             next run.",
+            marker.display()
+        );
+    }
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
@@ -394,6 +569,15 @@ fn main() {
              (couldn't derive it from the binary's own location)",
         );
 
+    // **Before anything else, and before Docker.** The notice is computed and
+    // printed here, where the workspace path is already resolved and
+    // `tauri::Builder` has not been touched. Nobody waits for a container in
+    // order to learn that the thing starting it is deprecated. FR-51.
+    let notice = deprecation_notice(Path::new(&workspace));
+    print_notice(&notice);
+    let dialog_state = dialog_state_dir();
+    let dialog_due = dialog_is_due(dialog_state.as_deref());
+
     // Same naming convention the `setup` script uses for the image
     // (repo basename + "-dev"), so both don't need to be configured
     // separately with the same value.
@@ -414,6 +598,15 @@ fn main() {
 
     tauri::Builder::default()
         .setup(move |app| {
+            // The dialog needs GTK initialized, which it is by the time `setup`
+            // runs, and it has to come before the first call into Docker —
+            // which is the next line. Recording it is a separate step so that a
+            // failure to record shows the dialog again rather than losing it.
+            if dialog_due {
+                show_deprecation_dialog(&notice);
+                mark_dialog_shown(dialog_state.as_deref());
+            }
+
             ensure_container_running(&container_name, &image_name, &volume_name, &workspace);
 
             let code_server_url = match &code_server_url_override {
@@ -486,5 +679,169 @@ mod tests {
         assert_eq!(cpuset_range_for(Some(1)), "0-0");
         assert_eq!(cpuset_range_for(Some(0)), cpuset_range());
         assert_eq!(cpuset_range_for(None), cpuset_range());
+    }
+
+    /// A directory of this test's own, under the system temporary directory and
+    /// named for the process and the caller. Never a path that happens to
+    /// exist on the machine running the suite, which is how a test in this
+    /// project once passed locally and failed in CI.
+    fn scratch(tag: &str) -> PathBuf {
+        let dir = env::temp_dir().join(format!("start-test-{}-{tag}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("could not create the test's own directory");
+        dir
+    }
+
+    fn write_configuration(workspace: &Path, body: &str) {
+        let dir = workspace.join(".devcontainer");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("devcontainer.json"), body).unwrap();
+    }
+
+    /// Nothing generated: the notice has to be actionable for somebody who has
+    /// never heard of the extension, so it names it and where to get it.
+    #[test]
+    fn with_nothing_generated_the_notice_names_the_extension() {
+        let workspace = scratch("no-configuration");
+        let notice = deprecation_notice(&workspace);
+        assert!(!notice.migrated);
+        assert!(notice.lines.iter().any(|l| l.contains(EXTENSION_URL)));
+    }
+
+    /// Already ours: the extension is installed and configured, so repeating
+    /// the install instructions is the half of the advice this reader cannot
+    /// use. They get the command instead.
+    #[test]
+    fn with_our_configuration_the_notice_names_the_command() {
+        let workspace = scratch("ours");
+        write_configuration(
+            &workspace,
+            r#"{"image":"myrepo-dev","x-jvsl-generated":{"extension":"0.3.0"}}"#,
+        );
+        let notice = deprecation_notice(&workspace);
+        assert!(notice.migrated);
+        assert!(notice
+            .lines
+            .iter()
+            .any(|l| l.contains("Dev Container: Open Project")));
+        assert!(!notice.lines.iter().any(|l| l.contains(EXTENSION_URL)));
+    }
+
+    /// A hand-written dev container configuration is a real thing to find in a
+    /// project, and it is not a migration. Claiming it is would send somebody
+    /// after a command that does nothing, with nothing to tell them why.
+    #[test]
+    fn somebody_elses_configuration_is_not_a_migration() {
+        let workspace = scratch("foreign");
+        write_configuration(&workspace, r#"{"image":"ubuntu","remoteUser":"vscode"}"#);
+        assert!(!deprecation_notice(&workspace).migrated);
+    }
+
+    /// Truncated, or with comments in it, which the specification allows and
+    /// the parser refuses. Unparseable is treated as absent, never as migrated.
+    #[test]
+    fn an_unparseable_configuration_is_not_a_migration() {
+        for body in [
+            r#"{"x-jvsl-generated":"#,
+            "// ours, honestly\n{\"x-jvsl-generated\":{}}",
+            "",
+            "[]",
+            r#""x-jvsl-generated""#,
+        ] {
+            let workspace = scratch("unparseable");
+            write_configuration(&workspace, body);
+            assert!(
+                !deprecation_notice(&workspace).migrated,
+                "accepted as ours: {body:?}"
+            );
+        }
+    }
+
+    /// The version is the part a reader needs in order to decide when to act,
+    /// so it is in both branches rather than only the one somebody tested.
+    #[test]
+    fn both_notices_name_the_version_that_removes_it() {
+        let migrated = scratch("version-migrated");
+        write_configuration(&migrated, r#"{"x-jvsl-generated":{}}"#);
+        let plain = scratch("version-plain");
+
+        for workspace in [&migrated, &plain] {
+            let notice = deprecation_notice(workspace);
+            assert!(
+                notice.lines.iter().any(|l| l.contains(REMOVED_IN)),
+                "{:?}",
+                notice.lines
+            );
+        }
+    }
+
+    /// Fail open: with nowhere to record it, the dialog is owed. The opposite
+    /// answer turns the announcement off for everybody whose environment is
+    /// unusual, and nothing distinguishes that from working.
+    #[test]
+    fn with_no_state_directory_the_dialog_is_due() {
+        assert!(dialog_is_due(None));
+        let absent = env::temp_dir().join(format!("start-test-{}-absent", std::process::id()));
+        let _ = std::fs::remove_dir_all(&absent);
+        assert!(dialog_is_due(Some(&absent)));
+    }
+
+    /// The real writer, not a hand-placed file: what records the marker and
+    /// what reads it have to agree on the name, and a test that writes the file
+    /// itself would pass while they disagreed.
+    #[test]
+    fn once_recorded_the_dialog_is_not_due_again() {
+        let dir = scratch("recorded");
+        assert!(dialog_is_due(Some(&dir)));
+        mark_dialog_shown(Some(&dir));
+        assert!(!dialog_is_due(Some(&dir)));
+    }
+
+    /// An unreadable state directory must not read as "already shown". Skipped
+    /// rather than failed when the suite runs as root, because root ignores the
+    /// permission bits this asserts on — and it says which it did, because a
+    /// test that quietly does nothing is worse than one that is absent.
+    #[test]
+    fn an_unreadable_state_directory_leaves_the_dialog_due() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = scratch("unreadable");
+        mark_dialog_shown(Some(&dir));
+        assert!(!dialog_is_due(Some(&dir)), "the marker was not written");
+
+        if unsafe { libc_geteuid() } == 0 {
+            eprintln!(
+                "skipped: running as root, which ignores the permission bits this asserts on"
+            );
+            return;
+        }
+
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o000)).unwrap();
+        let due = dialog_is_due(Some(&dir));
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(due, "an unreadable directory read as already-shown");
+    }
+
+    /// `geteuid` without pulling in the `libc` crate for one call. The crate
+    /// has three dependencies and this is not worth being the fourth.
+    unsafe fn libc_geteuid() -> u32 {
+        extern "C" {
+            fn geteuid() -> u32;
+        }
+        geteuid()
+    }
+
+    /// A write that cannot happen says so and leaves the dialog due. The next
+    /// run showing it again is the harmless direction; being silent about it is
+    /// what makes "the dialog keeps coming back" look like a bug in the check.
+    #[test]
+    fn a_marker_that_cannot_be_written_leaves_the_dialog_due() {
+        let dir = scratch("unwritable");
+        let blocked = dir.join("file-not-a-directory");
+        std::fs::write(&blocked, "").unwrap();
+
+        let target = blocked.join("jvsl-start");
+        mark_dialog_shown(Some(&target));
+        assert!(dialog_is_due(Some(&target)));
     }
 }

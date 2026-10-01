@@ -1,5 +1,10 @@
 # `start`
 
+> **Deprecated, removed in `3.0.0`**, in favour of the host-side editor —
+> [`jvsl.env.agents.vscode`](https://github.com/TheHefty/jvsl.env.agents.vscode). Everything below
+> still ships and still works, and is kept because the replacement inherited its decisions. The
+> index row in [`README.md`](README.md) says why it is going.
+
 - **Tauri** app, with only the source code versioned in the repo (no pre-built binaries) — whoever
   uses it builds locally with `cargo tauri build`. Reason: a lighter repo that's easier to run on
   another machine, since usage is personal.
