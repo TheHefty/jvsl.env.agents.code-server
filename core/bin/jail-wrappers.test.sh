@@ -95,15 +95,38 @@ check "the marker short-circuits to the real CLI" \
         bash "$HERE/codex.sh" 2>/dev/null | count -- '--network')" "0"
 
 # Failure 3 — a credential written as NAME=VALUE. `--env NAME` copies the value
-# across without it ever entering this process's argv; the pair form puts the
-# secret in `ps` for every user on the box. Both wrappers mix the two forms
-# deliberately, and this is the line between them.
-for pair in "claude:GH_TOKEN" "codex:GH_TOKEN" "codex:OPENAI_API_KEY"; do
+# across without it entering *this* process's argv; the pair form puts the
+# secret in `ps` directly. The distinction is still worth keeping and is no
+# longer sufficient on its own — ai-jail re-expands `--env NAME` into
+# `--setenv NAME <value>` on the bwrap command line, so the value lands in argv
+# one process later. See
+# docs/DEBTS/forwarded-secrets-land-in-the-sandbox-argv/OVERVIEW.md.
+#
+# OPENAI_API_KEY is still forwarded, knowingly, and is the exception that debt
+# tracks: Codex has never been authenticated in the environment this was found
+# in, so the file-based path that replaced GH_TOKEN could not be verified for it,
+# and an unverified change to how a second agent authenticates is not something
+# this repository ships.
+for pair in "codex:OPENAI_API_KEY"; do
     agent="${pair%%:*}"; var="${pair##*:}"
     check "$agent forwards $var by name and never by value" \
         "$(argv "$agent" "$var=sekrit" | count "^$var=")" "0"
     check "and it is in the argv at all" \
         "$(argv "$agent" "$var=sekrit" | count "^$var$")" "1"
+done
+
+# GH_TOKEN is not forwarded at all any more, in either form. The sandbox is
+# given gh's configuration directory instead and gh reads its own credentials
+# from it — nothing secret crosses as an argument.
+for agent in claude codex; do
+    check "$agent does not forward GH_TOKEN by name" \
+        "$(argv "$agent" GH_TOKEN=sekrit | count '^GH_TOKEN$')" "0"
+    check "$agent does not forward GH_TOKEN by value either" \
+        "$(argv "$agent" GH_TOKEN=sekrit | count '^GH_TOKEN=')" "0"
+    check "$agent is given gh's configuration read-only when it exists" \
+        "$(argv "$agent" GH_CONFIG_DIR=/config/workspace | count '^/config/workspace$')" "1"
+    check "and nothing is mapped when there is no gh configuration" \
+        "$(argv "$agent" GH_CONFIG_DIR=/nowhere/at/all | count '^/nowhere/at/all$')" "0"
 done
 
 # The sandbox flags that only exist because --clearenv drops them, kept from
