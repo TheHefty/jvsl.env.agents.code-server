@@ -145,6 +145,64 @@ check "the fallback is the path the image actually sets" \
     "$(argv claude -u RUSTUP_HOME | sed -n 's/^RUSTUP_HOME=//p')" \
     "$(sed -n 's/^ENV RUSTUP_HOME=\([^ \\]*\).*/\1/p' "$FRAG")"
 
+# The two files in a project that something outside the sandbox executes:
+# .vscode/tasks.json can declare runOn:folderOpen, which the editor runs on the
+# host side, and .devcontainer/devcontainer.json can declare postCreateCommand,
+# which the container tooling runs at creation — earlier and with more reach, in
+# a file that is generated and gitignored so no diff review would show a line
+# added to it.
+#
+# Read-only rather than denied: the agent has to be able to *read* a launch
+# config written for it, and to inspect the generated configuration when
+# diagnosing. Verified in a real sandbox that a read-only map over a subpath of
+# the read-write workspace wins — the write is refused with "Read-only file
+# system".
+ws="$work/ws"
+for agent in claude codex; do
+    rm -rf "$ws"; mkdir -p "$ws"
+    args="$(argv "$agent" "WORKSPACE_DIR=$ws")"
+
+    for sub in .vscode .devcontainer; do
+        check "$agent maps $sub read-only" \
+            "$(printf '%s\n' "$args" | count "^$ws/$sub\$")" "1"
+        check "and $sub is created when the project does not have one" \
+            "$([ -d "$ws/$sub" ] && echo yes || echo no)" "yes"
+    done
+
+    # --map needs its path to exist, so mapping only what is already there
+    # would protect a project opened once and leave every new project open.
+    # Creating them first closes that, and an empty directory is invisible to
+    # git: no status, no commit, no diff.
+    rm -rf "$ws"; mkdir -p "$ws/.vscode" "$ws/.devcontainer"
+    args="$(argv "$agent" "WORKSPACE_DIR=$ws")"
+    check "$agent maps them when they already exist too" \
+        "$(printf '%s\n' "$args" | count "^$ws/\.\(vscode\|devcontainer\)\$")" "2"
+
+    # The workspace itself must stay writable, and no other subpath may be
+    # locked by accident — a read-only map over something an agent must write
+    # stops work with a legible error on a path nobody meant to protect.
+    check "and locks nothing else in the workspace" \
+        "$(printf '%s\n' "$args" | count "^$ws\$")" "0"
+
+    # A workspace that is not there at all is not an error: the wrapper is also
+    # run outside a project, and `--map` on a missing path would be.
+    args="$(argv "$agent" "WORKSPACE_DIR=$work/absent")"
+    check "$agent maps nothing when there is no workspace" \
+        "$(printf '%s\n' "$args" | count "^$work/absent")" "0"
+done
+
+# The gh mapping stops being conditional. It was guarded by `[ -d ]` because a
+# missing path handed to --map was *assumed* to be an error — an assumption
+# never verified, and shipped. Creating the directory removes the assumption
+# rather than testing it.
+ghdir="$work/ghconf"
+rm -rf "$ghdir"
+args="$(argv claude "GH_CONFIG_DIR=$ghdir")"
+check "the gh configuration is mapped even when it did not exist" \
+    "$(printf '%s\n' "$args" | count "^$ghdir\$")" "1"
+check "and it was created" \
+    "$([ -d "$ghdir" ] && echo yes || echo no)" "yes"
+
 # A missing shared list must stop the wrapper, not shrink the sandbox. This is
 # the failure mode the `source` is deliberately left unguarded for: an empty
 # JAIL_COMMON_ARGS would start normally and run the agent with no --network, no
