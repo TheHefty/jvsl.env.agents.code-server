@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.3.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.2.0...v2.3.0) (2026-10-01)
+
+
+### Features
+
+* a stack declares the extension the host editor should install ([662ac42](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/662ac42861fdbdfc9c134ddcb2602a4c95650aac))
+* git in the container asks the container's own CLI for credentials ([b534210](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/b5342106c9bc1144e0f35bfe8e8f82c391251f8c))
+* the image composes one devcontainer.metadata label ([8800613](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/88006130eae4bb2c302dd320df8754efc659f872))
+* the label may not carry a Workspace Trust setting ([69b2cb4](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/69b2cb4b9fdab8bd8f6827126061de038c77001d))
+* the launcher says it is deprecated and where to go ([dafa55a](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/dafa55af4d41b8ca3f872a0d92b3c87b78be6b92))
+* the sandbox cannot write what runs outside it ([8b382a6](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/8b382a6b9f8076b95f9207837bd69dca73d3324c))
+
+
+### Bug Fixes
+
+* a documentation-only change stops building twelve images ([8fc0d27](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/8fc0d2714a7f0d68deb1efcbf37daefd72d77c8b))
+* hand GitHub credentials to the sandbox as a file, not as a variable ([3885441](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/38854417d72c7b51b5c57c93eeeab4a6d759dfa9))
+* setup keeps what it does not own in the project manifest ([bc7574b](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/bc7574bc6cd973fe2fe7ab7dc4c684037cbb2587))
+* stop claiming forwarded secrets stay out of the sandbox's argv ([b607d70](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/b607d70616a1c9db789a45e7356d06bd27bcaebc))
+* the wrapper test must not depend on the machine that wrote it ([55989b9](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/55989b97f871e9bc9c310b7d40be58c1583cd45b))
+
 ## [2.2.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.1.0...v2.2.0) (2026-10-01)
 
 
