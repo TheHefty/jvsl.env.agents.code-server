@@ -22,7 +22,7 @@ CI, which is the only one that builds images.
 | # | Story | Status |
 |---|---|---|
 | 1 | [`opening-a-configured-project`](opening-a-configured-project/) | **Done** — template `v2.1.0`, `v2.2.0`; extension `v0.1.0`, `v0.2.0`, `v0.2.1` |
-| 3 | [`host-secrets-stay-on-the-host`](host-secrets-stay-on-the-host/) | Draft |
+| 3 | [`host-secrets-stay-on-the-host`](host-secrets-stay-on-the-host/) | **Done** — template `v2.3.0`; extension `v0.3.0`. One `@manual` pass owed |
 | 4 | [`the-remote-editor-arrives-equipped`](the-remote-editor-arrives-equipped/) | Draft |
 | 5 | [`the-launcher-announces-its-retirement`](the-launcher-announces-its-retirement/) | Draft |
 

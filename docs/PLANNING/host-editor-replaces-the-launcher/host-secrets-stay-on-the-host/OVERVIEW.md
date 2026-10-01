@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Done, bar one `@manual` pass |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 
@@ -86,8 +86,8 @@ which already touches the same protections.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/the-container-authenticates-as-itself.md`](tasks/the-container-authenticates-as-itself.md) | template | Draft |
-| 2 | [`tasks/the-agent-cannot-write-what-runs-outside.md`](tasks/the-agent-cannot-write-what-runs-outside.md) | both | Draft |
+| 1 | [`tasks/the-container-authenticates-as-itself.md`](tasks/the-container-authenticates-as-itself.md) | template | Done — #65 |
+| 2 | [`tasks/the-agent-cannot-write-what-runs-outside.md`](tasks/the-agent-cannot-write-what-runs-outside.md) | both | Done — #68, extension #14 |
 
 **The `--map` check this section asks for has been run**, and the answer was a refusal naming its
 own cause — `Read-only file system`. So the second task was never blocked for long, and its design
@@ -109,4 +109,36 @@ records the output rather than the question.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Both tasks are implemented. What the story set out to do, it did — with one requirement narrowed
+before any code was written and one assertion moved to the other repository after it.
+
+| Scenario | How it is held |
+|---|---|
+| the agent cannot reach the gpg agent, the display, or an ssh agent | the sandbox's environment allowlist, `jail-env-allowlist.test.sh` |
+| a credential is never handed over as a variable | same, plus the debt that found it |
+| the agent cannot write the editor's or the container's configuration | `jail-wrappers.test.sh`, 38 assertions |
+| the container authenticates as itself | `15-git-credential-helper.sh` and its 11 assertions |
+| Workspace Trust is never disabled | three assertions across two repositories |
+
+**One `@manual` scenario is still owed** — *"A person can still write both"*: a person adds a launch
+configuration by hand in the host's editor and it is written. It is the escape this story
+deliberately did not build a mechanism for, so it is the one thing that proves the restriction did
+not also lock out the person it exempts. The other `@manual`, *"Workspace Trust is never
+disabled"*, is covered by the three static assertions; what a person would add is seeing the editor
+still ask.
+
+**The `--map` mechanism was confirmed by a person before the task was written**, not after — the
+refusal named its own cause (`Read-only file system`), and the task's design records the output
+instead of the question.
+
+**FR-31 narrowed and FR-37 exists because of this story.** The gpg-agent and X11 sockets are created
+by the editor's server after every boot hook, are not mounts, and have no setting to disable. Three
+mechanisms to prevent them were considered and rejected; the one worth repeating is that a
+`postAttachCommand` races the server that creates them and would work most of the time, which
+produces the belief of coverage. So the requirement became about the agent's reach — which is
+enforced — and the rest is a limitation written down rather than a promise nobody can keep.
+
+**`OPENAI_API_KEY` leaves this story unfinished and the debt owns it.** It still crosses into the
+sandbox as a variable, as a named exception that may only shrink. Retiring it needs somebody who
+actually uses Codex: `/config/.codex` is empty here, so the file-based path cannot be verified, and
+asserting it works would be exactly the kind of untested claim the debt was opened about.
