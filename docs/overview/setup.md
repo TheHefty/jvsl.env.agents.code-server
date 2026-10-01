@@ -3,7 +3,8 @@
 - **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
   the Claude Code CLI), Claude Code CLI (reached through `core/bin/claude.sh`, installed as
   `/usr/local/bin/claude` so the `claude` that PATH resolves is the sandboxed one — see "Why the
-  container is this permissive" in [`start.md`](start.md)), `ai-jail`, `ai-memory` (long-term memory across
+  container is this permissive" in [`container-permissions.md`](container-permissions.md)), `ai-jail`,
+  `ai-memory` (long-term memory across
   sessions and across agent CLIs, off unless the project opts in — same section), `jq` (required
   by `setup` to read and edit the manifest), Rust via `rustup`, `docker.io` + `docker-compose-v2`
   (`docker compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't
@@ -13,7 +14,7 @@
   `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` plus the `svc-dockerd-rootless` s6 service
   that turns them into a nested rootless daemon. `docker compose` here is for the monorepo's own
   services from inside the environment, talking to that nested daemon rather than to the host's
-  socket (see "Why the container is this permissive" in [`start.md`](start.md) for why the host
+  socket (see [`container-permissions.md`](container-permissions.md) for why the host
   socket was removed) — it doesn't change how the dev environment itself is brought up, which is
   the editor's dev container client on the host.
 - **Two agent CLIs, one sandbox, one list of flags.** Claude Code and the OpenAI Codex CLI are both
@@ -100,12 +101,14 @@
   makes xterm.js stand its selection layer down — so inside the CLI a plain drag highlights nothing
   and you have to hold Shift, which nothing anywhere tells you. Note the cost before inheriting it:
   every selection in every terminal now replaces the system clipboard. See "Selecting text inside
-  Claude Code" in [`start.md`](start.md) for the diagnosis, and for `CLAUDE_CODE_DISABLE_MOUSE`,
+  Claude Code" in [`the-agent-in-the-terminal.md`](the-agent-in-the-terminal.md) for the diagnosis,
+  and for `CLAUDE_CODE_DISABLE_MOUSE`,
   which is the other way to get the gesture back and is deliberately not set here.
 - **`window.menuBarVisibility: "classic"`** draws the menus as a row instead of the web build's
-  single hamburger. It is also load-bearing for `start`: the window's own buttons are injected into
-  that row, and with the menu bar hidden there is no `.part.titlebar` to inject into — so the
-  window would lose its close button. See [`start.md`](start.md).
+  single hamburger, which is how anything without a keybinding is reached. It used to be
+  load-bearing for a second reason — the bundled launcher injected its own window buttons into that
+  row, and hiding the row left the window with no close button. The launcher is gone and the setting
+  stays on the first reason alone.
 - **Core extensions** — `file-icons`, `alexkrechik.cucumberautocomplete` (feature files are how a
   project's acceptance criteria are written and reviewed, whatever language it is written in) and
   `cweijan.vscode-database-client2` (the services a dev environment brings up nearly always include

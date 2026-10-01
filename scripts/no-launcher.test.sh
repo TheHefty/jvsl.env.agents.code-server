@@ -53,20 +53,17 @@ fi
 # Each pattern is checked separately so a failure names which one, and the
 # planning documents are excluded: they are the record of the launcher having
 # existed and of it being removed, and erasing that is not the point.
-# Two exclusions, each owned by a later task of this story rather than left as
-# housekeeping. Removing them is part of that task's definition of done, which
-# is why they are named here and not in a `.gitignore`-shaped list of paths
-# somebody stops reading.
+# **No exclusions are left, and there were two.** Each was owned by a named task
+# of this story rather than left as housekeeping, and each went with its task:
+# `docs/overview/start.md` when that 50.8 KiB file was split into the five
+# documents the container's half became, and `core/Dockerfile.frag` when the
+# four Tauri libraries were removed from the image. Naming an owner is what made
+# them temporary; a list of paths is what would have made them permanent.
 #
-#   docs/overview/start.md  — 50.8 KiB, of which the launcher is the first
-#                             forty-three lines and the rest is the container:
-#                             the permissiveness audit, the sandbox map,
-#                             ai-memory, the Android AVD. Split, not deleted,
-#                             by `the-containers-documentation-stops-being-the-launchers`.
+# Two filters remain and are permanent. docs/PLANNING is the record of the
+# launcher having existed and of it being removed, and erasing that is not the
+# point. CHANGELOG.md only grows and is written by release-please.
 #
-# docs/PLANNING is excluded permanently: it is the record of the launcher having
-# existed and of it being removed, and erasing that is not the point. So is
-# CHANGELOG.md, which only grows and is written by release-please.
 # check_absent <description> <pattern> [path filter]
 #
 # The optional third argument narrows which tracked files the pattern applies
@@ -81,7 +78,6 @@ check_absent() {
         | { [ -n "$only" ] && grep -E "$only" || cat; } \
         | grep -v '^docs/PLANNING/' \
         | grep -v '^CHANGELOG.md:' \
-        | grep -v '^docs/overview/start.md:' \
         | grep -v '^docs/agent/' \
         | grep -v "^scripts/$(basename "${BASH_SOURCE[0]}"):" || true)"
     if [ -z "$hits" ]; then
