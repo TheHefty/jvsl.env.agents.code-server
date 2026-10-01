@@ -48,18 +48,21 @@ itself. The first manual pass settles it.
 
 ## Tasks
 
-Three slices, because they are three different kinds of design: a build-time fact that never
-changes again, a runtime hook that has to prove it does nothing the second time, and a computation
-on the host.
+Four slices, because they are four different kinds of design: a build-time fact that never changes
+again, a runtime hook that has to prove it does nothing the second time, a packaging contract, and
+a computation on the host. The fourth was split out of the third at its grilling — the generation
+had nowhere to live until an extension existed, and a manifest declaring where the extension runs
+is a different kind of decision from a cpuset calculation.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Accepted, shipped in v2.1.0 |
-| 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Draft |
-| 3 | `tasks/generating-the-dev-container-configuration.md` | extension | not yet grilled |
+| 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Accepted, shipped in v2.2.0 |
+| 3 | [`tasks/extension-activates-on-a-template-project.md`](tasks/extension-activates-on-a-template-project.md) | extension | Draft |
+| 4 | `tasks/generating-the-dev-container-configuration.md` | extension | not yet grilled |
 
-Task 3 is the extension's half and its pull requests land in the other repository, but its design
-document lives here with the story it belongs to — same reason the story itself does.
+Tasks 3 and 4 are the extension's half and their pull requests land in the other repository, but
+their design documents live here with the story they belong to — same reason the story itself does.
 
 ## Out of scope
 
