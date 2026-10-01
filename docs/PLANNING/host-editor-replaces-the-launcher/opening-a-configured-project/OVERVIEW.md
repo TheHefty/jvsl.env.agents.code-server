@@ -48,12 +48,18 @@ itself. The first manual pass settles it.
 
 ## Tasks
 
-Written after this gate, not before. The table is filled in the pull request that adds the first
-one.
+Three slices, because they are three different kinds of design: a build-time fact that never
+changes again, a runtime hook that has to prove it does nothing the second time, and a computation
+on the host.
 
-| Order | Task | Status |
-|---|---|---|
-| — | — | — |
+| Order | Task | Repo | Status |
+|---|---|---|---|
+| 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Draft |
+| 2 | `tasks/repairing-state-directory-ownership.md` | template | not yet grilled |
+| 3 | `tasks/generating-the-dev-container-configuration.md` | extension | not yet grilled |
+
+Task 3 is the extension's half and its pull requests land in the other repository, but its design
+document lives here with the story it belongs to — same reason the story itself does.
 
 ## Out of scope
 
