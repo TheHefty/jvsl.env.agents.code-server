@@ -79,11 +79,14 @@ task that implements FR-34 has to find another — which is the same shape of su
 
 ## Tasks
 
-Written after this gate, not before.
+Three slices. The first is unblocked and fully verifiable; the second waits on one check only a
+person can run; the third is an assertion in the other repository.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| — | — | — | — |
+| 1 | [`tasks/the-container-authenticates-as-itself.md`](tasks/the-container-authenticates-as-itself.md) | template | Draft |
+| 2 | `tasks/the-agent-cannot-write-what-runs-outside.md` | template | blocked on the `--map` check above |
+| 3 | `tasks/workspace-trust-is-never-disabled.md` | extension | not yet grilled |
 
 ## Out of scope
 
