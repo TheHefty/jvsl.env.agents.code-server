@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/the-launcher-is-gone
 epic: host-editor-replaces-the-launcher
-pr:
+pr: 80
 depends-on: []
 ---
 
@@ -132,4 +132,41 @@ launcher — was measured and became task 3.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #80. 36 files, 293 insertions, 6026 deletions.
+
+**The design said nine things referenced the crate. There were thirteen.** The four it missed are
+the ones worth recording, because every one of them was silent:
+
+| missed | what it would have done |
+|---|---|
+| `release-please-config.json` | an `extra-files` entry pointing at the launcher's `tauri.conf.json`. It fails **at release time**, on a path that no longer exists — the worst moment for a configuration error |
+| `packages.sh` + `packages.test.sh` | eleven dead mappings, asserted correct by a test that only checked `init ⊆ WANTED`. One direction was never enough |
+| `.githooks/pre-push` | two `echo` labels left announcing steps whose commands had been removed, so the hook reported work it was not doing |
+| `SECURITY.md`, `setup`, `core/booted.test.sh`, `docs/overview/setup.md`, `docs/agent/*/ARCHITECTURE.md` | claims about what the launcher does, now false, in prose nothing checks |
+
+**The guard found the path-shaped half and could not find the rest, which is now written into it.**
+A pattern on the subject — `Tauri` — was tried and dropped: it cannot tell "this needs Tauri" from
+"this used to need Tauri", flagging a real leftover in `setup.md` alongside three deliberate
+historical notes. Excluding those would have grown a list nobody reads. A README paragraph survived
+all five path patterns because it named no path at all — *"`cargo` is the one thing `init` will not
+install"* — and was found by reading.
+
+**Two of my own tests were wrong, and both in ways this project has been bitten by before.**
+
+The `no-launcher` guard asserted the launcher's paths were absent **from the filesystem**.
+`start/target/` was gitignored, so a working copy that had ever built it would fail while a fresh
+clone passed — "green in CI, red locally", for the third time. It asserts tracked state now.
+
+The new reverse direction in `packages.test.sh` compared `" $CHECKED "` against `*" $want "*` where
+`CHECKED` is newline-separated out of `sort -u`. It matched nothing and reported every entry as
+unreachable, including the three that are fine. Caught because the output was read rather than the
+exit code trusted.
+
+**Two exclusions are in the guard, each owned by a named task rather than left as housekeeping:**
+`docs/overview/start.md` (task 3 splits it) and `core/Dockerfile.frag` (task 2 removes the
+libraries). Removing each exclusion is part of that task's definition of done.
+
+**`rustup` survived, and three documents now say why** — `core/Dockerfile.frag`'s section 1.1,
+`core/bin/jail-common.sh`, and `docs/overview/setup.md`, each of which previously justified it by
+the launcher. It sits in the same fragment section as the libraries task 2 deletes, which is the
+whole reason it is written down three times.

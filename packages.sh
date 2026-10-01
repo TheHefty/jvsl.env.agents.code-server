@@ -20,36 +20,6 @@ packages_for() {
         pacman:whiptail) echo libnewt ;;
         apt:docker) echo docker.io ;;
         dnf:docker|pacman:docker) echo docker ;;
-        apt:curl|dnf:curl|pacman:curl) echo curl ;;
-        apt:wget|dnf:wget|pacman:wget) echo wget ;;
-        apt:file|dnf:file|pacman:file) echo file ;;
-        apt:pkg-config) echo pkg-config ;;
-        dnf:pkg-config) echo pkgconf-pkg-config ;;
-        pacman:pkg-config) echo pkgconf ;;
-        apt:cc) echo build-essential ;;
-        dnf:cc) echo gcc ;;
-        pacman:cc) echo base-devel ;;
-        apt:webkit2gtk-4.1) echo libwebkit2gtk-4.1-dev ;;
-        dnf:webkit2gtk-4.1) echo webkit2gtk4.1-devel ;;
-        pacman:webkit2gtk-4.1) echo webkit2gtk-4.1 ;;
-        apt:libxdo) echo libxdo-dev ;;
-        dnf:libxdo) echo libxdo-devel ;;
-        pacman:libxdo) echo xdotool ;;
-        apt:openssl) echo libssl-dev ;;
-        dnf:openssl) echo openssl-devel ;;
-        pacman:openssl) echo openssl ;;
-        apt:librsvg-2.0) echo librsvg2-dev ;;
-        dnf:librsvg-2.0) echo librsvg2-devel ;;
-        pacman:librsvg-2.0) echo librsvg ;;
-        apt:x11) echo libx11-dev ;;
-        dnf:x11) echo libX11-devel ;;
-        pacman:x11) echo libx11 ;;
-        apt:gl) echo libgl1-mesa-dev ;;
-        dnf:gl) echo mesa-libGL-devel ;;
-        pacman:gl) echo mesa ;;
-        apt:ayatana-appindicator3-0.1) echo libayatana-appindicator3-dev ;;
-        dnf:ayatana-appindicator3-0.1) echo libappindicator-gtk3-devel ;;
-        pacman:ayatana-appindicator3-0.1) echo libayatana-appindicator ;;
         *) echo "" ;;
     esac
 }

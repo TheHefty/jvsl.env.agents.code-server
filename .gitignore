@@ -5,5 +5,3 @@
 # fragments; the fragments themselves are `Dockerfile.frag` and were never
 # matched.
 /Dockerfile
-start/target/
-start/gen/schemas/

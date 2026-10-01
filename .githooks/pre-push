@@ -48,7 +48,7 @@ echo "pre-push: shell syntax"
 # `init` and `dev` end in no extension, which is how they went unchecked until
 # CI was told about them by name. The list is the same one ci.yml uses.
 find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \) \
-  -not -path './start/target/*' -print0 | xargs -0 -n1 bash -n
+  -print0 | xargs -0 -n1 bash -n
 
 echo "pre-push: the host package table"
 bash packages.test.sh
@@ -68,13 +68,9 @@ bash docs/agent/check-parity.sh
 echo "pre-push: no tracked Markdown over the limit"
 bash scripts/check-md-size.sh
 
-echo "pre-push: the injected title bar"
-node --test start/src/title_bar.test.mjs
-
-echo "pre-push: the launcher"
-# --locked for the same reason CI uses it: a Cargo.lock left behind by a version
-# bump fails here rather than turning up as a dirty submodule in a consuming
-# monorepo.
-(cd start && cargo test --release --locked)
+echo "pre-push: the CI scripts that gate everything else"
+bash scripts/changed-scope.test.sh
+bash scripts/ci-green.test.sh
+bash scripts/no-launcher.test.sh
 
 echo "pre-push: ok"

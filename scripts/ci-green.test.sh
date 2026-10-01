@@ -93,6 +93,27 @@ else
             echo "ok      every one of the $job_count jobs is in ci-green's needs list"
             pass=$((pass + 1))
         fi
+
+        # And the other direction, which the first half does not cover: a name
+        # in the needs list with no job behind it makes the whole workflow
+        # invalid, so **every** pull request fails before any job runs —
+        # including the one that would fix it. That is a worse hole than the
+        # first, and it opens the moment a job is deleted.
+        orphaned=''
+        for needed in $needs; do
+            case " $(printf '%s ' $jobs)" in
+                *" $needed "*) ;;
+                *) orphaned="$orphaned $needed" ;;
+            esac
+        done
+        if [ -n "$orphaned" ]; then
+            echo "NOT OK  ci-green needs jobs that do not exist, which makes the workflow \
+invalid and fails every pull request including the one that would fix it:$orphaned" >&2
+            fail=$((fail + 1))
+        else
+            echo "ok      every name in ci-green's needs list is a job that exists"
+            pass=$((pass + 1))
+        fi
     fi
 fi
 

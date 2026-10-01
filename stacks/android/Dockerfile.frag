@@ -123,7 +123,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools \
 # The emulator system image is x86_64 (not arm64): the realistic host for
 # this template is a Linux machine with Intel/AMD hardware virtualization,
 # which is also the only case `start` passes /dev/kvm through (see
-# start/src/main.rs) — an arm64 image would only make sense targeting Apple
+# the extension's generated configuration) — an arm64 image would only make sense targeting Apple
 # Silicon hosts, which can't expose KVM into a Linux container the same way.
 # `google_apis` (not `google_apis_playstore` or plain AOSP `default`): Google
 # APIs without the Play Store bundle is the common baseline for app dev/test
@@ -248,7 +248,7 @@ RUN sdk-install "ndk;27.1.12297006" "ndk"
 
 # ANDROID_AVD_HOME (what `emulator` actually reads at lookup time) points at
 # /config, not the golden copy above under $ANDROID_HOME — /config is the
-# runtime named volume (see start/src/main.rs), writable regardless of
+# runtime named volume (see the extension's generated configuration), writable regardless of
 # ai-jail's sandboxing of the Claude Code agent's own shell, unlike
 # $ANDROID_HOME (/opt/android-sdk): ai-jail (bwrap) mounts /opt read-only
 # for the agent specifically (confirmed empirically — a human working
