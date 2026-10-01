@@ -128,8 +128,7 @@ deliberate loosening rather than a detail.
 
 ## Verification
 
-**Nothing here is implemented yet; this is the design.** What was actually run, and what it
-printed:
+What was measured while designing it:
 
 - `getent passwd abc` → `abc:x:1000:1000::/config:/bin/false`. The shell claim is measured.
 - `grep -rn '^LABEL' core/Dockerfile.frag stacks/*/Dockerfile.frag` → no output. No fragment
@@ -142,10 +141,35 @@ printed:
   implementation: with the configuration referencing a prebuilt image, the image's `remoteUser`
   applies when the configuration omits it, and loses when the configuration sets it.
 
-**Not verified, and by which job instead.** The two tests proposed above do not exist, so neither
-the shell after s6 init nor the label's presence in a built image has been observed. Both are
-covered by the jobs this task adds, and the `@manual` scenario in the story is what settles the
-editor's own behaviour — which no CI available to either repository can observe.
+What was run while implementing it:
+
+- `core/check-devcontainer-metadata.sh` against the tree **before** the change →
+  `FAIL: no fragment declares devcontainer.metadata; the image would not tell a dev container
+  client which user to connect as, and a first connection lands as root`. Red first, and for the
+  stated reason.
+- The same check **after** adding the label → passes, reporting that exactly one fragment declares
+  it, that it is core's, that it names `remoteUser abc`, and that it names no `containerUser`.
+- `core/check-devcontainer-metadata.test.sh` → 8 passed, 0 failed. Each of the seven rejections was
+  observed naming its own cause: no declaration, two declarations, a declaration only in a stack,
+  invalid JSON, an object instead of an array, the wrong `remoteUser`, and a `containerUser`.
+- `core/image.test.sh` against four purpose-built fixture images, since building `core` itself is
+  not possible from inside this environment (see below): rejected an image with no label, rejected
+  one declaring `containerUser`, rejected one whose `abc` shell is `/bin/false` — each with its own
+  message — and accepted the one that is correct.
+- `core/booted.test.sh` against a missing image → names the cause itself rather than letting
+  Docker answer `pull access denied … may require docker login`, which is a permissions story about
+  a repository that was never the point.
+- `bash -n` over every shell script and the extensionless executables, which is what `bash-syntax`
+  runs; and the workflow parsed as YAML, confirming 17 jobs with `ci-green` requiring all 16
+  others and none left out.
+
+**Not verified here, and by which job instead.** `core` itself was never built: inside this
+environment `/config` is a tmpfs and the Docker root sits on it, under the container's 6 GiB
+memory cap, so a multi-gigabyte image build would be killed rather than slow. So `image.test.sh`
+has been proven to fail and pass against fixtures but never run against the real `core`, and
+`booted.test.sh` has only had its guard path exercised. `core-build` and the new `core-booted` job
+cover both against the real image on the first CI run. The `@manual` scenarios in the story remain
+what settles the editor's own behaviour, which no CI available to either repository can observe.
 
 ## Open questions
 
