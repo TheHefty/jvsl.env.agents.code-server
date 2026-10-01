@@ -54,8 +54,8 @@ on the host.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Draft |
-| 2 | `tasks/repairing-state-directory-ownership.md` | template | not yet grilled |
+| 1 | [`tasks/image-declares-its-user.md`](tasks/image-declares-its-user.md) | template | Accepted, shipped in v2.1.0 |
+| 2 | [`tasks/repairing-state-directory-ownership.md`](tasks/repairing-state-directory-ownership.md) | template | Draft |
 | 3 | `tasks/generating-the-dev-container-configuration.md` | extension | not yet grilled |
 
 Task 3 is the extension's half and its pull requests land in the other repository, but its design
