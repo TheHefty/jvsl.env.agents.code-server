@@ -123,8 +123,12 @@ for agent in claude codex; do
         "$(argv "$agent" GH_TOKEN=sekrit | count '^GH_TOKEN$')" "0"
     check "$agent does not forward GH_TOKEN by value either" \
         "$(argv "$agent" GH_TOKEN=sekrit | count '^GH_TOKEN=')" "0"
+    # The "it exists" path is the suite's own temp directory, not a path that
+    # happens to exist on the machine that wrote this: the first version used
+    # /config/workspace, which is real inside the dev container and absent on a
+    # CI runner, so the test passed locally and failed there.
     check "$agent is given gh's configuration read-only when it exists" \
-        "$(argv "$agent" GH_CONFIG_DIR=/config/workspace | count '^/config/workspace$')" "1"
+        "$(argv "$agent" "GH_CONFIG_DIR=$work" | count "^$work\$")" "1"
     check "and nothing is mapped when there is no gh configuration" \
         "$(argv "$agent" GH_CONFIG_DIR=/nowhere/at/all | count '^/nowhere/at/all$')" "0"
 done
