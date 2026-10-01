@@ -39,7 +39,7 @@ deprecation.
 | the launcher's half of `init` | the display and WSLg check, the five Tauri library checks, and the `cargo` requirement |
 | four Tauri `-dev` packages in the image | `libwebkit2gtk-4.1-dev`, `libxdo-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` — present only so the crate could be `cargo check`ed from inside the container |
 | the `cargo-check` and `title-bar` CI jobs | nothing left for them to check |
-| `docs/overview/start.md`, the README's launcher section | nothing left to describe |
+| the README's launcher section, `dev`'s half of `docs/overview/init-and-dev.md`, the launcher's part of `docs/overview/start.md` | nothing left to describe |
 
 **`cargo` stops being a host prerequisite.** It was the only one `init` refused to install, with a
 paragraph explaining that a packaged Rust is usually too old for the Tauri crates and says so only
@@ -85,8 +85,9 @@ Two slices, split where the repository can be left working in between.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | `tasks/nothing-builds-or-runs-the-launcher.md` | template | not yet written |
+| 1 | [`tasks/nothing-builds-or-runs-the-launcher.md`](tasks/nothing-builds-or-runs-the-launcher.md) | template | Draft |
 | 2 | `tasks/the-image-stops-carrying-the-launchers-libraries.md` | template | not yet written |
+| 3 | `tasks/the-containers-documentation-stops-being-the-launchers.md` | template | not yet written |
 
 **The first is atomic by necessity.** `init` builds the crate and `dev` runs it, so deleting the
 crate without them leaves a repository whose documented entry point fails on a missing directory.
@@ -95,6 +96,24 @@ The CI jobs and the documentation go in the same breath for the same reason.
 **The second is four package lines and a rebuild**, and is separate because it is where the claim
 "nothing in the image needed those" is actually tested — by the image builds, against every stack.
 It can land after the first with the repository working either way.
+
+**The third exists because this story's own table was wrong when it was written.** It said
+`docs/overview/start.md` had "nothing left to describe". Measured afterwards: the file is 50.8 KiB
+and only its first forty-three lines and a handful at the end are about the launcher. The rest is
+the permissiveness audit, the nested rootless daemon, `--cpuset-cpus`, `SYS_ADMIN` and seccomp,
+`/dev/kvm`, the sandbox map, `ai-jail`'s pinned digest, `ai-memory`, the Android SDK's `chmod` and
+the AVD seeding — all of it about the **container**, which is not going anywhere. Eleven tracked
+files link to it.
+
+So that file is not deleted; it is **split**, which is the thing
+`docs/overview/README.md` has been calling overdue and describing accurately: *"four distinct
+subjects under a single `## Implementation`, and separating them means giving them real headings
+first, which is an edit to the document rather than a move of it."* It gets a task because that is
+what it is, and because folding a 50 KiB restructuring into a deletion would make both unreviewable.
+
+Doing it last is deliberate: the launcher's own section keeps the deprecation banner it already
+carries until then, so nothing in the documentation offers the launcher as a way in at any point
+during this story.
 
 ## Out of scope
 
