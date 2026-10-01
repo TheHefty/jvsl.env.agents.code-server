@@ -23,7 +23,7 @@ CI, which is the only one that builds images.
 |---|---|---|
 | 1 | [`opening-a-configured-project`](opening-a-configured-project/) | **Done** — template `v2.1.0`, `v2.2.0`; extension `v0.1.0`, `v0.2.0`, `v0.2.1` |
 | 3 | [`host-secrets-stay-on-the-host`](host-secrets-stay-on-the-host/) | Draft |
-| 4 | the remote editor arrives equipped | not yet grilled |
+| 4 | [`the-remote-editor-arrives-equipped`](the-remote-editor-arrives-equipped/) | Draft |
 | 5 | the launcher announces its retirement | not yet grilled |
 
 Story 2 — refusing what cannot be opened — is the extension's, and lives in that repository.
