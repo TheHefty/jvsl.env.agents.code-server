@@ -244,11 +244,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Before the build, because it costs a second and the build costs minutes
+      # — and because it is the part that was wrong the first time this job ran.
+      # The base image announces every custom-init script by filename on every
+      # boot, so a check for "the hook said nothing" cannot be written against
+      # the filename; it failed on a boot where the hook had printed nothing.
+      - name: the log matchers say what they mean
+        run: bash core/booted.matchers.test.sh
       - name: docker build core only
         run: |
           core/compose-dockerfile.sh > "$RUNNER_TEMP/core.Dockerfile"
           docker build -f "$RUNNER_TEMP/core.Dockerfile" -t core-ci .
-      - name: the user survives the boot
+      - name: the user survives the boot, and ownership is repaired once
         run: bash core/booted.test.sh core-ci
 
   discover-stacks:

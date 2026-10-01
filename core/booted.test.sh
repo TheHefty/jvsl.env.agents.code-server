@@ -23,6 +23,15 @@ USER_NAME="${CORE_TEST_USER:-abc}"
 BOOT_TIMEOUT="${CORE_TEST_BOOT_TIMEOUT:-180}"
 NAME="core-booted-test-$$"
 
+# The questions asked of a boot's log live beside this file so they can be
+# tested without building an image. They have to be: the base image announces
+# every custom-init script by filename on every boot, so "the log does not
+# mention the hook" is a condition that can never hold — and asserting it is
+# what failed the first CI run of the ownership checks, on a boot where the hook
+# had printed nothing at all.
+# shellcheck source=/dev/null
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/booted.matchers.sh"
+
 fail() { echo "booted.test: FAIL: $*" >&2; exit 1; }
 
 cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
@@ -56,7 +65,7 @@ a containerUser, this is how that looks: s6-overlay needs to start as root"
 wait_for_init() {
     local since="${1:-}" deadline
     deadline=$(( $(date +%s) + BOOT_TIMEOUT ))
-    until boot_logs "$since" | grep -q 'ls\.io-init.*done'; do
+    while ! init_finished "$(boot_logs "$since")"; do
         if [ "$(date +%s)" -ge "$deadline" ]; then
             echo "--- container logs ---" >&2
             boot_logs "$since" | tail -40 >&2
@@ -126,7 +135,7 @@ wait_for_init "$mark"
 $USER_NAME. If the hook's own test passes, the likely cause is that it was never copied into \
 /custom-cont-init.d"
 
-boot_logs "$mark" | grep -q "repaired: $damaged" \
+hook_repaired "$(boot_logs "$mark")" "$damaged" \
     || fail "the repair happened without saying so. A change to the persistent volume that leaves \
 no record is the one nobody can account for later"
 
@@ -136,9 +145,12 @@ mark2="$(date -u +%Y-%m-%dT%H:%M:%S)"
 docker restart "$NAME" >/dev/null || fail "the container would not restart a second time"
 wait_for_init "$mark2"
 
-if boot_logs "$mark2" | grep -q '10-state-ownership'; then
+# Matched on what the hook *says*, never on the fact that it ran: the base image
+# prints "[custom-init] 10-state-ownership.sh: executing..." on every single
+# boot, so matching the filename asserts nothing and fails everything.
+if hook_spoke "$(boot_logs "$mark2")"; then
     echo "--- this boot's output from the hook ---" >&2
-    boot_logs "$mark2" | grep '10-state-ownership' >&2
+    boot_logs "$mark2" | grep 'state-ownership:' >&2
     fail "the hook spoke on a boot where there was nothing to repair. Silence is how the presence \
 of the line means something, and it is also the only observable proof that no recursive chown ran \
 over thousands of extension files"
