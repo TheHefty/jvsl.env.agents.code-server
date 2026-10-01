@@ -131,7 +131,7 @@ discovered: the cost of this script being wrong is paid on data that no rebuild 
 
 ## Verification
 
-**Nothing is implemented yet; this is the design.** What was measured:
+What was measured while designing it:
 
 - The damage is real and was observed by hand: `/config/.vscode-server` and `/config/.gnupg` owned
   by `root` after a first connection made before the previous task existed.
@@ -144,10 +144,24 @@ discovered: the cost of this script being wrong is paid on data that no rebuild 
   `30-editor-defaults.sh` writes only when something is actually missing. Both patterns are copied
   rather than invented.
 
+What was run while implementing it:
+
+- `core/cont-init/10-state-ownership.test.sh` **before** the hook existed → 6 failures, the last
+  of them `No such file or directory`. Red first.
+- The same test after writing the hook → **9 of 9**: a mismatched owner repaired once per
+  directory; the report naming the directory and the owner it had; the repair reaching files below
+  the directory; the owner passed by name and never as a number; a healthy tree untouched; a
+  healthy tree reported in silence; a directory never created passed over quietly; a failed repair
+  not aborting the boot; a failed repair saying so.
+- `bash -n` over every shell script and extensionless executable, and the workflow parsed as YAML:
+  18 jobs, `state-ownership` among them, nothing left out of `ci-green`.
+- `core/check-devcontainer-metadata.sh` still passes, so nothing here disturbed the previous task.
+
 **Not verifiable from the development environment**: `/config` inside the sandbox is synthesized,
 so the real volume's ownership cannot be inspected from here, and the image cannot be built here
 either — `/config` is a tmpfs holding the Docker root under a 6 GiB cap. The unit test runs
-anywhere; the restart assertion runs in the `core-booted` job.
+anywhere; the restart assertions run in the `core-booted` job and have never executed against a
+real container.
 
 ## Open questions
 
@@ -179,4 +193,16 @@ What the grilling changed, against what went in:
   stricter option and converts a permission problem into a container with no editor and no
   terminal to investigate from — against the convention the image already practises.
 
-The sections above are as written at the gate.
+The sections above are as written at the gate, except where the implementation note below says
+otherwise.
+
+### Implementation note, 2026-10-01
+
+The proposal said the harness "starts the container, restarts it, and asserts the repair happened
+on the first boot". A fresh container has nothing to repair, so there is no repair to observe: the
+test has to **create the damage** first — `mkdir` plus `chown -R root:root` inside the running
+container, as root — and only then restart. Obvious in hindsight and not in the design.
+
+That also forced a second change. Asserting "it said nothing this time" cannot be done against the
+whole log, because the previous boot's repair line is still in it. Each restart now records the
+moment it began and the assertions read only that boot's output.

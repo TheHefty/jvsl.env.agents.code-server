@@ -58,6 +58,24 @@ jobs:
       - name: every dependency is named in every package manager
         run: bash packages.test.sh
 
+  state-ownership:
+    # The hook that gives the editor's and gpg's state directories back to 'abc'
+    # after a connection left them owned by somebody else. /config is a named
+    # volume, so that damage outlives every rebuild and this is the only thing
+    # that reaches it.
+    #
+    # Two of its properties are easy to break silently. It must pass the owner
+    # by *name*: LinuxServer's init rewrites abc's number at runtime, so chowning
+    # to 1000 hands the files to whoever that is afterwards. And it must do
+    # nothing, in silence, when there is nothing to repair — the silence is the
+    # only observable proof that no recursive chown ran over thousands of
+    # extension files on a healthy boot.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the repair is made by name, once, and says so
+        run: bash core/cont-init/10-state-ownership.test.sh
+
   editor-defaults:
     # The merge that puts the image's default settings into an environment that
     # already exists. Its direction is the thing worth guarding: inverted, it is
@@ -293,7 +311,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [bash-syntax, cargo-check, host-packages, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
+    needs: [bash-syntax, cargo-check, host-packages, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, title-bar, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - name: fail unless every job above succeeded

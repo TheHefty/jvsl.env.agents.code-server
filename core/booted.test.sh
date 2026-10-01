@@ -53,20 +53,33 @@ a containerUser, this is how that looks: s6-overlay needs to start as root"
 # LinuxServer's init announces the end of its own run. Polling that is more
 # honest than sleeping: a fixed sleep either flakes on a slow runner or wastes
 # time on a fast one, and neither says what it was waiting for.
-deadline=$(( $(date +%s) + BOOT_TIMEOUT ))
-until docker logs "$NAME" 2>&1 | grep -q 'ls\.io-init.*done'; do
-    if [ "$(date +%s)" -ge "$deadline" ]; then
-        echo "--- container logs ---" >&2
-        docker logs "$NAME" 2>&1 | tail -40 >&2
-        fail "init did not finish within ${BOOT_TIMEOUT}s; logs above"
-    fi
-    if [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != "true" ]; then
-        echo "--- container logs ---" >&2
-        docker logs "$NAME" 2>&1 | tail -40 >&2
-        fail "the container exited during init; logs above"
-    fi
-    sleep 2
-done
+wait_for_init() {
+    local since="${1:-}" deadline
+    deadline=$(( $(date +%s) + BOOT_TIMEOUT ))
+    until boot_logs "$since" | grep -q 'ls\.io-init.*done'; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "--- container logs ---" >&2
+            boot_logs "$since" | tail -40 >&2
+            fail "init did not finish within ${BOOT_TIMEOUT}s; logs above"
+        fi
+        if [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != "true" ]; then
+            echo "--- container logs ---" >&2
+            boot_logs "$since" | tail -40 >&2
+            fail "the container exited during init; logs above"
+        fi
+        sleep 2
+    done
+}
+
+# Only this boot's output. Each restart records the moment it began so the
+# assertions below cannot be satisfied by a line an earlier boot printed —
+# which is the whole difficulty in testing "it said nothing this time".
+boot_logs() {
+    if [ -n "${1:-}" ]; then docker logs --since "$1" "$NAME" 2>&1
+    else docker logs "$NAME" 2>&1; fi
+}
+
+wait_for_init
 
 # --- the shell survived the boot --------------------------------------------
 
@@ -84,4 +97,52 @@ esac
 docker exec -u "$USER_NAME" "$NAME" "$shell" -lc 'exit 0' \
     || fail "$USER_NAME's shell ($shell) exists but will not run a login shell"
 
-echo "booted.test: after init, $USER_NAME still has a usable login shell ($shell) and it runs."
+# --- the ownership repair, which only a real boot can show ------------------
+#
+# A fresh container has nothing to repair, so the damage has to be made: this
+# is the state a connection left behind before the image declared its user, and
+# /config is a named volume, so it is state no rebuild undoes. Injecting it is
+# the only way to observe the repair rather than to assume it.
+#
+# This is also the half of the test the unit test cannot do. That one is green
+# in a world where the hook exists, is correct, and was never copied into
+# /custom-cont-init.d — the exact bug 40-ai-memory.sh exists to work around.
+damaged=/config/.vscode-server
+docker exec -u 0 "$NAME" sh -c "mkdir -p '$damaged' '$damaged/extensions' \
+    && chown -R root:root '$damaged'" \
+    || fail "could not create the damaged directory the repair is supposed to fix"
+
+owner_of() { docker exec "$NAME" stat -c '%U' "$1" 2>/dev/null || true; }
+
+[ "$(owner_of "$damaged")" = "root" ] \
+    || fail "the fixture did not take: $damaged is owned by $(owner_of "$damaged"), not root"
+
+mark="$(date -u +%Y-%m-%dT%H:%M:%S)"
+docker restart "$NAME" >/dev/null || fail "the container would not restart"
+wait_for_init "$mark"
+
+[ "$(owner_of "$damaged")" = "$USER_NAME" ] \
+    || fail "after a restart, $damaged is still owned by $(owner_of "$damaged") rather than \
+$USER_NAME. If the hook's own test passes, the likely cause is that it was never copied into \
+/custom-cont-init.d"
+
+boot_logs "$mark" | grep -q "repaired: $damaged" \
+    || fail "the repair happened without saying so. A change to the persistent volume that leaves \
+no record is the one nobody can account for later"
+
+# --- and it does not do it again -------------------------------------------
+
+mark2="$(date -u +%Y-%m-%dT%H:%M:%S)"
+docker restart "$NAME" >/dev/null || fail "the container would not restart a second time"
+wait_for_init "$mark2"
+
+if boot_logs "$mark2" | grep -q '10-state-ownership'; then
+    echo "--- this boot's output from the hook ---" >&2
+    boot_logs "$mark2" | grep '10-state-ownership' >&2
+    fail "the hook spoke on a boot where there was nothing to repair. Silence is how the presence \
+of the line means something, and it is also the only observable proof that no recursive chown ran \
+over thousands of extension files"
+fi
+
+echo "booted.test: after init, $USER_NAME still has a usable login shell ($shell) and it runs; a \
+root-owned $damaged is repaired on the next boot and reported; the boot after that is silent."
