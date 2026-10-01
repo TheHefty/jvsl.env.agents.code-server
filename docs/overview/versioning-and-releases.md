@@ -16,6 +16,41 @@
   release time, pointing at a path that no longer exists, which is the worst moment for a
   configuration error to surface. `version.txt` and `CHANGELOG.md` are now the only versioned
   artifacts, which is what `release-type: simple` means with nothing added to it.
+- **With merge commits, the release is decided by the *last* commit on the branch — not by any of
+  the others.** Measured on 2026-10-01, when a `feat!` carrying a `BREAKING CHANGE:` footer produced
+  no major bump and no changelog entry at all.
+
+  What the action's log says, for every merge commit this repository makes:
+
+  ```
+  ❯ Fetching merge commits on branch main
+  ❯ commit could not be parsed: 85c07a9 Merge pull request #82 from TheHefty/feat/...
+  ```
+
+  A merge commit's own subject is never conventional, so none of them parse. What release-please
+  reads instead is the merge commit's **second parent**, which is the tip of the branch — and nothing
+  behind it. Three merges on the same day, same shape, three outcomes:
+
+  | pull request | last commit on the branch | result |
+  |---|---|---|
+  | #80 | `feat!: delete the launcher …` | seen — `3.0.0` with `BREAKING CHANGES` |
+  | #82 | `docs: the task record names the pull request …` | **invisible** — the `feat!` behind it never read |
+  | #83 | `fix: the split carried two launcher references …` | seen — `3.0.1` |
+
+  The commit that buried #82's breaking change was a `docs:` fixing a pull request number. **So the
+  rule is: the commit that should appear in the changelog has to be the branch's last commit.** A
+  tidy-up commit pushed after it hides it, silently, and the only symptom is a version number that
+  looks one release too small.
+
+  The alternative is squash merging, where the message is the pull request's and there is only one.
+  That is a bigger change to how this repository works and has not been made; until it is, this is a
+  discipline rather than a mechanism, which means it will be forgotten at least once more.
+
+  **This also makes the rule about non-conventional pull request titles narrower than it reads.**
+  Giving a feature pull request a non-conventional title avoids a duplicated changelog entry, which
+  is real — but it only works because the entry comes from the branch commit. It does nothing to
+  protect a branch whose last commit is a `chore` or a `docs`.
+
 - **The first tag is `1.0.0`, forced with a `Release-As: 1.0.0` footer** on the commit that added
   the workflow. Left alone the first release PR would have proposed `0.1.0`: the seeded manifest is
   `0.0.0` and the history is all `feat`/`fix`, which never produces a major on its own. The
