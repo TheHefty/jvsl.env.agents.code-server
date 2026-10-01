@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.0.0...v2.1.0) (2026-10-01)
+
+
+### Features
+
+* declare the user a dev container client should connect as ([06d8b30](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/06d8b304f1e13c127d29f1c8a3f269b9ffb61aea))
+
 ## [2.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v1.10.0...v2.0.0) (2026-09-10)
 
 
