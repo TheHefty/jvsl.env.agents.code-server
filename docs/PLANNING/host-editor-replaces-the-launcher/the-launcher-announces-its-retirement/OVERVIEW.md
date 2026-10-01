@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | Superseded — see the Outcome |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 
@@ -119,3 +119,23 @@ by tests in this repository's CI.
 **The epic's sentence is true once that pass is done.** Opening a project in the host's editor is
 what this repository's own documentation now tells a reader to do, and the launcher says where to
 go. Removal in `3.0.0` is FR-52 and a scheduled consequence, not outstanding work.
+
+### Superseded, 2026-10-01
+
+**This story is superseded by [`the-launcher-is-gone`](../the-launcher-is-gone/), and its `@manual`
+scenario will never be run.** The launcher is being deleted outright in `3.0.0` rather than
+announced and then deleted, because the deprecation period was protecting nobody: this template has
+one user, and he asked for it gone rather than announced.
+
+So what this story built had a life of one release. `v2.3.0` carries the notice, and that was
+deliberate — the same release carries the fix for a GitHub token readable with `ps` from anywhere in
+the container, and holding it to keep a changelog tidy would have kept the token exposed.
+
+**The unrun scenario is closed here rather than left open.** It was *"the dialog is shown once and
+then not again"*, and the dialog is being deleted. An outstanding `@manual` that can no longer be
+run is worse than none: it reads as work somebody will get to.
+
+What this story leaves behind is not nothing. FR-51 and FR-52 were struck in the extension's SRS
+*because* implementing them made the shape of the alternative obvious, and the measured list of
+everything that exists only for the launcher — the crate, `dev`, half of `init`, four packages, two
+CI jobs — came out of the documentation flip this story's task performed.

@@ -24,10 +24,14 @@ CI, which is the only one that builds images.
 | 1 | [`opening-a-configured-project`](opening-a-configured-project/) | **Done** — template `v2.1.0`, `v2.2.0`; extension `v0.1.0`, `v0.2.0`, `v0.2.1` |
 | 3 | [`host-secrets-stay-on-the-host`](host-secrets-stay-on-the-host/) | **Done** — template `v2.3.0`; extension `v0.3.0`. One `@manual` pass owed |
 | 4 | [`the-remote-editor-arrives-equipped`](the-remote-editor-arrives-equipped/) | Draft |
-| 5 | [`the-launcher-announces-its-retirement`](the-launcher-announces-its-retirement/) | Draft |
+| 5 | [`the-launcher-announces-its-retirement`](the-launcher-announces-its-retirement/) | **Superseded** by story 6 — the notice shipped in `v2.3.0` and lives one release |
+| 6 | [`the-launcher-is-gone`](the-launcher-is-gone/) | Draft |
 
 Story 2 — refusing what cannot be opened — is the extension's, and lives in that repository.
 
-The epic closes when opening through the extension is the normal path and `start` says where to
-migrate. Removal of `start` in the following major is a scheduled consequence, not outstanding
-work.
+The epic closes when opening through the extension is the normal path and `start` is **gone**. That
+sentence changed on 2026-10-01: it used to end at "`start` says where to migrate", with removal
+scheduled for the following major as a consequence rather than as work. The deprecation period was
+protecting nobody — one user, who asked for the launcher gone rather than announced — so the removal
+came into the epic as story 6 and story 5 is superseded. The notice it built shipped in `v2.3.0`
+anyway, because that release also carried a live security fix.
