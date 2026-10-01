@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Accepted
 story: host-editor-replaces-the-launcher/opening-a-configured-project
 epic: host-editor-replaces-the-launcher
-pr:
+pr: https://github.com/TheHefty/jvsl.env.agents.code-server/pull/55
 depends-on: [extension-activates-on-a-template-project]
 ---
 
@@ -222,4 +222,24 @@ actually opening, which is what the story's `@manual` scenarios are for.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Accepted by João Lima on 2026-10-01, from the grilling that produced it.
+
+What the grilling changed, against what went in:
+
+- **A timestamp in the marker was proposed and withdrawn.** It would have recreated the container
+  on every open, because the tooling hashes the configuration to identify it. The version alone is
+  stable between opens and changes exactly when a new container makes sense. This is the one place
+  where the obvious, friendlier design was actively harmful, and it is why failure scenario 1 is
+  the first one.
+- **Who offers to open changed.** The plan was our own notification, always. Finding
+  `showReopenInContainerNotificationReset` in the tooling's command list revealed it shows its own,
+  and that none of its 43 settings can suppress it — so the happy path hands the offer over and
+  ours is kept for refusals, which the native one cannot express.
+- **The port opt-in was removed entirely.** `setup` rebuilds the project manifest from `{}` and
+  overwrites it, so a key the extension added would be discarded on the next run, silently. The
+  requirement's default is honoured without a mechanism, and the mechanism waits.
+- **The split between native properties and `runArgs` is narrower than expected.** There is no
+  native property for memory or CPU at all, so those were always going to be `runArgs`; the point
+  of checking was to stop the rest from joining them.
+
+The sections above are as written at the gate.
