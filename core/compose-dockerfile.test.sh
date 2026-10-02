@@ -130,7 +130,7 @@ check "and not the fork the code-server list installs" \
 # inherited rules name it as the reason the image ships it, because .feature
 # files are how acceptance criteria get written and reviewed here.
 core_label="$(label_of)"
-for id in file-icons.file-icons alexkrechik.cucumberautocomplete cweijan.vscode-database-client2; do
+for id in file-icons.file-icons CucumberOpen.cucumber-official cweijan.vscode-database-client2; do
     check "core declares $id" \
         "$({ printf '%s' "$core_label" | grep -c -F "$id" || true; })" "1"
 done

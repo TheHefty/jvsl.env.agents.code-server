@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Done, bar one `@manual` pass |
+| **Status** | **Done** |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 
@@ -145,12 +145,16 @@ ours to hold it. Verified live from inside the jail instead — both variables a
 variables, and `/config/.gnupg/S.gpg-agent` not reachable at all. A person re-running that check is the
 only thing that would see a regression, which is what the `@manual` scenarios are for.
 
-**One `@manual` scenario is still owed** — *"A person can still write both"*: a person adds a launch
-configuration by hand in the host's editor and it is written. It is the escape this story
-deliberately did not build a mechanism for, so it is the one thing that proves the restriction did
-not also lock out the person it exempts. The other `@manual`, *"Workspace Trust is never
-disabled"*, is covered by the three static assertions; what a person would add is seeing the editor
-still ask.
+**Both `@manual` scenarios are done.** *"A person can still write both"* was run on 2026-10-02: a
+launch configuration written by hand from the host's editor saves, while the agent in the sandbox
+gets `Read-only file system` on the same directory — measured from inside the jail, where
+`/config/workspace/.vscode` and `/config/workspace/.devcontainer` are both mapped read-only and
+`launch.json` is sitting there.
+
+That pairing is the whole point and it is why the scenario existed: it is the escape this story
+deliberately built no mechanism for, so it is the one thing proving the restriction did not also
+lock out the person it exempts. The other `@manual`, *"Workspace Trust is never disabled"*, is
+covered by the three static assertions; what a person would add is seeing the editor still ask.
 
 **The `--map` mechanism was confirmed by a person before the task was written**, not after — the
 refusal named its own cause (`Read-only file system`), and the task's design records the output
