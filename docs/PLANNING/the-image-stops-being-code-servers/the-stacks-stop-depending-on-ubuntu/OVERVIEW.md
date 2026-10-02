@@ -86,7 +86,7 @@ stacks have image builds in CI.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | `tasks/php-takes-its-packages-from-sury.md` | template | not yet written |
+| 1 | [`tasks/php-takes-its-packages-from-sury.md`](tasks/php-takes-its-packages-from-sury.md) | template | Draft |
 | 2 | `tasks/python-stops-needing-an-ubuntu-ppa.md` | template | not yet written |
 
 Independent of each other, and both before the base swap. The php one is a repository and a key; the
