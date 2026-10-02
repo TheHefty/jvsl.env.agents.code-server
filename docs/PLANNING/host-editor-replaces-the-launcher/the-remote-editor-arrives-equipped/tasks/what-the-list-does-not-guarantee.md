@@ -2,7 +2,7 @@
 status: Done
 story: host-editor-replaces-the-launcher/the-remote-editor-arrives-equipped
 epic: host-editor-replaces-the-launcher
-pr: 93, 95
+pr: 93, 94
 depends-on: [a-stack-declares-what-it-wants]
 ---
 

@@ -124,7 +124,7 @@ Three slices. The third has no code in it, and is written that way on purpose.
 |---|---|---|---|
 | 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Done — #74 |
 | 2 | [`tasks/a-stack-declares-what-it-wants.md`](tasks/a-stack-declares-what-it-wants.md) | template | Done — #77 |
-| 3 | [`tasks/what-the-list-does-not-guarantee.md`](tasks/what-the-list-does-not-guarantee.md) | template | Done — #93, #95 |
+| 3 | [`tasks/what-the-list-does-not-guarantee.md`](tasks/what-the-list-does-not-guarantee.md) | template | Done — #93, #94 |
 
 **Task 3 is a verification task and is labelled as one.** With the registry measured once and the
 failure path verified rather than implemented, it contains no code and no new test: two measurements
