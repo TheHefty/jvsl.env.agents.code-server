@@ -218,6 +218,27 @@ SETUP_TEST_OUT="$out" run_interactive 'node' '22' '6g' '' 'four' '4' || true
     && ok "a cpu count that is not a number is refused and asked again" \
     || bad "a cpu count that is not a number is refused and asked again" "cpus is $(field .limits.cpus)"
 
+# --- every one of the five questions is asked, and answered into the manifest.
+#
+# Found by auditing the feature file against this suite rather than by reading the
+# code: **no test gave a non-empty swap**, so the fourth question was asked by
+# code nothing asserted. `setup` could have stopped asking it and every assertion
+# above would still have passed, because an unconsumed answer on standard input is
+# indistinguishable from a question that was never asked.
+#
+# All five in one run, each with a value that could only have come from its own
+# question.
+printf '{}\n' > "$manifest"
+run_interactive 'node' '22' '7g' '9g' '3' || true
+[ "$(field .node)" = "22" ] \
+    && ok "the stack and version questions are both asked" \
+    || bad "the stack and version questions are both asked" "$(cat "$manifest")"
+[ "$(field .limits.memory)" = "7g" ] && [ "$(field .limits.memorySwap)" = "9g" ] \
+    && [ "$(field .limits.cpus)" = "3" ] \
+    && ok "all three limit questions are asked, and each answer lands in its own key" \
+    || bad "all three limit questions are asked, and each answer lands in its own key" \
+           "$(cat "$manifest")"
+
 # --- what is deliberately not tested here, and why.
 #
 # `ask` treats a failed `read` as a refusal rather than an empty answer, which

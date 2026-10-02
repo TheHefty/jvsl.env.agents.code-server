@@ -185,6 +185,17 @@ contract — `Prerequisites on the host` and `Checks the host`. Its first versio
 failed on the very sentence saying `whiptail` is no longer needed, because the sentence wraps and the
 allowance looked for its escape hatch on one line.
 
+**An audit of the feature file against this suite found a question nothing asserted.** Seven of the
+eight scenarios were covered; *"With a terminal, the same five questions are asked"* was not, strictly:
+**no test gave a non-empty swap**, so the fourth question was asked by code nothing checked. `setup`
+could have stopped asking it and every assertion would still have passed, because an unconsumed answer
+on standard input is indistinguishable from a question that was never asked.
+
+Fixed by one run answering all five with values that could only come from their own question. Proven by
+deleting the swap prompt: the new assertion fails — and so does the CPU one, **blaming the wrong
+question**, because dropping a prompt shifts every answer after it. An existing test failing for the
+wrong reason is not coverage.
+
 **Still owed, and named in Verification:** one pass by hand. A pty driven by a here-document is not a
 person reading a prompt, and whether the wording and the defaults are clear is not what any of these
 21 assertions exercise.

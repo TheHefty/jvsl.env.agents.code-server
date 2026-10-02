@@ -167,6 +167,22 @@ riding in `3.0.0` — two majors in a day for one story. `v3.0.0` therefore ship
 while the image still carries its libraries and the manual still describes it. The decision taken
 afterwards was to let `4.0.0` happen, because it is the correct number.
 
+**One scenario is satisfied by the release notes and by nothing else, which an audit of this feature
+file against the suite found afterwards.** *"A consuming repository is told what changed"* — that the
+launcher is gone, what to use instead, and that Rust is no longer required on the host — is true
+because `3.0.0`'s `BREAKING CHANGES` section says so, and that section exists because the commit
+carried the footer. Nothing guards it.
+
+That matters more than it looks: `4.0.0`'s equivalent note, for the libraries leaving the image,
+**release-please did not generate at all** — it never read the `feat!`, and the paragraph is there
+because it was added to the release branch by hand. A scenario whose only evidence is a changelog
+entry is a scenario one forgotten commit footer away from being false, and nothing in CI would say so.
+
+Not fixed here, and not pretended to be covered: a test asserting that the newest changelog entry
+mentions particular words is a test of wording, and would be edited to match whatever the wording
+became. What it is instead is written down, where the next person reading this story's record sees what
+actually holds it up.
+
 **One `@manual` scenario is owed**: with no launcher anywhere in the working copy, a project still
 opens in the host's editor and the container comes up as before. It is the only scenario here that a
 person has to run, and everything else in the feature file is an assertion about absence that CI
