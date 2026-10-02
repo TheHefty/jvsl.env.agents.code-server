@@ -60,7 +60,7 @@ which is why story 2 is the one with builds behind it.
 | # | Story | Status |
 |---|---|---|
 | 1 | [`the-settings-find-their-place`](the-settings-find-their-place/) | **Done** |
-| 2 | `the-base-carries-no-editor` | not yet grilled |
+| 2 | [`the-base-carries-no-editor`](the-base-carries-no-editor/) | Draft |
 
 Story 3 — the generated configuration stops declaring `PASSWORD` — is the extension's and lives in
 that repository.
