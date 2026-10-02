@@ -25,7 +25,7 @@
 # That check mattered — the same story's first mechanism was a hook over sockets
 # that turn out to be created *after* every hook has run.
 #
-# **This overrides, which is the opposite of 30-editor-defaults.sh.** That hook
+# **This overrides, rather than filling in only what is absent.** That hook
 # fills only absent keys, because a value already in the file is the reader's
 # deliberate choice and must not be undone on every restart. This one replaces,
 # for the reason above. If you are reading one of the two and wondering why they

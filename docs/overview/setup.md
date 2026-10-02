@@ -64,38 +64,24 @@
   - CI's `core-build` job composes before building for exactly this reason; it used to run
     `docker build -f core/Dockerfile.frag` directly, which stops working the moment core has a
     placeholder in it.
-- **Default editor settings reach environments that already exist.** The values live in
-  `core/settings-defaults.json` — one file, read both by the build-time seeding and by
-  `core/cont-init/30-editor-defaults.sh`, because two copies of a default list is two lists that
-  disagree the first time somebody edits one. Seeding alone only ever reached **new** environments:
-  Docker copies an image directory into a named volume once, when the volume is empty, so every
-  default added after somebody's volume was created never arrived. Not hypothetical —
-  `chat.disableAIFeatures` shipped on 2026-07-30 and an environment older than that still had the
-  chat button, with nothing anywhere saying why.
-  - **Absent keys only.** A value already in `settings.json` is the reader's, whether they typed it
-    or an older image wrote it; `jq '.[0] * .[1]'` with the defaults first gives the existing file
-    priority on every key it has. `false` is a value and not a gap.
-  - **Comments no longer freeze the file.** VS Code accepts comments and trailing commas in
-    `settings.json` and `jq` accepts neither, so a single `//` anywhere in it used to mean that
-    environment never received another default for as long as it lived. That read as caution and
-    was the same bug one level down: silent, permanent, and indistinguishable to the reader from a
-    documented fix that simply does not work for them — which is exactly how the terminal's
-    `gpuAcceleration` mitigation could sit in this file for months without reaching anybody. The
-    file is now read with comments and trailing commas stripped by a character scanner rather than
-    a regex over the text, so a `//` inside a string stays part of the URL it belongs to.
-  - **Stripping is for reading; rewriting is the exception.** The file is written only when a
-    default is actually missing, so a commented `settings.json` that is already complete keeps its
-    comments untouched across every boot. When a rewrite does happen the comments do not survive
-    it, so the original is copied to `settings.json.bak` first and a line on stderr says so. A file
-    that is broken rather than commented — truncated, mid-edit, a stray brace — fails both reads
-    and is left byte-identical, with no backup written and without failing the boot.
-  - Tested in CI (`core/cont-init/30-editor-defaults.test.sh`, driving the real script through
-    `EDITOR_DEFAULTS`/`EDITOR_SETTINGS`). The direction of the merge is what the tests exist for:
-    inverted, it is silent and it puts a setting back on every restart, which the reader blames on
-    the editor. The rewrite path is tested against everything a scanner could mistake for syntax —
-    a `//` inside a URL, a `/*` inside a string, a comma before a brace inside a string, escaped
-    quotes, a real trailing comma — plus the broken file, the already-complete file, and the mode
-    the merged file is left with.
+- **Editor settings are no longer seeded, and one of them survived.** This used to be a file
+  (`core/settings-defaults.json`), a build-time copy into `/config/data/User/settings.json` and a
+  boot hook that merged absent keys into an existing environment on every start — with a jsonc
+  stripper, a `.bak` before any rewrite, and a test suite for the direction of the merge. All of it
+  existed because the editor was code-server, inside the container, reading a file this image owned.
+
+  **The editor is the reader's own now, and a project writing into it needs a mechanical
+  justification rather than a good intention.** So six of the seven settings are gone and the
+  machinery with them. The seventh, `workbench.iconTheme`, is in `core/devcontainer.json` — in the
+  image's `devcontainer.metadata` label — because the `file-icons` extension the label declares is
+  installed and invisible without it. That is the whole rule: a setting reaches the label only if
+  something the label installs needs it.
+
+  One of the six could not have been kept in any case. `window.menuBarVisibility` is
+  `ConfigurationScope.APPLICATION` in VS Code's registry, which a container cannot set at any price
+  — and the desktop build's default is already the value this image used to seed. It existed because
+  the *web* build shows a hamburger instead of a menu row.
+
 - **`terminal.integrated.copyOnSelection: true`** makes selecting in the terminal the copy, with no
   second keystroke. It is there because the Claude Code CLI turns on terminal mouse tracking, which
   makes xterm.js stand its selection layer down — so inside the CLI a plain drag highlights nothing
@@ -116,19 +102,12 @@
   `cweijan.vscode-database-client2` (the services a dev environment brings up nearly always include
   a database, and reaching it otherwise means a client installed by hand in every project). Every
   id verified against `open-vsx.org`'s API before being added, as the per-stack ones are.
-- **Default editor settings** — `core/Dockerfile.frag` writes `/config/data/User/settings.json`
-  with `workbench.colorTheme: "Dark Modern"` and `workbench.editorAssociations: {"*.md":
-  "vscode.markdown.preview.editor"}` (`.md` files open in preview, not the raw source editor).
-  Both values confirmed against this exact code-server version's own bundled extensions rather than
-  assumed — the theme id actually contributed by `theme-defaults/package.json` is `"Dark Modern"`
-  (not `"Default Dark Modern"`, a different naming convention than expected), and
-  `"vscode.markdown.preview.editor"` is `markdown-language-features`'s registered custom-editor
-  `viewType` for the `*.md` selector. Written as a single-line `printf` (a multi-line JSON string
-  broke the Dockerfile parser — each unescaped newline inside the quoted string was read as a new
-  instruction) into `/config/data` at build time, same reasoning as the extension pre-installs:
-  Docker copies an image directory's existing content into the named `/config` volume the first
-  time it's mounted, so this is only picked up on first container creation, not on every rebuild of
-  an existing environment.
+- **One editor setting, in the label** — `workbench.iconTheme: "file-icons"`, declared in
+  `core/devcontainer.json` alongside the extensions. It is there because `file-icons` is one of
+  those extensions and does nothing unselected; no other setting qualifies under that rule. The
+  theme, the `.md` preview association and the terminal's copy-on-selection were all here once and
+  are the reader's own to set now.
+
 - **`rustup` lives in `core/`, not in the selectable `rust` stack.** It was put there to build the
   template's own launcher from inside the container; the launcher is gone and `rustup` stayed,
   because two other things had come to depend on it. The `rust` stack selects a toolchain rather

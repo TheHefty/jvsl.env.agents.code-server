@@ -198,6 +198,22 @@ done
 check "every declared extension survives composing all ${#all_stacks[@]} stacks" \
     "$declared" "$expected"
 
+# The one editor setting that survived code-server's removal, and the assertion
+# that nothing else did.
+#
+# `workbench.iconTheme` is in the label because the extension the label installs
+# is useless without it: `file-icons` present and not selected is an extension
+# that is there and invisible. That is the whole of FR-73's rule — a setting
+# reaches the label only if something the label installs needs it — and the
+# second assertion is what keeps the rule from eroding one convenient setting at
+# a time.
+none_value="$(bash "$COMPOSE" | sed -nE "s/^LABEL devcontainer\.metadata='(.*)'[[:space:]]*$/\1/p")"
+check "the surviving editor setting is declared" \
+    "$(printf '%s' "$none_value" | jq -r '[.[].customizations.vscode.settings["workbench.iconTheme"]?] | first // "absent"')" \
+    "file-icons"
+check "and it is the only editor setting declared" \
+    "$(printf '%s' "$none_value" | jq -r '[.[].customizations.vscode.settings // {} | keys[]] | length')" "1"
+
 # And the thing three earlier tasks exist to have fixed once: remoteUser must
 # still be there with thirteen entries in the array, not only with one.
 check "remoteUser survives $expected contributors" \

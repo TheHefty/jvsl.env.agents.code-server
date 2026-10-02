@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | **Done** |
 | **Epic** | `the-image-stops-being-code-servers` |
 | **Date** | 2026-10-02 |
 
@@ -87,7 +87,7 @@ arrives in the composed label.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | [`tasks/one-setting-survives-and-the-machinery-goes.md`](tasks/one-setting-survives-and-the-machinery-goes.md) | template | Draft |
+| 1 | [`tasks/one-setting-survives-and-the-machinery-goes.md`](tasks/one-setting-survives-and-the-machinery-goes.md) | template | Done — #98 |
 
 One task. The surviving setting and the machinery that delivered the other six are the same change:
 moving `iconTheme` into the label while leaving the seeding in place would mean two systems writing
@@ -102,3 +102,26 @@ forgetting that is a red rather than an invalid workflow.
 - **Changing the base image.** Story 2.
 - **`PASSWORD`.** Story 3, in the extension.
 - **Whether the renderer race affects the desktop build.** Named above as deliberately unmeasured.
+
+## Outcome
+
+Done in #98. `workbench.iconTheme` is in the label; six settings, a defaults file, a boot hook, a
+test, a CI job and a boot-log matcher are gone — 465 deletions against 176 insertions.
+
+**The story's shape held: the two failures that announce nothing were the work.** The four normative
+citations of the deleted test were caught by a check written for them, which also produced one false
+positive on its first run and was corrected for it. Three further stale references turned up in
+documentation that the task's design had not listed, and one of them —
+`docs/overview/pre-push-hook.md` naming the launcher's title-bar test and `cargo test` as steps the
+hook runs — had been wrong for two releases with nothing noticing.
+
+**`scripts/agent-docs-cite-real-files.test.sh` is the thing worth keeping from this story.** It is
+the second guard of this shape in two epics, and both were written after discovering the same class
+of rot by hand: a document citing something that was deleted. Its limit is stated in the file —
+`docs/agent/` only, because a grep cannot tell a citation from a recollection, and `docs/overview/`
+is full of deliberate recollections now.
+
+**Every scenario is covered and none needed a person**, which was the claim the story made when it
+declined to write an `@manual`. The one limit stands as named: the tests assert the surviving setting
+is *declared*. That a `WINDOW`-scoped setting is applied from the label is read from VS Code's
+registry rather than observed.

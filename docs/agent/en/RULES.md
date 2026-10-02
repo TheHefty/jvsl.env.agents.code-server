@@ -138,7 +138,7 @@ whoever opens the change.
 - **A test here is a `*.test.sh` beside the thing it exercises**, driving the real script rather
   than a copy of its logic, and exiting non-zero on failure. The template's
   `scripts/check-md-size.test.sh`, `packages.test.sh` and
-  `core/cont-init/30-editor-defaults.test.sh` are the shape to copy, and the ones with a CI job
+  `core/cont-init/15-git-credential-helper.test.sh` are the shape to copy, and the ones with a CI job
   behind them.
 - **A local hook is not CI.** It is opt-in per clone and skippable with `--no-verify`, so treat it
   as a reminder for the author, never as a gate the repository enforces.
