@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v4.0.0...v5.0.0) (2026-10-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* the java stack no longer offers 17 and the cpp stack no longer offers 11. Debian trixie does not package either — `openjdk-17-jdk`, `gcc-11` and `g++-11` are absent from it. A project pinned to Java 17 or GCC 11 has to provide it itself.
+* the image is built on `ghcr.io/linuxserver/baseimage-debian:trixie` instead of `lscr.io/linuxserver/code-server`. There is no editor in the container, no unauthenticated HTTP server and no published port. The distribution changes from Ubuntu noble to Debian trixie. `setup` must be rerun: a bumped pointer with a stale image describes a different system.
+
+### Features
+
+* java offers 21 and 25, cpp offers 12, 13 and 14 ([527f2d9](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/527f2d9d9cd38dd303326f90f781269bce490c32))
+* the base carries no editor ([ad2e9ee](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/ad2e9ee858100c82b72d2f46852ce04d695fc27e))
+
+
+### Bug Fixes
+
+* docker-compose is what the package is called on Debian ([e449944](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/e449944f324cab5aabef2f7ba0b5f0633a351da4))
+* no stack hardcodes one distribution's package source ([06a5394](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/06a53948dccb2463411a35011a7d5cef7fa656bb))
+* put back the manual-page directory the base image deletes ([8913a48](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/8913a48e84b203e72a95f3f3602a397e31c75af5))
+
 ## [4.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v3.0.0...v4.0.0) (2026-10-02)
 
 
