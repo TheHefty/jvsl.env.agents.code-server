@@ -61,6 +61,21 @@ common="$(bash -c 'set -euo pipefail; source "$1"; printf "%s\n" "${JAIL_COMMON_
 n="$(printf '%s\n' "$common" | wc -l)"
 check "claude is handed the shared list, unmodified" \
     "$(argv claude -u RUSTUP_HOME | head -n "$n")" "$common"
+
+# The two flags that are **not** there for what they do — both are ai-jail's
+# defaults — but for what nothing else says. Three scenarios of the story that
+# keeps host secrets on the host rest on the agent being unable to reach the
+# display, and until these were passed explicitly nothing in this repository
+# asserted it: the behaviour came from an upstream default, and ai-jail has
+# already reversed one here. Network access became an opt-in and the environment
+# lost its network on a rebuild that changed nothing.
+#
+# Asserted by name rather than through the prefix comparison above, so a removal
+# names what was removed instead of printing two lists to diff by eye.
+for flag in --no-display --no-docker; do
+    check "the shared list pins $flag rather than relying on the default" \
+        "$({ printf '%s\n' "$common" | grep -cx -- "$flag" || true; })" "1"
+done
 check "codex is handed the same one" \
     "$(argv codex -u RUSTUP_HOME | head -n "$n")" "$common"
 
