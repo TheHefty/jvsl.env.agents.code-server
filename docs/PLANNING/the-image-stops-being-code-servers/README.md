@@ -59,7 +59,7 @@ which is why story 2 is the one with builds behind it.
 
 | # | Story | Status |
 |---|---|---|
-| 1 | `the-settings-find-their-place` | not yet grilled |
+| 1 | [`the-settings-find-their-place`](the-settings-find-their-place/) | Draft |
 | 2 | `the-base-carries-no-editor` | not yet grilled |
 
 Story 3 — the generated configuration stops declaring `PASSWORD` — is the extension's and lives in

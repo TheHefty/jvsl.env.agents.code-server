@@ -1,0 +1,104 @@
+# Story: The settings find their place
+
+| | |
+|---|---|
+| **Status** | Draft |
+| **Epic** | `the-image-stops-being-code-servers` |
+| **Date** | 2026-10-02 |
+
+## Summary
+
+Of the seven editor settings this image seeds for code-server to read, **one survives**:
+`workbench.iconTheme`, which moves into the image's metadata label. The other six go, and so does the
+machinery that delivered them — `core/settings-defaults.json`, the build-time seeding into
+`/config/data/User/settings.json`, and the `cont-init` hook that re-applied them on every start.
+
+It delivers **FR-73** of the SRS in
+[`jvsl.env.agents.vscode`](https://github.com/TheHefty/jvsl.env.agents.vscode).
+
+## Why this is first
+
+Story 2 deletes the path by which settings reach the container at all. If it ran first, the question
+"which of these should survive and where" would be answered by whatever had already been deleted.
+
+## The rule, and what it protects
+
+> **A setting reaches the label only if it exists because of something the label installs.**
+
+`workbench.iconTheme` qualifies: without it the `file-icons` extension the image declares is
+installed and does nothing. Nothing else attaches to a declared extension.
+
+**The rule was offered two exceptions and took neither.** The two settings that are not preference —
+`chat.disableAIFeatures`, because the AI assistance here is the Claude Code CLI, and
+`terminal.integrated.gpuAcceleration: off`, a workaround for a renderer race — are the ones a
+"keep what is useful" rule would have kept. They go.
+
+The reason is that the editor now belongs to the person, not to the container. A project writing
+into somebody's editor needs a mechanical justification rather than a good intention, and *"we
+disable the Copilot on your machine because we prefer a different assistant"* is exactly the
+decision the rule exists to refuse — including when the person deciding agrees with it today.
+
+## What was measured, and what the rule made unnecessary
+
+A setting's scope decides whether a container can set it at all, and VS Code's registry resolves it
+in two steps: a property with no `scope` inherits its configuration node's
+(`configurationRegistry.ts:849`), and a node with none falls back to `WINDOW` (`:1207`), which a
+remote can set.
+
+| setting | scope | settable from a container |
+|---|---|---|
+| `window.menuBarVisibility` | **`APPLICATION`**, declared at `workbench.contribution.ts:940` | **no, at any price** |
+| `workbench.colorTheme` | `WINDOW`, inherited | yes |
+| `workbench.iconTheme` | `WINDOW`, inherited | yes |
+| `terminal.integrated.gpuAcceleration` | `WINDOW`, inherited | yes |
+| `terminal.integrated.copyOnSelection` | `WINDOW`, inherited | yes |
+| `chat.disableAIFeatures` | registration not found | unknown |
+| `workbench.editorAssociations` | registration not found | unknown |
+
+**Two are unresolved and it no longer matters.** The rule deletes both regardless of scope, so the
+only setting whose scope decided anything was `iconTheme` — and it is settable. The rule reduced the
+measurement this story needed from seven to one, which is worth noticing: a narrower rule asks fewer
+questions of the world.
+
+**`window.menuBarVisibility` is doubly pointless after this.** Besides being unsettable from a
+container, its default is `isWeb ? 'compact' : 'classic'` — so the value this image seeds is already
+what the desktop build does. It existed because the *web* build shows a hamburger, which the
+repository's own comment says.
+
+## What this story does not claim
+
+**That the settings being deleted were wrong.** `gpuAcceleration: off` fixed a real race between a
+canvas renderer's async redraw and dead-key composition, measured at the time. Whether that race
+exists in the desktop build is **not** recorded anywhere and is not measured here, because the rule
+makes the answer irrelevant: the setting goes either way. If somebody hits the race on the host, it
+is their own setting to make, and they will have the repository's description of the symptom to
+recognise it by — which is why the symptom stays in the documentation after the setting leaves it.
+
+## Acceptance criteria
+
+[`the-settings-find-their-place.feature`](the-settings-find-their-place.feature), beside this file.
+Agreed at the story gate, before any task is written.
+
+No scenario is `@manual`. Every claim here is about what the image declares and what the repository
+contains, which CI can assert — including the one that matters most, that the surviving setting
+arrives in the composed label.
+
+## Tasks
+
+| Order | Task | Repo | Status |
+|---|---|---|---|
+| 1 | `tasks/one-setting-survives-and-the-machinery-goes.md` | template | not yet written |
+
+One task. The surviving setting and the machinery that delivered the other six are the same change:
+moving `iconTheme` into the label while leaving the seeding in place would mean two systems writing
+the same setting, which is the thing story 4 of the previous epic deferred settings to avoid.
+
+**It removes the `editor-defaults` CI job**, which means the `ci-green` needs list changes with it —
+and `scripts/ci-green.test.sh` now refuses a needs list naming a job that does not exist, so
+forgetting that is a red rather than an invalid workflow.
+
+## Out of scope
+
+- **Changing the base image.** Story 2.
+- **`PASSWORD`.** Story 3, in the extension.
+- **Whether the renderer race affects the desktop build.** Named above as deliberately unmeasured.
