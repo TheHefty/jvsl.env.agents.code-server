@@ -72,6 +72,10 @@ echo "pre-push: the CI scripts that gate everything else"
 bash scripts/changed-scope.test.sh
 bash scripts/ci-green.test.sh
 bash scripts/no-launcher.test.sh
+# Not declared-extensions.test.sh: it queries the Marketplace, so it belongs in
+# a gated CI job rather than in a hook that would be slow and would fail on a
+# train.
+bash scripts/declares-extensions.test.sh
 bash scripts/no-whiptail.test.sh
 
 echo "pre-push: ok"
