@@ -3,11 +3,14 @@
 #
 # Long-running s6 service: ai-memory's MCP server, one per container and so one
 # per project. Cross-project memory was considered and rejected: it would mean a
-# server on the host, and the container has no route there — `start` publishes
-# code-server as -p 127.0.0.1:0:8443 and deliberately avoids --network host, so
-# the only path today runs host -> container. A per-container server needs none
-# of that, and the agent reaches it over the loopback the sandbox already shares
-# (measured: from inside ai-jail, code-server's own 127.0.0.1:8443 answers).
+# server on the host, and the container has no route there — nothing publishes a
+# port out of it and --network host is deliberately avoided, so the only path
+# runs host -> container. A per-container server needs none of that, and the
+# agent reaches it over the loopback the sandbox already shares, which was
+# measured from inside ai-jail at the time against the editor's own port. That
+# editor is gone and the measurement's subject with it; what it established —
+# that loopback inside the container is reachable from inside the jail — is what
+# this service depends on.
 #
 # The service is installed unconditionally but runs only for a project that
 # opted in, which is what the marker check below is. ai-memory defines

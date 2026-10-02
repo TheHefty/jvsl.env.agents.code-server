@@ -40,8 +40,6 @@ Boundaries *inside* the container are weaker on purpose, and are documented as s
 
 - Escaping the container to the host — filesystem, daemon, or privileged host resources.
 - The nested rootless daemon reaching the host's daemon, containers, or images.
-- code-server's port becoming reachable beyond the host's loopback interface (it is published as
-  `-p 127.0.0.1:0:8443`).
 - Credentials or tokens baked into the built image, or leaked from the bind-mounted
   `/config` / `~/.claude` state to somewhere they should not be.
 - Supply-chain problems in the build itself: a `Dockerfile.frag` fetching an artifact over an
@@ -61,9 +59,15 @@ about.
   rootless uid mapping (container-root maps to `abc`), not by `ai-jail`. This was measured rather
   than assumed, and the socket was kept knowingly; the reasoning is in
   [`docs/overview/container-permissions.md`](docs/overview/container-permissions.md).
-- **code-server runs with no password.** An empty `PASSWORD=` is passed, so any user or process
-  on the host that can reach the published loopback port gets the editor, and through it a shell in
-  the container. This is a single-user-workstation assumption, not an oversight.
+- **There is no editor in the container any more, and this is where that shows.** This section
+  used to carry an accepted exposure: "code-server runs with no password. An empty `PASSWORD=` is
+  passed, so any user or process on the host that can reach the published loopback port gets the
+  editor, and through it a shell in the container. This is a single-user-workstation assumption, not
+  an oversight." The assumption no longer has to be made — the image runs no HTTP server and
+  publishes no port, and the threat-model list above lost the matching entry. **It is the only item
+  this document has ever deleted rather than reworded.** What it cost is a way in when the other way
+  fails: a browser against that port reached the workbench when the editor would not attach, and
+  what remains is `docker exec` and a terminal.
 - **`--cap-add=SYS_ADMIN` and `--security-opt seccomp=unconfined` / `systempaths=unconfined`.**
   These exist so `ai-jail`'s `bwrap` sandbox can create user namespaces on distros whose AppArmor
   policy restricts unprivileged namespace creation. Without them `ai-jail` cannot build its sandbox

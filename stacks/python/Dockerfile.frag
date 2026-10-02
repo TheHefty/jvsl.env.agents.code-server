@@ -69,10 +69,3 @@ RUN set -eu \
     && update-alternatives --install /usr/bin/pip3 pip3 "/opt/python/${PY_VERSION}/bin/pip3" 100 \
     && python3 -V \
     && python3 -m pip --version
-
-# Installs the code-server extension for Python (ms-python.python — unlike
-# most ms-* extensions, this one is published to Open VSX too)
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension ms-python.python || true

@@ -1,4 +1,14 @@
-# Installs GCC/G++ {{VERSION}} + CMake, GDB, and Make
+# Installs GCC/G++ {{VERSION}} + CMake, GDB, and Make.
+#
+# **It offered 11, 12 and 13 until the base became Debian trixie, which does not
+# package 11.** Asked of api.ftp-master.debian.org: `gcc-11` and `g++-11` are
+# absent from trixie; 12, 13 and 14 are all there. So the list is 12, 13 and 14
+# — there is no third-party feed for an old GCC worth adding, and building one
+# from source is not a stack's business.
+#
+# A project pinned to GCC 11 has to provide it itself. That is the capability
+# this change costs, and it is the distribution's decision rather than this
+# template's.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-{{VERSION}} \
     g++-{{VERSION}} \
@@ -60,10 +70,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # per-project gem install or network access at test time.
 RUN gem install cucumber-wire --version 6.2.1 --no-document \
     && gem install cucumber --version 7.1.0 --no-document
-
-# Installs the code-server extension for C/C++ (Open VSX — ms-vscode.cpptools
-# isn't published there, clangd is the closest maintained equivalent)
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension llvm-vs-code-extensions.vscode-clangd || true

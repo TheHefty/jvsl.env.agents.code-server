@@ -92,6 +92,50 @@ not the launcher's: the rust stack selects a toolchain rather than installing ru
 sandbox forwards RUSTUP_HOME so the agent's cargo can find one" ;;
 esac
 
+# --- what the base provides, and the reason this is asserted at all ----------
+#
+# Five things arrive from the base image and are installed nowhere in this
+# template: s6-overlay, the `abc` user, PUID/PGID, `/config` as that user's
+# home, and the `cont-init` mechanism. They came from the code-server image
+# because that image is itself built on the same LinuxServer family — so taking
+# the editor out was a changed FROM rather than a reimplementation.
+#
+# **A base swap is exactly when one of them disappears quietly, and each would
+# be diagnosed somewhere else.** PUID/PGID unapplied reads as a host
+# permissions problem; a missing custom-cont-init.d reads as a hook that does
+# not work; a shell that is not there reads as a broken editor connection. So
+# each has an assertion, and they cost one `docker run` between them.
+base="$(docker run --rm --entrypoint /bin/bash "$IMAGE" -c '
+    printf "uid=%s\n" "$(id -u abc 2>/dev/null)"
+    printf "home=%s\n" "$(getent passwd abc | cut -d: -f6)"
+    printf "s6=%s\n" "$([ -d /etc/s6-overlay/s6-rc.d/user/contents.d ] && echo yes || echo no)"
+    printf "hooks=%s\n" "$([ -d /custom-cont-init.d ] && echo yes || echo no)"
+    printf "adduser=%s\n" "$([ -d /etc/s6-overlay/s6-rc.d/init-adduser ] && echo yes || echo no)"
+    printf "editor=%s\n" "$(command -v code-server >/dev/null 2>&1 && echo present || echo absent)"
+' 2>/dev/null || true)"
+
+field() { printf '%s' "$base" | sed -n "s/^$1=//p"; }
+
+[ "$(field uid)" = "911" ] || fail "abc's uid is '$(field uid)', not 911. LinuxServer's base creates \
+it at 911 and its init rewrites it at runtime from PUID — /etc/subuid is keyed by name for that \
+reason. A different uid here means the base is not the family this template assumes"
+
+[ "$(field home)" = "/config" ] || fail "abc's home is '$(field home)', not /config. The whole \
+layout — the per-project volume, CLAUDE_CONFIG_DIR, the bind-mounted workspace — is that path"
+
+[ "$(field s6)" = "yes" ] || fail "no /etc/s6-overlay/s6-rc.d/user/contents.d in this image, so \
+the nested Docker daemon and ai-memory are registered nowhere and nothing would say so"
+
+[ "$(field hooks)" = "yes" ] || fail "no /custom-cont-init.d in this image, so every boot hook \
+silently never runs — the ownership repair and the git credential helper among them"
+
+[ "$(field adduser)" = "yes" ] || fail "no init-adduser service in this image. That is what applies \
+PUID/PGID, and without it the first write into a bind mount lands as uid 911, which reads as a host \
+permissions problem rather than as a missing base feature"
+
+[ "$(field editor)" = "absent" ] || fail "code-server is still on PATH in this image, which is the \
+one thing the release that changed this base claims to have removed"
+
 echo "image.test: $IMAGE declares remoteUser $USER_NAME, declares no containerUser, gives \
 $USER_NAME a usable login shell ($shell), installs none of the launcher's libraries, and still \
 has a rust toolchain ($toolchain)."

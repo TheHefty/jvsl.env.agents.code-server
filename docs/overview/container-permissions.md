@@ -45,7 +45,7 @@ container needs `SYS_ADMIN`.
   - **Published ports now land inside the dev container, not on the host.** Under DooD, a compose
     stack's containers were siblings of the dev container on the host's daemon, so `-p 8080:8080`
     was reachable straight from a host browser. They're now children of the dev container, so that
-    port is on *its* loopback — reach it through code-server's own port forwarding. This is a real
+    port is on *its* loopback — reach it through the host editor's own port forwarding. This is a real
     change to how the monorepo's services get opened during development, not just an internal
     detail. `--disable-host-loopback` also means a nested container can't dial back into the dev
     container's loopback (a `host.docker.internal`-style pattern), only the other way around.
@@ -187,27 +187,29 @@ container needs `SYS_ADMIN`.
 
 ## Networking and port discovery
 
-**Networking and port discovery**: the container is *not* run with `--network host`. It publishes
-code-server's port with `-p 127.0.0.1:0:8443` — Docker picks a free host port at creation time,
-bound to loopback only (not exposed on the LAN). `start` reads that port back with `docker
-inspect` (`published_port` in `main.rs`) before connecting; the mapping is decided once, at
-`docker run` time, so it stays stable across `docker start`/`docker stop` of the same container.
+**Networking and port discovery**: the container is *not* run with `--network host`, and **it
+publishes no port at all.** Nothing in it listens for anything outside: the editor runs on the host
+and reaches in through the dev container protocol, and the services a project brings up are on the
+nested daemon's loopback, forwarded by the editor when somebody asks for them.
 
-This replaced an earlier `--network host` design once two problems surfaced:
-- With host networking, every container from this template binds the *same* host port
-  (`8443`), single default, since the linuxserver/code-server image hardcodes
-  `--bind-addr "[::]:8443"` in its own s6 service script — there's no env var to change it, and
-  patching that script in `core/Dockerfile.frag` was considered but rejected as too fragile
-  against upstream image changes (the base image tracks `:latest`, unpinned). With two projects'
-  containers running at once, whichever `start` connects would silently get whichever
-  code-server answered on `:8443` first — not necessarily its own project's.
-- The named volume for `/config` (code-server's own settings/extensions/data) was a single
-  hardcoded name (`code-server-data`), shared by every container regardless of project — a
-  separate latent bug where concurrent projects would corrupt each other's code-server data. Now
-  namespaced per project (`START_VOLUME_NAME`, see below), same convention as the container/image
-  names.
-- Host networking was otherwise only used for reaching code-server's own port from the host, not
-  for anything inside the container reaching other host services (confirmed before removing it) —
-  so dropping it has no other side effect.
+**This section used to be about a port**, and the history is worth keeping because the reasoning
+against `--network host` outlived the thing it was protecting:
+
+- the image published code-server with `-p 127.0.0.1:0:8443` — Docker picking a free host port at
+  creation time, bound to loopback only — and the launcher read that port back with `docker inspect`
+  before connecting;
+- that replaced an earlier `--network host` design, because with host networking every container
+  from this template bound the **same** host port. The linuxserver/code-server image hardcoded
+  `--bind-addr "[::]:8443"` in its own s6 service script, with no environment variable to change it,
+  so with two projects running at once a launcher would silently connect to whichever code-server
+  answered on `:8443` first — not necessarily its own project's;
+- and the named volume for `/config` was a single hardcoded `code-server-data`, shared by every
+  container regardless of project, which was a second latent bug: concurrent projects corrupting
+  each other's state. It is namespaced per project now, which is the convention the container and
+  image names already followed.
+
+Both problems are gone with the editor. **The decision not to use host networking is not** — it is
+what keeps a project's nested services on their own loopback rather than on the host's, and what the
+paragraph about `--disable-host-loopback` above depends on.
 
 Configuration via env vars (no forced default beyond what's noted):

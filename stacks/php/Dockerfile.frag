@@ -44,9 +44,3 @@ RUN . /etc/os-release \
     composer \
     && update-alternatives --install /usr/bin/php php /usr/bin/php{{VERSION}} 100 \
     && rm -rf /var/lib/apt/lists/*
-
-# Installs the code-server extension for PHP (Open VSX)
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension bmewburn.vscode-intelephense-client || true

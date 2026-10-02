@@ -11,11 +11,3 @@ RUN curl -fsSL https://deb.nodesource.com/setup_{{VERSION}}.x | bash - \
     && NODE_PKG_VERSION="$(apt-cache madison nodejs | awk -F'|' '/nodesource/ {gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2; exit}')" \
     && apt-get install -y --allow-downgrades "nodejs=$NODE_PKG_VERSION" \
     && rm -rf /var/lib/apt/lists/*
-
-# Installs the code-server extension for JS/TS (Open VSX). Language support
-# itself ships built into code-server already — ESLint is the standard
-# companion most projects actually need on top of that.
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension dbaeumer.vscode-eslint || true

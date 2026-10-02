@@ -14,11 +14,14 @@ atomic swap.
 
 ## Why this story exists, and why it was not foreseen
 
-The epic's base was chosen with one risk accepted: "~30 package names to re-check". That was measured
-and came back zero — **all sixty-five packages exist in Debian trixie under the same names.**
+The epic's base was chosen with one risk accepted: "~30 package names to re-check". I measured it and
+reported zero — **and that measurement was itself wrong**, by a method that reads HTTP 200 from
+`packages.debian.org` as presence. One package is renamed, which the base swap's first CI run found:
+`docker-compose-v2` on Ubuntu is `docker-compose` on trixie. Story 2's document carries the
+re-measurement.
 
-The measurement was true and the wrong question. **Package names were never the problem: two stacks
-bring their own repository.**
+**But the names were never this story's problem either way: two stacks bring their own
+repository.**
 
 ```
 php     → ppa.launchpadcontent.net/ondrej/php/ubuntu/${VERSION_CODENAME}
@@ -93,8 +96,24 @@ Independent of each other, and both before the base swap. The php one is a repos
 python one is the only piece of this epic with no precedent in the repository, which is why it is
 second and alone.
 
+## What this story got wrong, found by the story after it
+
+**Its repository-wide guard was narrower than its own scenario.** The scenario says "no stack adds
+an Ubuntu-only repository"; the test said "no stack adds a Launchpad PPA", and checked for
+`launchpad`.
+
+The dotnet stack hardcoded `packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb`
+— an Ubuntu-only source that is not a PPA — and the guard did not see it. It was found while looking
+for exactly this class of thing after the base swap's first CI run failed on a renamed package,
+which is to say: found by somebody looking, not by the check written to look.
+
+The guard is now `scripts/no-ubuntu-only-sources.test.sh` and looks for a **literal distribution
+name in a source**, because the correct form reads it from `/etc/os-release` and follows whatever the
+base is. It was shown catching the dotnet line before that line was fixed.
+
 ## Out of scope
 
 - **Changing the base.** The story after this one.
-- **Any other stack.** The remaining eight take everything from the distribution's own archive, where
-  the sixty-five-package measurement applies. The per-stack image builds are what would say otherwise.
+- **Any other stack.** The remaining eight take everything from the distribution's own archive. The
+  per-stack image builds are what says whether a name moved — which is how the one rename in this
+  epic was actually found, rather than by the measurement that claimed there were none.

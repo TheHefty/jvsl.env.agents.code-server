@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-base-carries-no-editor
 epic: the-image-stops-being-code-servers
 pr:
@@ -132,4 +132,102 @@ measurement answered the wrong question.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #106. One `FROM`, eleven `RUN` blocks (thirteen `--install-extension` invocations,
+because core had three), six assertions in `core/image.test.sh`, and five documents.
+
+**CI found a defect on its first run, and the defect was in a measurement I had reported as a
+fact.** `core-build` failed with `E: Unable to locate package docker-compose-v2` before reaching any
+stack layer. That package is Ubuntu's name for Compose v2 — `docker-compose` was taken there by the
+Python v1 — and on trixie there is no v1, so `docker-compose` *is* v2 (2.26.1, shipping both
+`/usr/bin/docker-compose` and the CLI plugin).
+
+**The measurement that said "zero renames" used a method I had already found to be wrong.** It read
+HTTP 200 from `packages.debian.org/trixie/<pkg>` as presence; that page exists whether or not the
+package is in the suite. I caught exactly that while designing the python task —
+`packages.debian.org/trixie/python3.11` answers 200 and trixie has only 3.13 — wrote it down as a
+lesson, and did not go back and re-run the earlier measurement with the corrected method.
+
+Re-measured with `api.ftp-master.debian.org/madison`: one rename across both sets. The count was
+also wrong — thirty in core and thirty-four across the stacks, and four of the stack names were
+templated, which the extraction truncated at the hyphen.
+
+**Three more things the distribution change broke, and two of them cost a capability.** After the
+`docker-compose` rename I went looking for the same class rather than waiting for CI to find it one
+stack at a time — which is what the broken measurement should have done in the first place:
+
+| | what trixie has |
+|---|---|
+| `dotnet` hardcoded `config/ubuntu/24.04/packages-microsoft-prod.deb` | Microsoft publishes `debian/13` too, with `dotnet-sdk-8.0`, `9.0` and `10.0`. The fragment reads `ID` and `VERSION_ID` now and fails naming the distribution when there is no config for it |
+| `java` offered 17 and 21 | **`openjdk-17-jdk` is absent.** 21 and 25 are there, so the list is 21 and 25 |
+| `cpp` offered 11, 12 and 13 | **`gcc-11` and `g++-11` are absent.** 12, 13 and 14 are there |
+
+**Java 17 could have been kept.** `packages.adoptium.net` serves trixie and carries temurin-8
+through temurin-27. It was weighed against a second third-party repository with a key to vendor,
+verify and rotate — for one version of one stack — and the distribution's own archive was chosen.
+**The capability lost is real**: a project pinned to Java 17, or to GCC 11, now has to provide it
+itself. For GCC there was no alternative to weigh.
+
+**And one of my checks had the same shape of bug as the measurement it was checking.** Querying
+madison for `g++-11`, `g++-12` and `g++-13` reported all three absent, which is false — `+` in a
+query string means space, so it asked about `g  -11`. Caught because three absences in a row from a
+compiler suite is not a believable answer. Re-queried with `%2B`: 11 absent, 12/13/14 present.
+
+**The fourth thing CI found was not a package at all, and it is the one worth the most.**
+`stack-build (java)` failed with `openjdk-21-jdk` present and installable:
+
+```
+update-alternatives: error: error creating symbolic link
+  '/usr/share/man/man1/java.1.gz.dpkg-tmp': No such file or directory
+dpkg: error processing package openjdk-21-jre-headless (--configure)
+```
+
+`baseimage-debian`'s Dockerfile ends with `rm -rf … /usr/share/man`. **`baseimage-ubuntu`'s does
+not** — and that single line is the whole difference. A package registering a manual page as an
+alternative fails its post-installation script when the directory is absent, and `dpkg` fails the
+transaction. The fix is `mkdir -p /usr/share/man/man1` in **core**, not in the java fragment, because
+nothing about it is specific to the JDK.
+
+**No amount of asking an archive whether a package exists would have found this.** It is a property
+of the base image, which is what the six assertions in `image.test.sh` were written to cover — and
+they do not cover it either, because what broke was a *package's* post-install rather than one of the
+five conventions. The honest statement is that the image builds found it, as story 2 said they would,
+and that the assertions written blind were aimed at the wrong half of the risk.
+
+**And a measurement of mine was based on a 404.** Checking whether the new base ships `bash`, I
+fetched `linuxserver/docker-baseimage-debian/trixie/Dockerfile` and got nothing — and read nothing as
+"bash is not visibly installed". That branch does not exist: the repository has `bookworm`,
+`bullseye`, `kali` and `master`, and the `trixie` *tag* is built from `master`. Read from `master`,
+line 12 installs bash. **That is the fourth time in this epic I read an empty or wrong-shaped result
+as information**, after the two `packages.debian.org` 200s and the unencoded `g++` query.
+
+**None of it could be verified here, and that makes it the least-verified change in either epic.**
+Every claim this task makes is about a built image, and this environment has no usable Docker — the
+nested daemon is down, which is the `overrideCommand` defect from the same week. `core-build`,
+`core-booted` and `stack-build` are where it is verified.
+
+**The six assertions are the deliverable and they were written blind.** Worth saying plainly rather
+than leaving to be inferred: what they assert is derived from reading the base image's own Dockerfile,
+not from observing the image. If the base lays something out differently than that file suggests, the
+assertion fails on its first CI run — which is the right place for it to fail, and is not the same as
+having checked.
+
+**Three orphaned comment blocks survived the mechanical removal**, each justifying something by an
+editor that is no longer there:
+
+- core's Open VSX paragraph explained why the installed identifiers avoided `ms-*`, which was about
+  code-server's gallery. It is now the record of why two lists existed at all and why `.NET` is the
+  case proving they were allowed to differ;
+- section `5.0`'s justification for giving `abc` a login shell said "the only way in is code-server's
+  own terminal" — which stopped being true a release earlier, when the editor moved to the host;
+- `svc-ai-memory/run` and `ai-memory.md` cited the editor's port as the measurement establishing that
+  loopback is reachable from inside the jail. The subject is gone; what the measurement established is
+  what the service rests on, and both now say that instead of citing a port.
+
+**`SECURITY.md` deleted an item for the first time.** The unauthenticated server with an empty
+`PASSWORD=`, and the threat-model line about its port reaching beyond loopback. The replacement
+records what was deleted, what it cost — a browser against that port was the way in when the editor
+would not attach — and that this is the only item the document has ever removed rather than reworded.
+
+**`container-permissions.md`'s networking section was about a port and is now about not having one.**
+The history is kept deliberately: the reasoning against `--network host` outlived the thing it
+protected, and the paragraph about `--disable-host-loopback` still depends on it.
