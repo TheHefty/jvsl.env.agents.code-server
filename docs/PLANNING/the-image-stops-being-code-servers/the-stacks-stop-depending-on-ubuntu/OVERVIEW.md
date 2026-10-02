@@ -87,7 +87,7 @@ stacks have image builds in CI.
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/php-takes-its-packages-from-sury.md`](tasks/php-takes-its-packages-from-sury.md) | template | Done — #102 |
-| 2 | `tasks/python-stops-needing-an-ubuntu-ppa.md` | template | not yet written |
+| 2 | [`tasks/python-stops-needing-an-ubuntu-ppa.md`](tasks/python-stops-needing-an-ubuntu-ppa.md) | template | Draft |
 
 Independent of each other, and both before the base swap. The php one is a repository and a key; the
 python one is the only piece of this epic with no precedent in the repository, which is why it is
