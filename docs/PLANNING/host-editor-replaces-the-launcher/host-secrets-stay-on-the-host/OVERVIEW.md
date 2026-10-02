@@ -120,6 +120,31 @@ before any code was written and one assertion moved to the other repository afte
 | the container authenticates as itself | `15-git-credential-helper.sh` and its 11 assertions |
 | Workspace Trust is never disabled | three assertions across two repositories |
 
+### Audit, 2026-10-02
+
+**Three of this story's scenarios had no test, and they are the first three.** "The agent cannot reach
+the host's gpg agent", "…the host's display" and "…an ssh agent" were held up entirely by **ai-jail's
+own defaults**: nothing in this repository passed a flag for any of them, and nothing asserted one.
+Found by reading this feature file against the suites rather than by reading code.
+
+That is the class of failure this project has already paid for once. An ai-jail release turned network
+access into an explicit opt-in, and the environment lost its network on a rebuild that changed nothing
+in it, presenting as a host networking fault that did not exist. A pinned digest stops the binary
+changing underneath; it does nothing about a *deliberate* bump changing a default.
+
+**`--no-display` and `--no-docker` are now passed explicitly and asserted by name.** Both are ai-jail's
+defaults today, so neither changes behaviour — and that is the point. `--no-display` is the one worth
+having most: ai-jail's help documents a default for `--no-docker` and `--no-tailscale` and **documents
+none for display**, so what was being relied on is not written down upstream either. If a future
+release renames a flag, the wrapper fails loudly on an unknown argument rather than quietly granting
+what the flag used to deny.
+
+**The gpg and ssh halves cannot be pinned the same way**, and that is recorded rather than smoothed:
+ai-jail unsets `SSH_AUTH_SOCK` and `GPG_AGENT_INFO` on the bwrap command line itself, with no flag of
+ours to hold it. Verified live from inside the jail instead — both variables absent, no display
+variables, and `/config/.gnupg/S.gpg-agent` not reachable at all. A person re-running that check is the
+only thing that would see a regression, which is what the `@manual` scenarios are for.
+
 **One `@manual` scenario is still owed** — *"A person can still write both"*: a person adds a launch
 configuration by hand in the host's editor and it is written. It is the escape this story
 deliberately did not build a mechanism for, so it is the one thing that proves the restriction did

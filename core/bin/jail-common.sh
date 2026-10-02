@@ -37,10 +37,36 @@
 # --no-save-config is not a relaxation but the opposite: without it ai-jail
 # writes the two flags above into the project's .ai-jail, then refuses to honour
 # what it just wrote, and warns about it on every single run.
+#   --no-display, --no-docker
+#                  **Passed explicitly because an upstream default is not a
+#                  contract.** Both are ai-jail's defaults today, so these change
+#                  nothing — and that is the point: three scenarios of the story
+#                  that keeps host secrets on the host rest on the agent being
+#                  unable to reach the display, and until this line nothing in
+#                  this repository said so. An ai-jail release has already
+#                  reversed a default once here: network access became an opt-in,
+#                  and the environment lost its network on a rebuild that changed
+#                  nothing in it, presenting as a host networking fault that did
+#                  not exist.
+#
+#                  `--no-display` is the one worth having most: ai-jail's help
+#                  documents a default for `--no-docker` and `--no-tailscale` and
+#                  **documents none for display**, so what is being relied on is
+#                  not even written down upstream. `--no-docker` is about the
+#                  *host's* socket, which mounting once made everything in the
+#                  container root-equivalent on the host; the nested daemon
+#                  reaches the agent through the `/config/.docker` map below and
+#                  is unaffected.
+#
+#                  If a future ai-jail renames either flag, it fails loudly on
+#                  an unknown argument rather than quietly granting what the flag
+#                  used to deny.
 JAIL_COMMON_ARGS=(
   --network
   --agent-state
   --no-save-config
+  --no-display
+  --no-docker
 )
 
 # GitHub credentials reach the agent as a **file**, not as a variable.
