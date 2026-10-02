@@ -76,6 +76,8 @@ jobs:
         run: bash scripts/declares-extensions.test.sh
       - name: the normative documents cite files that exist
         run: bash scripts/agent-docs-cite-real-files.test.sh
+      - name: no stack adds a Launchpad PPA
+        run: bash scripts/no-launchpad-ppa.test.sh
       - name: nothing requires whiptail
         run: bash scripts/no-whiptail.test.sh
 

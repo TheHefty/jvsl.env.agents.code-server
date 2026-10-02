@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-stacks-stop-depending-on-ubuntu
 epic: the-image-stops-being-code-servers
 pr:
@@ -176,4 +176,44 @@ measuring the other shows something the first does not have.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #104.
+
+**All three digests were measured, not transcribed** — each tarball downloaded and `sha256sum`'d:
+
+```
+3.11  3.11.17  7086a336e6ea0a49595cf891066ab6517156c85116f77fbc23b62c1d9e9b7d92
+3.12  3.12.15  7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d
+3.13  3.13.16  ffcb50e716789d1a6e1db5e745d4d194ac8ed9b015ccf5eabcaccb179a25e4a8
+```
+
+The design had measured 3.12's; it matches. **And the design's claim about the archive's contents was
+checked against the other two rather than generalised from one** — all four expected artefacts
+(`Python.h`, `libpython`, `bin/pip`, `venv/__init__.py`) are present in 3.11 and 3.13 as well.
+
+**One thing the design had wrong in style rather than substance.** It put three explanatory comments
+*inside* the `RUN`. `awk` over every fragment in the repository found no other instance: relying on
+Docker stripping comment lines from inside a continuation is a parser quirk to depend on, not a style
+to introduce. They were lifted above the `RUN`, where every other fragment keeps its reasons.
+
+**The old fragment's hardest-won comments became obsolete rather than being carried over**, and two of
+them for a reason outside this task: `--no-wheel` existed because core's Tauri build dependencies
+dragged in a Debian `python3-packaging` that pip could not replace — and those dependencies left with
+the bundled launcher two epics ago. `--break-system-packages` existed because PEP 668 marks the
+*system* interpreter as externally managed, and this one is not the system's. Both flags are gone with
+the line they modified.
+
+**`scripts/no-launchpad-ppa.test.sh` is green at 12 and was proven able to fail**, by adding a PPA
+line to the ruby fragment and watching it named. It excludes comment lines on purpose: a fragment
+recording that it *used to* use a PPA is the history this project keeps, and a grep cannot tell a
+recollection from an instruction — the same limit the launcher's guard records.
+
+**What could not be run here:** `stacks/python/image.test.sh`, which executes inside a built image
+with no network. Its load-bearing assertion compiles a C extension, links it against the interpreter's
+own headers and imports it, because `python3 -V` answers perfectly from a build that can compile
+nothing. `stack-build (python)` is where that runs, and until it does, **the epic's central claim is
+designed and unverified.**
+
+**Where packages land has changed**, as failure scenario 3 said it would: into
+`/opt/python/<version>/lib/python<version>/site-packages`, not Debian's `dist-packages`. A project
+that assumed the distribution's layout will notice. Nothing tests that, and the honest statement is
+that the fragment stopped pretending rather than that the difference was eliminated.

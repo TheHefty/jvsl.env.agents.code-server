@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "CPython builds from astral-sh/python-build-standalone, pinned per version.",
+    "The project publishes no .sha256 assets, so each digest here was measured with",
+    "sha256sum on the downloaded file. A tag is not immutable and a release asset can",
+    "be replaced; the digest is what makes the build fail instead of installing",
+    "something else.",
+    "To add or bump a version: download the asset, run sha256sum, and record all three",
+    "fields. Do not transcribe a digest from anywhere."
+  ],
+  "3.11": { "release": "20261001", "version": "3.11.17", "sha256": "7086a336e6ea0a49595cf891066ab6517156c85116f77fbc23b62c1d9e9b7d92" },
+  "3.12": { "release": "20261001", "version": "3.12.15", "sha256": "7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d" },
+  "3.13": { "release": "20261001", "version": "3.13.16", "sha256": "ffcb50e716789d1a6e1db5e745d4d194ac8ed9b015ccf5eabcaccb179a25e4a8" }
+}
