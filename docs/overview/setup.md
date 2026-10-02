@@ -1,6 +1,6 @@
 # `setup`
 
-- **`.code-server/core/`** — mandatory layer, not a menu option: code-server, Node.js (required by
+- **`.code-server/core/`** — mandatory layer, not a menu option: Node.js (required by
   the Claude Code CLI), Claude Code CLI (reached through `core/bin/claude.sh`, installed as
   `/usr/local/bin/claude` so the `claude` that PATH resolves is the sandboxed one — see "Why the
   container is this permissive" in [`container-permissions.md`](container-permissions.md)), `ai-jail`,
@@ -115,8 +115,12 @@
   on PATH without it is a shim that cannot find the toolchain it shims. Deleting it with the
   launcher's libraries is the mistake this paragraph exists to prevent: it sits in the same section
   of the fragment and used to be justified by the launcher.
-- **Base image is pinned to `tag@digest`** (`lscr.io/linuxserver/code-server:4.129.0@sha256:...`),
-  not `:latest`. Found out the hard way while debugging the port issue below: `:latest` means the
+- **Base image is pinned to `tag@digest`**
+  (`ghcr.io/linuxserver/baseimage-debian:trixie@sha256:...`), not `:latest`. It used to be
+  `lscr.io/linuxserver/code-server`, which is where the five conventions this template depends on —
+  s6-overlay, `abc`, PUID/PGID, `/config` as its home, `cont-init` — actually came from: that image
+  is itself built on this family, so removing the editor was a changed `FROM` and not a
+  reimplementation. Found out the hard way while debugging the port issue below: `:latest` means the
   build can change under you with zero warning, and the image's internals (e.g. the exact
   `--bind-addr` flag baked into its s6 service script) aren't part of any documented contract.
   Pinning the tag alone isn't enough either — registries can in principle re-push a tag to a
@@ -136,30 +140,29 @@
     dependency rather than silently adding it — the checklist is the user's statement of intent —
     while composition orders dependencies before their dependents regardless of the checklist's
     alphabetical order.
-- **Each stack also installs one code-server extension for its language**, same
-  `code-server --extensions-dir /config/extensions --user-data-dir /config/data
-  --install-extension <id> || true` pattern core already uses for `file-icons`, appended as the
-  last `RUN` in each stack's fragment. The `|| true` matters here more than it did for
-  `file-icons`: `code-server`'s default marketplace is the **Open VSX Registry**, not Microsoft's
-  own Marketplace (code-server can't legally point at Microsoft's, being a non-Microsoft build), so
-  most `ms-*` extension IDs 404 there — verified per-ID against `open-vsx.org`'s API before picking
-  one, not assumed from what's popular on the real Marketplace:
-  - `java` → `redhat.java` (Red Hat publishes this one to Open VSX directly)
-  - `cpp` → `llvm-vs-code-extensions.vscode-clangd` (`ms-vscode.cpptools` 404s on Open VSX)
-  - `dotnet` → `muhammad-sammy.csharp` (`ms-dotnettools.csharp` 404s; this is an unofficial fork
-    built from the same open-source base, published to Open VSX)
-  - `python` → `ms-python.python` — the one `ms-*` exception found: Microsoft does publish this
-    specific extension to Open VSX
-  - `golang` → `golang.go`
-  - `ruby` → `shopify.ruby-lsp`
-  - `php` → `bmewburn.vscode-intelephense-client`
-  - `node` → `dbaeumer.vscode-eslint` (JS/TS language support itself already ships built into
-    code-server; ESLint is the companion most projects actually need on top of that)
-  - Considered switching code-server's extension gallery to the real Microsoft Marketplace instead
-    (would unlock the exact `ms-vscode.cpptools`/`ms-dotnettools.csharp` IDs) — rejected: doing
-    that is against Microsoft's Marketplace Terms of Use for non-official VS Code builds, a
-    policy/legal trade-off rather than a technical one, so Open VSX + closest maintained
-    equivalent stays the default.
+- **Each stack declares one extension for the host editor**, in
+  `stacks/<name>/devcontainer.json`, merged into the image's `devcontainer.metadata` label by
+  `core/compose-dockerfile.sh`. The host editor installs them when it attaches; the image installs
+  nothing.
+
+  **It used to install them itself**, with
+  `code-server --extensions-dir /config/extensions --install-extension <id> || true` as the last
+  `RUN` of every fragment, and the `|| true` mattered: code-server's gallery is the **Open VSX
+  Registry**, not Microsoft's — a non-Microsoft build may not legally point at Microsoft's — so most
+  `ms-*` identifiers 404ed there. Switching the gallery was considered and rejected on those terms
+  rather than on technical ones.
+
+  Two lists therefore existed side by side for a while, and were allowed to differ exactly where an
+  identifier resolved on only one registry. `.NET` is the case that proves the rule:
+  `muhammad-sammy.csharp` is a fork that exists on Open VSX *because* the first-party
+  `ms-dotnettools.csharp` is licensed for Microsoft's own build of the editor — which is the build
+  the host editor is. With the editor out of the image there is one list, one registry, and the
+  first-party identifier.
+
+  `scripts/declared-extensions.test.sh` queries that registry for every declared identifier, in a
+  job gated on a declaration having changed — because the failure is silent: a well-formed
+  identifier that does not exist installs nothing and reports nothing.
+
 - **Manifest `.code-server.stack.json`** — a `{ stack: version }` object with the current
   selection **plus an optional `limits` object**, rewritten on every run of `setup`. JSON format chosen over a sourceable `KEY=VALUE`
   because it's easier to extend (e.g. something more per stack in the future) and for other tools

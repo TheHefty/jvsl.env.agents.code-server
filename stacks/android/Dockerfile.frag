@@ -265,11 +265,3 @@ ENV ANDROID_AVD_HOME=/config/android-avd
 
 COPY stacks/android/cont-init/30-android-avd-home.sh /custom-cont-init.d/30-android-avd-home.sh
 RUN chmod +x /custom-cont-init.d/30-android-avd-home.sh
-
-# Installs the code-server extension for Kotlin (Open VSX) — Android's
-# default language today; Java/Maven support already comes from the java
-# stack this one requires
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension fwcd.kotlin || true

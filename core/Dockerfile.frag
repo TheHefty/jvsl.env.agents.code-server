@@ -1,4 +1,22 @@
-FROM lscr.io/linuxserver/code-server:4.129.0@sha256:076499743664cc7bac7fefe468860cd6949ad7ca247f20ffc1d4edefd2dc0956
+# The base carries the conventions this template depends on and no editor.
+#
+# **It used to be the code-server image**, and five things arrived with it that
+# are installed nowhere in the template: s6-overlay, the `abc` user, PUID/PGID,
+# `/config` as that user's home, and the `cont-init` mechanism. They did not
+# come from code-server — the code-server image is itself built on this family,
+# `ghcr.io/linuxserver/baseimage-ubuntu:noble`. So removing the editor is a
+# changed FROM rather than a reimplementation of five mechanisms, which is a
+# correction to what the charter first estimated.
+#
+# **The digest is the pin and the tag is a label.** `trixie` moves; the digest
+# does not. The cost, accepted deliberately: on a bump the diff shows a digest
+# changing and the tag standing still, so the commit message has to say what
+# moved because the diff cannot.
+#
+# core/image.test.sh asserts each of the five, because a base swap is exactly
+# when one of them disappears quietly — and each would be diagnosed somewhere
+# else. PUID/PGID unapplied reads as a host permissions problem.
+FROM ghcr.io/linuxserver/baseimage-debian:trixie@sha256:277fe892c46a57688442df06a49ce662e0ddafde16802aaff695cc341d082412
 
 # Avoids interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -158,9 +176,9 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/svc-dockerd-rootless/run \
 RUN mkdir -p /config/.claude /config/.codex \
     && chown -R abc:abc /config/.claude /config/.codex
 
-# 5.0 A login shell for 'abc'. The base image gives it /bin/false, which is
-# sound while the only way in is code-server's own terminal — it runs as 'abc'
-# already and never logs in. It stops being sound the moment something
+# 5.0 A login shell for 'abc'. The base image gives it /bin/false, which was
+# sound while the only way in was an editor running inside the container as
+# 'abc' already, never logging in. It stopped being sound the moment something
 # *connects* as that user: a host editor attaching over the dev container
 # protocol opens a shell, gets /bin/false, and presents a session that looks
 # broken rather than one that was refused.
@@ -284,22 +302,16 @@ ENV CLAUDE_CONFIG_DIR=/config/.claude
 # services a dev environment brings up nearly always include one, and reaching
 # it otherwise means a terminal client installed by hand in every project).
 #
-# Every id verified against open-vsx.org's API before being added, as the
-# per-stack ones already are: code-server's marketplace is the **Open VSX
-# Registry** and not Microsoft's, so a popular `publisher.name` from the real
-# Marketplace is not evidence that it resolves here. Checked:
-# `CucumberOpen.cucumber-official` and `cweijan.vscode-database-client2` both
-# publish there directly — the first checked again when it replaced
-# `alexkrechik.cucumberautocomplete`, which also publishes there. Both lists
-# moved together because both identifiers resolve on both registries; where
-# they cannot, they are allowed to differ, which is what `.NET` does.
-
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension file-icons.file-icons \
-    --install-extension CucumberOpen.cucumber-official \
-    --install-extension cweijan.vscode-database-client2 || true
+# **Every id is verified against the registry the editor installs from**, which
+# is now the Marketplace rather than Open VSX: the image no longer runs an
+# editor, so the only list is the one the label declares and the only registry
+# that matters is the host editor's. `scripts/declared-extensions.test.sh`
+# queries it, in a job gated on a declaration having changed.
+#
+# While both lists existed they were allowed to differ where an id resolved on
+# only one registry — which is what `.NET` does, and the reason
+# `ms-dotnettools.csharp` replaced a fork that existed because the first-party
+# extension is licensed for Microsoft's own build of the editor.
 
 # The default editor settings that used to be seeded here are gone with
 # code-server. One of them survived, and it is in core/devcontainer.json rather

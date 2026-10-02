@@ -60,10 +60,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # per-project gem install or network access at test time.
 RUN gem install cucumber-wire --version 6.2.1 --no-document \
     && gem install cucumber --version 7.1.0 --no-document
-
-# Installs the code-server extension for C/C++ (Open VSX — ms-vscode.cpptools
-# isn't published there, clangd is the closest maintained equivalent)
-RUN /app/code-server/bin/code-server \
-    --extensions-dir /config/extensions \
-    --user-data-dir /config/data \
-    --install-extension llvm-vs-code-extensions.vscode-clangd || true

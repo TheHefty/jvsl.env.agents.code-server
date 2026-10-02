@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-base-carries-no-editor
 epic: the-image-stops-being-code-servers
 pr:
@@ -132,4 +132,37 @@ measurement answered the wrong question.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #106. One `FROM`, eleven `RUN` blocks (thirteen `--install-extension` invocations,
+because core had three), six assertions in `core/image.test.sh`, and five documents.
+
+**None of it could be verified here, and that makes it the least-verified change in either epic.**
+Every claim this task makes is about a built image, and this environment has no usable Docker — the
+nested daemon is down, which is the `overrideCommand` defect from the same week. `core-build`,
+`core-booted` and `stack-build` are where it is verified.
+
+**The six assertions are the deliverable and they were written blind.** Worth saying plainly rather
+than leaving to be inferred: what they assert is derived from reading the base image's own Dockerfile,
+not from observing the image. If the base lays something out differently than that file suggests, the
+assertion fails on its first CI run — which is the right place for it to fail, and is not the same as
+having checked.
+
+**Three orphaned comment blocks survived the mechanical removal**, each justifying something by an
+editor that is no longer there:
+
+- core's Open VSX paragraph explained why the installed identifiers avoided `ms-*`, which was about
+  code-server's gallery. It is now the record of why two lists existed at all and why `.NET` is the
+  case proving they were allowed to differ;
+- section `5.0`'s justification for giving `abc` a login shell said "the only way in is code-server's
+  own terminal" — which stopped being true a release earlier, when the editor moved to the host;
+- `svc-ai-memory/run` and `ai-memory.md` cited the editor's port as the measurement establishing that
+  loopback is reachable from inside the jail. The subject is gone; what the measurement established is
+  what the service rests on, and both now say that instead of citing a port.
+
+**`SECURITY.md` deleted an item for the first time.** The unauthenticated server with an empty
+`PASSWORD=`, and the threat-model line about its port reaching beyond loopback. The replacement
+records what was deleted, what it cost — a browser against that port was the way in when the editor
+would not attach — and that this is the only item the document has ever removed rather than reworded.
+
+**`container-permissions.md`'s networking section was about a port and is now about not having one.**
+The history is kept deliberately: the reasoning against `--network host` outlived the thing it
+protected, and the paragraph about `--disable-host-loopback` still depends on it.

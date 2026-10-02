@@ -5,11 +5,12 @@ for it.
 
 - **`ai-memory` runs per project, inside the container, and only when the project asks for it.**
   One server per container, which is one per project, reached by the agent over the loopback the
-  sandbox already shares — measured from inside `ai-jail`, where code-server's own
-  `127.0.0.1:8443` answers. Cross-project memory was considered and rejected: it would put the
-  server on the host, and the container has no route there. `start` publishes code-server as
-  `-p 127.0.0.1:0:8443` and avoids `--network host` on purpose, so the only path that exists runs
-  host to container.
+  sandbox already shares — measured from inside `ai-jail` at the time, against the editor's own
+  `127.0.0.1:8443`. **That editor is gone and the measurement's subject with it;** what it
+  established, that loopback inside the container is reachable from inside the jail, is what this
+  service rests on. Cross-project memory was considered and rejected: it would put the server on the
+  host, and the container has no route there. Nothing publishes a port out of it and
+  `--network host` is avoided on purpose, so the only path that exists runs host to container.
 
   The opt-in is `ai-memory`'s own `.ai-memory.toml` marker rather than a switch the template
   invents, and it is enforced twice. `core/services/svc-ai-memory/run` parks on `sleep infinity`
