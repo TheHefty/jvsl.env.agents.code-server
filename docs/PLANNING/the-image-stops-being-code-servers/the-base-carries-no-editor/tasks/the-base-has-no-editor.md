@@ -151,6 +151,27 @@ Re-measured with `api.ftp-master.debian.org/madison`: one rename across both set
 also wrong — thirty in core and thirty-four across the stacks, and four of the stack names were
 templated, which the extraction truncated at the hyphen.
 
+**Three more things the distribution change broke, and two of them cost a capability.** After the
+`docker-compose` rename I went looking for the same class rather than waiting for CI to find it one
+stack at a time — which is what the broken measurement should have done in the first place:
+
+| | what trixie has |
+|---|---|
+| `dotnet` hardcoded `config/ubuntu/24.04/packages-microsoft-prod.deb` | Microsoft publishes `debian/13` too, with `dotnet-sdk-8.0`, `9.0` and `10.0`. The fragment reads `ID` and `VERSION_ID` now and fails naming the distribution when there is no config for it |
+| `java` offered 17 and 21 | **`openjdk-17-jdk` is absent.** 21 and 25 are there, so the list is 21 and 25 |
+| `cpp` offered 11, 12 and 13 | **`gcc-11` and `g++-11` are absent.** 12, 13 and 14 are there |
+
+**Java 17 could have been kept.** `packages.adoptium.net` serves trixie and carries temurin-8
+through temurin-27. It was weighed against a second third-party repository with a key to vendor,
+verify and rotate — for one version of one stack — and the distribution's own archive was chosen.
+**The capability lost is real**: a project pinned to Java 17, or to GCC 11, now has to provide it
+itself. For GCC there was no alternative to weigh.
+
+**And one of my checks had the same shape of bug as the measurement it was checking.** Querying
+madison for `g++-11`, `g++-12` and `g++-13` reported all three absent, which is false — `+` in a
+query string means space, so it asked about `g  -11`. Caught because three absences in a row from a
+compiler suite is not a believable answer. Re-queried with `%2B`: 11 absent, 12/13/14 present.
+
 **None of it could be verified here, and that makes it the least-verified change in either epic.**
 Every claim this task makes is about a built image, and this environment has no usable Docker — the
 nested daemon is down, which is the `overrideCommand` defect from the same week. `core-build`,
