@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-base-carries-no-editor
 epic: the-image-stops-being-code-servers
 pr:
@@ -132,4 +132,31 @@ reported line.
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #108. 13 assertions, red at 5 passed / 8 failed before the script existed.
+
+**Four of the thirteen are refusals, and they are the ones worth having.** An unrecognised `data`,
+an unrecognised `extensions`, a symlink whose target survives, and the symlink itself left in place.
+The design named two; writing the test produced two more, both about a path being something other
+than a directory — which is the shape a volume a person can write to actually takes.
+
+**The silence assertion counts bytes.** `nothing is said when neither path exists` asserts the output
+is **zero characters**, not that it lacks a particular word. A hook that runs on every start of every
+project forever has one chance to be quiet, and "says nothing recognisable" is not the same claim as
+"says nothing".
+
+**The failure case is skipped when the suite runs as root** and says so, because root ignores the
+permission bits it needs. Same shape as the state-directory test's, and the alternative — asserting
+nothing at all — is the vacuous pass this repository has been bitten by.
+
+**What is still unverified, and it is the whole point of the script:** that a real volume carrying
+real code-server state is emptied correctly. That needs a volume from before the base swap, and this
+environment can no longer produce one — the image does not create that state any more. The test
+drives fixtures that look like it; the real thing is seen the first time somebody rebuilds an old
+project, and the reported line with its size is what will say whether it worked.
+
+**One thing I did not do and want on the record:** I did not add this hook's announcement to
+`booted.matchers.test.sh`'s sample boot log. That fixture is a *sample* used to exercise the
+matchers, not a list of the hooks that must appear — which is deliberate, and documented in
+`booted.test.sh` as the reason it counts init completions instead of matching hook names. Adding a
+hook therefore needs no change there, and asserting otherwise is what failed that test's own first
+CI run.

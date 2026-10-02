@@ -76,6 +76,9 @@ bash scripts/no-launcher.test.sh
 bash scripts/declares-extensions.test.sh
 bash scripts/agent-docs-cite-real-files.test.sh
 bash scripts/no-launchpad-ppa.test.sh
+
+echo "pre-push: the hook that deletes somebody's data"
+bash core/cont-init/30-editor-leftovers.test.sh
 bash scripts/no-whiptail.test.sh
 
 echo "pre-push: ok"
