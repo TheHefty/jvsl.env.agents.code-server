@@ -172,6 +172,34 @@ madison for `g++-11`, `g++-12` and `g++-13` reported all three absent, which is 
 query string means space, so it asked about `g  -11`. Caught because three absences in a row from a
 compiler suite is not a believable answer. Re-queried with `%2B`: 11 absent, 12/13/14 present.
 
+**The fourth thing CI found was not a package at all, and it is the one worth the most.**
+`stack-build (java)` failed with `openjdk-21-jdk` present and installable:
+
+```
+update-alternatives: error: error creating symbolic link
+  '/usr/share/man/man1/java.1.gz.dpkg-tmp': No such file or directory
+dpkg: error processing package openjdk-21-jre-headless (--configure)
+```
+
+`baseimage-debian`'s Dockerfile ends with `rm -rf … /usr/share/man`. **`baseimage-ubuntu`'s does
+not** — and that single line is the whole difference. A package registering a manual page as an
+alternative fails its post-installation script when the directory is absent, and `dpkg` fails the
+transaction. The fix is `mkdir -p /usr/share/man/man1` in **core**, not in the java fragment, because
+nothing about it is specific to the JDK.
+
+**No amount of asking an archive whether a package exists would have found this.** It is a property
+of the base image, which is what the six assertions in `image.test.sh` were written to cover — and
+they do not cover it either, because what broke was a *package's* post-install rather than one of the
+five conventions. The honest statement is that the image builds found it, as story 2 said they would,
+and that the assertions written blind were aimed at the wrong half of the risk.
+
+**And a measurement of mine was based on a 404.** Checking whether the new base ships `bash`, I
+fetched `linuxserver/docker-baseimage-debian/trixie/Dockerfile` and got nothing — and read nothing as
+"bash is not visibly installed". That branch does not exist: the repository has `bookworm`,
+`bullseye`, `kali` and `master`, and the `trixie` *tag* is built from `master`. Read from `master`,
+line 12 installs bash. **That is the fourth time in this epic I read an empty or wrong-shaped result
+as information**, after the two `packages.debian.org` 200s and the unencoded `g++` query.
+
 **None of it could be verified here, and that makes it the least-verified change in either epic.**
 Every claim this task makes is about a built image, and this environment has no usable Docker — the
 nested daemon is down, which is the `overrideCommand` defect from the same week. `core-build`,

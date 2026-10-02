@@ -68,6 +68,28 @@ USER root
 # and the following `chown -R` only reached the leaf. So it was this image's
 # problem after all, and a directory nobody but root could write was going to
 # surface again in some other tool sooner or later.
+# 0.1 Puts back the manual-page directory the base image deletes.
+#
+# `baseimage-debian` ends with `rm -rf … /usr/share/man`. `baseimage-ubuntu`,
+# which this image was built on until the editor was removed, does not — and
+# that single difference is what broke `stack-build (java)` on the first run
+# after the base swap:
+#
+#   update-alternatives: error: error creating symbolic link
+#     '/usr/share/man/man1/java.1.gz.dpkg-tmp': No such file or directory
+#   dpkg: error processing package openjdk-21-jre-headless (--configure)
+#
+# A package that registers a manual page as an alternative fails its
+# post-installation script when the directory is absent, and `dpkg` then fails
+# the whole transaction. It is not specific to the JDK, which is why this is
+# here rather than in the java fragment: any stack installing anything with a
+# man alternative would meet it.
+#
+# Only `man1` is created. The rest of the hierarchy is not needed and putting
+# the manual pages themselves back would undo a deliberate slimming of the base
+# for the sake of documentation nobody reads inside a container.
+RUN mkdir -p /usr/share/man/man1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
