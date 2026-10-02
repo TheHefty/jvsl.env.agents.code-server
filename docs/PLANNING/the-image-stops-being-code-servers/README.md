@@ -49,11 +49,15 @@ the estimate built on it was its expensive reading; the SRS's sixth amendment co
 was written.
 
 **`baseimage-debian:trixie` was chosen over staying on the Ubuntu base**, accepting a re-check of
-every `apt` name for what the newer distro brings. **Measured afterwards: all sixty-five packages —
-thirty in core, thirty-five across the stacks — exist in trixie under the same names. Zero
-renames.** Each checked against `packages.debian.org/trixie`. Existing under the same name is not
-behaving identically, and the per-stack image builds are the only thing that would say otherwise,
-which is why story 2 is the one with builds behind it.
+every `apt` name for what the newer distro brings. **I measured that as zero renames and it was
+wrong.** The method read HTTP 200 from `packages.debian.org/trixie/<pkg>` as presence, and that page
+exists whether or not the package is in the suite — the same false signal caught later while
+designing the python task, and not re-run against the earlier measurement.
+
+**One package is renamed**: `docker-compose-v2` is Ubuntu's name; on trixie `docker-compose` *is*
+v2. The base swap's first CI run failed on it, in `core-build`, before reaching any stack. So the
+risk accepted at this gate was real after all, and story 2's document carries the re-measurement
+and the method error.
 
 ## Stories in this repository
 

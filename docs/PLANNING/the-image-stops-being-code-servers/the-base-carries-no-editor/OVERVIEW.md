@@ -34,9 +34,24 @@ registry's own API answers.
 `sha256:277fe892c46a57688442df06a49ce662e0ddafde16802aaff695cc341d082412` as of 2026-10-02, read from
 `docker-content-digest`.
 
-**All sixty-five `apt` packages exist in Debian trixie under the same names** — thirty in core,
-thirty-five across the stacks. Existing under the same name is not behaving identically, and the
-per-stack image builds are the only thing that would say otherwise.
+**The first measurement of this was wrong, and CI is what said so.** It reported "all sixty-five
+`apt` packages exist in Debian trixie under the same names — zero renames", using
+`packages.debian.org/trixie/<pkg>` and reading HTTP 200 as presence. **A 200 there is not evidence:
+the page exists whether or not the package is in the suite.** That same false signal was caught
+while designing the python task — `packages.debian.org/trixie/python3.11` answers 200 and trixie has
+only 3.13 — and the earlier measurement was not re-run with the corrected method.
+
+Re-measured against `api.ftp-master.debian.org/madison`, which answers with versions or with
+nothing: **one package is renamed.** `docker-compose-v2` is Ubuntu's name for Compose v2, because
+`docker-compose` was taken there by the Python v1; on trixie there is no v1 and `docker-compose`
+*is* v2 (2.26.1, shipping both `/usr/bin/docker-compose` and the CLI plugin). The base swap's first
+CI run failed on exactly that, in `core-build`, before any stack layer was reached.
+
+The count was wrong too: thirty in core and thirty-four across the stacks, not thirty-five — and
+four of the stack names were templated (`openjdk-{{VERSION}}-jdk` and friends), which the extraction
+truncated at the hyphen and reported as absent on the re-run. So the clean statement is: **one
+rename, found by the build rather than by the measurement, and the measurement's method is recorded
+here because it produced a confident wrong answer twice.**
 
 **Nothing publishes code-server's port any more.** The launcher did; the generated configuration
 declares no port at all. So the editor's removal takes no port mapping with it — `8443` survives only

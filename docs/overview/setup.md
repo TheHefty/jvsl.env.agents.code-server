@@ -6,11 +6,17 @@
   container is this permissive" in [`container-permissions.md`](container-permissions.md)), `ai-jail`,
   `ai-memory` (long-term memory across
   sessions and across agent CLIs, off unless the project opts in — same section), `jq` (required
-  by `setup` to read and edit the manifest), Rust via `rustup`, `docker.io` + `docker-compose-v2`
+  by `setup` to read and edit the manifest), Rust via `rustup`, `docker.io` + `docker-compose`
   (`docker compose`, needed as a plain `apt-get install docker.io --no-install-recommends` doesn't
   pull it in — confirmed missing by actually running `docker compose version` inside a built image
-  before adding it; Ubuntu's own repo package is `docker-compose-v2`, not `docker-compose-plugin`
-  — that name is only for Docker's own upstream apt repo, which this template doesn't add), and
+  before adding it).
+
+  **The package's name differs between the two distributions, and that is what broke the base
+  swap's first CI run.** On Ubuntu, Compose v2 is `docker-compose-v2`, because `docker-compose` was
+  taken by the Python v1. On Debian trixie there is no v1 left and `docker-compose` *is* v2
+  — 2.26.1, installing both `/usr/bin/docker-compose` and the CLI plugin. `docker-compose-plugin`
+  is a third name and belongs only to Docker's own upstream apt repo, which this template does not
+  add. And
   `uidmap`/`rootlesskit`/`slirp4netns`/`fuse-overlayfs` plus the `svc-dockerd-rootless` s6 service
   that turns them into a nested rootless daemon. `docker compose` here is for the monorepo's own
   services from inside the environment, talking to that nested daemon rather than to the host's

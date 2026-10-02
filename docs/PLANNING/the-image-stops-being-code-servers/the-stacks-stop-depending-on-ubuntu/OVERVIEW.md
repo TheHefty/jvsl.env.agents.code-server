@@ -14,11 +14,14 @@ atomic swap.
 
 ## Why this story exists, and why it was not foreseen
 
-The epic's base was chosen with one risk accepted: "~30 package names to re-check". That was measured
-and came back zero — **all sixty-five packages exist in Debian trixie under the same names.**
+The epic's base was chosen with one risk accepted: "~30 package names to re-check". I measured it and
+reported zero — **and that measurement was itself wrong**, by a method that reads HTTP 200 from
+`packages.debian.org` as presence. One package is renamed, which the base swap's first CI run found:
+`docker-compose-v2` on Ubuntu is `docker-compose` on trixie. Story 2's document carries the
+re-measurement.
 
-The measurement was true and the wrong question. **Package names were never the problem: two stacks
-bring their own repository.**
+**But the names were never this story's problem either way: two stacks bring their own
+repository.**
 
 ```
 php     → ppa.launchpadcontent.net/ondrej/php/ubuntu/${VERSION_CODENAME}
@@ -96,5 +99,6 @@ second and alone.
 ## Out of scope
 
 - **Changing the base.** The story after this one.
-- **Any other stack.** The remaining eight take everything from the distribution's own archive, where
-  the sixty-five-package measurement applies. The per-stack image builds are what would say otherwise.
+- **Any other stack.** The remaining eight take everything from the distribution's own archive. The
+  per-stack image builds are what says whether a name moved — which is how the one rename in this
+  epic was actually found, rather than by the measurement that claimed there were none.

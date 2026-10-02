@@ -51,8 +51,8 @@ USER root
 # to build using Bake, but buildx isn't installed" without it. Its predecessor
 # path is already deprecated ("support for internal compose builder will be
 # removed in next release"), so compose builds would simply stop working here.
-# Ubuntu ships it as a CLI plugin at /usr/libexec/docker/cli-plugins/, the same
-# place docker-compose-v2 lands, so `docker` finds it with no extra wiring.
+# It ships as a CLI plugin at /usr/libexec/docker/cli-plugins/, the same place
+# `docker-compose` lands, so `docker` finds it with no extra wiring.
 #
 # Installing it exposed a second, separate defect, fixed in
 # core/services/svc-dockerd-rootless/run rather than here — noted because the
@@ -88,7 +88,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     libcap2-bin \
     docker.io \
-    docker-compose-v2 \
+    docker-compose \
     docker-buildx \
     uidmap \
     rootlesskit \

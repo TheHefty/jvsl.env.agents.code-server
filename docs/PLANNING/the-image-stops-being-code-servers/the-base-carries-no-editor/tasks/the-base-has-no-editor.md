@@ -135,6 +135,22 @@ measurement answered the wrong question.
 Implemented in #106. One `FROM`, eleven `RUN` blocks (thirteen `--install-extension` invocations,
 because core had three), six assertions in `core/image.test.sh`, and five documents.
 
+**CI found a defect on its first run, and the defect was in a measurement I had reported as a
+fact.** `core-build` failed with `E: Unable to locate package docker-compose-v2` before reaching any
+stack layer. That package is Ubuntu's name for Compose v2 — `docker-compose` was taken there by the
+Python v1 — and on trixie there is no v1, so `docker-compose` *is* v2 (2.26.1, shipping both
+`/usr/bin/docker-compose` and the CLI plugin).
+
+**The measurement that said "zero renames" used a method I had already found to be wrong.** It read
+HTTP 200 from `packages.debian.org/trixie/<pkg>` as presence; that page exists whether or not the
+package is in the suite. I caught exactly that while designing the python task —
+`packages.debian.org/trixie/python3.11` answers 200 and trixie has only 3.13 — wrote it down as a
+lesson, and did not go back and re-run the earlier measurement with the corrected method.
+
+Re-measured with `api.ftp-master.debian.org/madison`: one rename across both sets. The count was
+also wrong — thirty in core and thirty-four across the stacks, and four of the stack names were
+templated, which the extraction truncated at the hyphen.
+
 **None of it could be verified here, and that makes it the least-verified change in either epic.**
 Every claim this task makes is about a built image, and this environment has no usable Docker — the
 nested daemon is down, which is the `overrideCommand` defect from the same week. `core-build`,
