@@ -157,6 +157,17 @@ jobs:
       - name: the repair is made by name, once, and says so
         run: bash core/cont-init/10-state-ownership.test.sh
 
+  editor-leftovers:
+    # The only script in the template that deletes data a person did not ask to
+    # have deleted, on the one volume that survives every rebuild. What this job
+    # guards is its refusals: an unrecognised directory kept, a symlink not
+    # followed, silence when there is nothing to do.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: it removes what it recognises and refuses what it does not
+        run: bash core/cont-init/30-editor-leftovers.test.sh
+
   ai-memory:
     # The boot hook must preserve ai-memory opt-in and register every supported
     # first-party client. A missing Codex registration is silent until a new
@@ -419,7 +430,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [changes, ci-scripts, declared-extensions, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
+    needs: [changes, ci-scripts, declared-extensions, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-leftovers, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

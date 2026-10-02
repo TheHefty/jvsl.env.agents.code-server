@@ -212,6 +212,22 @@ RUN rm -f /etc/gitconfig
 COPY core/cont-init/15-git-credential-helper.sh /custom-cont-init.d/15-git-credential-helper.sh
 RUN chmod +x /custom-cont-init.d/15-git-credential-helper.sh
 
+# 5.0.3 LinuxServer custom-cont-init.d hook, removing the previous editor's own
+# state from a volume that still carries it: `/config/extensions` and the
+# `User`/`Machine`/`logs` trees under `/config/data`.
+#
+# **The only script here that deletes data a person did not ask to have
+# deleted**, on the one volume that survives every rebuild — so it removes a
+# directory only when it can recognise it as that editor's, refuses to follow a
+# symlink, reports what it removed with a size, and is silent on a volume that
+# never had any of it. Its own file says why each of those is a decision.
+#
+# A hook and not a RUN because the state is on the volume: Docker seeds a named
+# volume from the image once, on first mount, so nothing the build writes
+# reaches an environment that already exists.
+COPY core/cont-init/30-editor-leftovers.sh /custom-cont-init.d/30-editor-leftovers.sh
+RUN chmod +x /custom-cont-init.d/30-editor-leftovers.sh
+
 # 5.1 LinuxServer custom-cont-init.d hook, aligning the in-container 'kvm'
 # group's gid with the host device's — only acts when the caller passed
 # KVM_GID (i.e. the host exposed /dev/kvm; see stacks/android/Dockerfile.frag,
