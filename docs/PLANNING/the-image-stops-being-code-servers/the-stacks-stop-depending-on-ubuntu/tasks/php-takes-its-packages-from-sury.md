@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-stacks-stop-depending-on-ubuntu
 epic: the-image-stops-being-code-servers
 pr:
@@ -136,4 +136,32 @@ whether its published key is the one that signs the archive — were measured ab
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #102. `keyring.test.sh` is at 8 assertions and went red first — four of them — against
+the vendored PPA key before sury's replaced it.
+
+**The design missed one thing, and the test it was changing had predicted it.** The old assertion read
+*"the pinned key has no expiry date to walk into"*, with a comment saying: *"This one does not expire;
+if it is ever replaced by one that does, that is worth knowing before it happens."*
+
+**Sury's key expires on 2028-02-04 11:00 UTC.** So it has been replaced by one that does, and the
+assertion changed kind rather than being deleted: the expiry is pinned as a number, a rotation that
+moves it fails the test, and the date is written into the fragment so that the build walking into it
+is something recorded rather than an apt error that reads like a network problem. A second assertion
+checks the fragment carries the date, because the number alone is unreadable.
+
+That is the second time in this epic that a comment written by somebody anticipating a failure turned
+out to be the thing that caught it — the first was the python fragment predicting the 404.
+
+**`stacks/php/image.test.sh` is new and reads the expected version out of `versions.json`** rather
+than hardcoding it, because CI builds the first entry and a hardcoded `8.2` would silently stop
+matching when the list changes. It asserts the version that answers, the versioned binary, composer,
+and the three extensions the fragment installs — a missing extension is not a build failure, it is a
+script dying at runtime much later.
+
+**It was not run here**, and cannot be: it executes inside a built image and this environment has no
+usable Docker. `stack-build (php)` is where it runs. The keyring test, which is offline by design, was
+run and is green.
+
+**One assertion is deliberately narrow.** "No stack fragment reaches for a Launchpad PPA any more"
+checks this fragment only. The python stack still has one until the next task, so the
+repository-wide version would be red on arrival — it lands there.
