@@ -1,5 +1,36 @@
 # Changelog
 
+## [4.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v3.0.0...v4.0.0) (2026-10-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* the python stack no longer installs Debian or Ubuntu python packages. CPython comes from astral-sh/python-build-standalone, unpacked under `/opt/python/<version>`, pinned by release, version and SHA-256. Packages now land in that prefix's `site-packages` rather than in Debian's `dist-packages`, which a project assuming the distribution's layout will notice.
+* the php stack installs from `packages.sury.org/php` instead of the `ondrej/php` Launchpad PPA. Same maintainer and the same package names; an image rebuild is required, and a project pinning the PPA by hand no longer matches what the fragment configures.
+* the image no longer seeds editor settings and no longer re-applies them on every boot. Six settings stop being written; a bumped template leaves them to whoever opens the project. `workbench.iconTheme` moves into the `devcontainer.metadata` label, because the `file-icons` extension the label declares is installed and invisible without it.
+* the Gherkin extension a project's editor installs changes from `alexkrechik.cucumberautocomplete` to `CucumberOpen.cucumber-official`. A project that pinned the old one by hand keeps it; one that relied on the image's list gets the other.
+* `whiptail` is no longer a host prerequisite and `setup` no longer uses it. With a terminal it asks the same five questions with `read`; without one it asks nothing and takes the manifest as it stands, which is how the editor will drive it.
+
+### Features
+
+* Gherkin support comes from Cucumber, and the registry was measured ([15493ed](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/15493edf7e719b875124a0f18ef6105d553993cc))
+* one editor setting survives and the machinery goes ([440cd58](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/440cd58023b3839b8d6f78d3d18a3f2697f34950))
+* php takes its packages from sury ([e91c2a2](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/e91c2a24b42a5971bd3bf78c370def0bb651d0ce))
+* python installs CPython from pinned standalone builds ([ed1a3a1](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/ed1a3a1664a673fa96282cf12be0918ef7961ade))
+* setup asks with read, and whiptail is retired ([30a1d4e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/30a1d4e3c5198b4602a99e0c30dcc8dbf2ac8527))
+* the declared extensions are checked when they change ([2e42588](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/2e425880c30123e3ab9a2e3dc3d0b51187771740))
+
+
+### Bug Fixes
+
+* the sandbox pins the two flags three scenarios relied on ([a12b620](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/a12b620f8458566cb7ba01f22618ac7536ababe9))
+* the split carried two launcher references, and the guard could not see them ([90ded7e](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/90ded7e9430941feba78296a054339855a11eabc))
+
+
+### Documentation
+
+* with merge commits, the last commit on the branch is the release ([6a3967f](https://github.com/TheHefty/jvsl.env.agents.code-server/commit/6a3967fc2f0a599317f0021e6d1d60d094ddaaf8))
+
 ## [3.0.0](https://github.com/TheHefty/jvsl.env.agents.code-server/compare/v2.3.0...v3.0.0) (2026-10-01)
 
 
