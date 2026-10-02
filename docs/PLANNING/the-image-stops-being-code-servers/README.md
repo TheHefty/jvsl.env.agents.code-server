@@ -61,11 +61,20 @@ which is why story 2 is the one with builds behind it.
 |---|---|---|
 | 1 | [`the-settings-find-their-place`](the-settings-find-their-place/) | **Done** |
 | 2 | [`the-base-carries-no-editor`](the-base-carries-no-editor/) | Draft |
+| 4 | [`the-stacks-stop-depending-on-ubuntu`](the-stacks-stop-depending-on-ubuntu/) | Draft |
 
 Story 3 — the generated configuration stops declaring `PASSWORD` — is the extension's and lives in
 that repository.
 
-**The order is forced, not preferred.** Story 2 deletes the path by which settings reach the
+**The order is 1, 4, 2 — and story 4 was not foreseen.** The base was chosen accepting one risk,
+"~30 package names to re-check", which measured zero. The measurement was true and the wrong
+question: package *names* were never the problem, because two stacks bring their own repository and
+both are Ubuntu-only. Story 4 removes that dependency **before** the base moves, on the base that
+exists today, which turns one unverifiable atomic change into two verified ones and a one-line
+`FROM`. Its own document carries the measurements, and the python fragment's own comment predicted
+this failure for the right reason with an insufficient mechanism.
+
+**The order between 1 and 2 is forced, not preferred.** Story 2 deletes the path by which settings reach the
 container at all — `/etc/code-server/settings-defaults.json`, the build-time seeding into
 `/config/data/User/settings.json`, and the `cont-init` hook that re-applies them on every start. If
 story 2 ran first, the question "which of these settings should survive and where" would be answered
