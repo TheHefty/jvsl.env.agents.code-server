@@ -87,7 +87,7 @@ arrives in the composed label.
 
 | Order | Task | Repo | Status |
 |---|---|---|---|
-| 1 | `tasks/one-setting-survives-and-the-machinery-goes.md` | template | not yet written |
+| 1 | [`tasks/one-setting-survives-and-the-machinery-goes.md`](tasks/one-setting-survives-and-the-machinery-goes.md) | template | Draft |
 
 One task. The surviving setting and the machinery that delivered the other six are the same change:
 moving `iconTheme` into the label while leaving the seeding in place would mean two systems writing
