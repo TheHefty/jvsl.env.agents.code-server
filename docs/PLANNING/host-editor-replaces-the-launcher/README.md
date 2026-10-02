@@ -23,7 +23,7 @@ CI, which is the only one that builds images.
 |---|---|---|
 | 1 | [`opening-a-configured-project`](opening-a-configured-project/) | **Done** — template `v2.1.0`, `v2.2.0`; extension `v0.1.0`, `v0.2.0`, `v0.2.1` |
 | 3 | [`host-secrets-stay-on-the-host`](host-secrets-stay-on-the-host/) | **Done** — template `v2.3.0`; extension `v0.3.0`. Both `@manual` passes run |
-| 4 | [`the-remote-editor-arrives-equipped`](the-remote-editor-arrives-equipped/) | Draft |
+| 4 | [`the-remote-editor-arrives-equipped`](the-remote-editor-arrives-equipped/) | **Done** — template `v3.0.0`, `4.0.0` pending. One `@manual` pass owed |
 | 5 | [`the-launcher-announces-its-retirement`](the-launcher-announces-its-retirement/) | **Superseded** by story 6 — the notice shipped in `v2.3.0` and lives one release |
 | 6 | [`the-launcher-is-gone`](the-launcher-is-gone/) | **Done** — template `v3.0.0`, `4.0.0` pending. One `@manual` pass owed |
 

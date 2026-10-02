@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | **Done** — one `@manual` pass owed |
 | **Epic** | `host-editor-replaces-the-launcher` |
 | **Date** | 2026-10-01 |
 
@@ -100,7 +100,10 @@ typo is caught today, and an extension removed from the registry next year is ca
 hitting it.** That sentence is the deliverable, not a caveat on one.
 
 **An identifier the registry does not have is the Dev Containers extension's problem, and this
-story verifies rather than implements.** What installs extensions is that extension, not this
+story verifies rather than implements** — a decision taken with a stated condition for reopening it,
+and **the condition was met.** Measured: a well-formed absent identifier fails in complete silence.
+So the story gained a gated CI job after all, and task 3 carries why. The decision below stands as
+the reasoning; what follows it in that task is what the measurement did to it. What installs extensions is that extension, not this
 project's. Writing code to pre-validate the list would duplicate somebody else's decision and add a
 second reader of the label. So the behaviour is observed once, with a deliberately bogus identifier,
 and what it does is recorded — including if it turns out to fail silently, which is the answer that
@@ -121,7 +124,7 @@ Three slices. The third has no code in it, and is written that way on purpose.
 |---|---|---|---|
 | 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Done — #74 |
 | 2 | [`tasks/a-stack-declares-what-it-wants.md`](tasks/a-stack-declares-what-it-wants.md) | template | Done — #77 |
-| 3 | [`tasks/what-the-list-does-not-guarantee.md`](tasks/what-the-list-does-not-guarantee.md) | template | Draft — one of two measurements done |
+| 3 | [`tasks/what-the-list-does-not-guarantee.md`](tasks/what-the-list-does-not-guarantee.md) | template | Done — #93, #94 |
 
 **Task 3 is a verification task and is labelled as one.** With the registry measured once and the
 failure path verified rather than implemented, it contains no code and no new test: two measurements

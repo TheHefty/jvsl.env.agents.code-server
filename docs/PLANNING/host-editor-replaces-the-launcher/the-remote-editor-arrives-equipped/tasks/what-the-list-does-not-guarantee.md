@@ -1,8 +1,8 @@
 ---
-status: Draft
+status: Done
 story: host-editor-replaces-the-launcher/the-remote-editor-arrives-equipped
 epic: host-editor-replaces-the-launcher
-pr: 93
+pr: 93, 94
 depends-on: [a-stack-declares-what-it-wants]
 ---
 
@@ -71,21 +71,54 @@ in this process, so which one is installed is a decision about this project's ow
 
 ## Measurement 2 — what an unresolvable identifier does
 
-**Still owed, and it needs a person**, because it needs a container that an editor has attached to
-and an observation of what the Dev Containers extension does.
+**Done, on 2026-10-02, and it took two attempts because the first one measured the wrong thing.**
 
-The method:
+**Attempt 1 measured the editor's schema, not the registry.** The identifier I chose,
+`nao.existe.mesmo`, has two dots and so is not `${publisher}.${name}` at all. The editor's JSON
+language service rejected it on format before anything tried to resolve it, with a `Hint`-severity
+diagnostic in the problems panel naming the expected format. Useful, and not the measurement: a
+malformed identifier and a well-formed absent one are different inputs.
 
-1. add an identifier that does not exist to a project's generated configuration —
-   `nao.existe.mesmo`, verified absent from the Marketplace;
-2. reopen the project in the container;
-3. record whether it opens, and whether the failure is reported or silent.
+**Attempt 2, with `jvsl-probe.does-not-exist` — well formed, verified absent — produced nothing at
+all.** No notification, no log line, no marker. The container came up, the editor attached, and the
+extension was simply not there.
 
-**The answer matters more than it looks.** The story's gate decided this is the Dev Containers
-extension's problem and that this project verifies rather than implements — but *"it fails
-silently"* is the answer that would reopen that decision, because a list of thirteen strings whose
+So the two layers behave completely differently:
+
+| input | what happens |
+|---|---|
+| malformed (`a.b.c`) | the editor flags it in the problems panel, before the container starts |
+| well formed, absent | **silence**. The project opens and the extension is missing |
+
+The measurement was taken against a hand-written configuration rather than against the image's
+label, and that limit is worth stating: a project's real identifiers come from the
+`devcontainer.metadata` label, and whether the tooling treats a label-supplied identifier the same
+way is not something this measured.
+
+**The gate said this answer would reopen its decision, and it did.** It had decided this is the Dev
+Containers extension's problem and that this project verifies rather than implements — on the
+condition that *"it fails silently"* would reopen it, because a list of thirteen strings whose
 failures are invisible is a different risk from one whose failures are named.
+
+**What changed the available options is that the scope machinery now exists.** A job on every pull
+request was rejected at the gate because it would make merging a Markdown fix depend on the
+Marketplace being up. `scripts/changed-scope.sh` was built afterwards, for an unrelated reason, and
+it makes a third option possible: a job that runs **only** on a change touching a declaration. The
+external dependency then exists on the pull requests that add identifiers and on nothing else,
+which is where the typo is created.
+
+So the story gained one piece of code after all, and it is the one the silence justifies:
+`scripts/declared-extensions.test.sh`, gated by `scripts/declares-extensions.sh`. Four failure
+paths, each proven and each with its own message — absent, malformed, **registry unreachable**, and
+a floor against reading no declarations at all. The third matters most: an outage must not read as a
+missing extension, and conflating them is how a check like this comes to be ignored.
 
 ## Outcome
 
-Filled in when measurement 2 has been run. Measurement 1 is above and is final.
+Both measurements are above and both are final. The story's remaining code came out of the second
+one rather than from its design, which is what a verification task is for.
+
+**The first attempt at measurement 2 was mine to get wrong**, and the editor's own error message is
+what said so: I chose an identifier with two dots, which cannot be well formed, so what got measured
+was the schema check. The corrected identifier was verified absent through the same API as the
+thirteen before being used.

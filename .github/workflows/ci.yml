@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
+      extensions: ${{ steps.scope.outputs.extensions }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,11 +39,13 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             echo "no usable base ref for event ${{ github.event_name }}: scope is full"
             echo "scope=full" >> "$GITHUB_OUTPUT"
+            echo "extensions=yes" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if ! paths="$(git diff --name-only "$base" HEAD)"; then
             echo "git diff against $base failed: scope is full"
             echo "scope=full" >> "$GITHUB_OUTPUT"
+            echo "extensions=yes" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "changed paths:"
@@ -50,6 +53,12 @@ jobs:
           scope="$(printf '%s\n' "$paths" | bash scripts/changed-scope.sh)"
           echo "scope: $scope"
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
+          # A second, narrower question: does this change touch a file that
+          # declares extension identifiers? The registry check talks to the
+          # Marketplace, so it runs on those pull requests and on no others.
+          extensions="$(printf '%s\n' "$paths" | bash scripts/declares-extensions.sh)"
+          echo "declares extensions: $extensions"
+          echo "extensions=$extensions" >> "$GITHUB_OUTPUT"
 
   # The two scripts the gate above and `ci-green` below are made of. Never
   # gated: they are seconds, and they are what makes the gating trustworthy.
@@ -63,6 +72,8 @@ jobs:
         run: bash scripts/ci-green.test.sh
       - name: nothing builds or runs the launcher
         run: bash scripts/no-launcher.test.sh
+      - name: the registry check runs on the changes that need it
+        run: bash scripts/declares-extensions.test.sh
       - name: nothing requires whiptail
         run: bash scripts/no-whiptail.test.sh
 
@@ -386,6 +397,28 @@ jobs:
             -v "$PWD/stacks/${{ matrix.stack }}:/image-test:ro" \
             "stack-ci-${{ matrix.stack }}" /image-test/image.test.sh
 
+  # Every declared extension identifier exists where the editor installs from.
+  #
+  # **Gated, because it talks to the Marketplace.** It runs only on a change
+  # that touches a declaration, so merging a Markdown fix never depends on an
+  # external service being up. A job on every pull request was considered and
+  # rejected at the story's gate for exactly that reason; what changed is that
+  # the scope machinery to gate it now exists.
+  #
+  # **It exists because the failure is silent.** Measured: an identifier that is
+  # well formed and absent produces nothing at all — the container comes up, the
+  # editor attaches, the extension is not installed, and nothing says so. A
+  # malformed one is caught by the editor's own schema; a well-formed absent one
+  # is caught by nothing.
+  declared-extensions:
+    needs: changes
+    if: needs.changes.outputs.extensions == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: every declared identifier exists in the registry
+        run: bash scripts/declared-extensions.test.sh
+
   # The one check branch protection requires, and the only reason this job exists.
   # stack-build's job names come from a matrix built by `ls stacks`, so they change
   # whenever a stack is added or removed: naming them individually would leave a
@@ -393,7 +426,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [changes, ci-scripts, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
+    needs: [changes, ci-scripts, declared-extensions, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
