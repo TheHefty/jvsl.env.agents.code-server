@@ -85,7 +85,7 @@ about a built image, which the `core-build` and `stack-build` jobs can make.
 | Order | Task | Repo | Status |
 |---|---|---|---|
 | 1 | [`tasks/the-base-has-no-editor.md`](tasks/the-base-has-no-editor.md) | template | Draft |
-| 2 | `tasks/the-leftover-editor-state-is-removed.md` | template | not yet written |
+| 2 | [`tasks/the-leftover-editor-state-is-removed.md`](tasks/the-leftover-editor-state-is-removed.md) | template | Draft |
 
 **The order is forced by what the hook does.** It deletes the editor's state. Landing it before the
 base swap would delete the state of the editor people are still using, on the release before the one
