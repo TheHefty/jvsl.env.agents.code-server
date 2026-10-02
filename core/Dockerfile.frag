@@ -166,10 +166,11 @@ RUN mkdir -p /config/.claude /config/.codex \
 # broken rather than one that was refused.
 #
 # In the Dockerfile and not in a cont-init hook, deliberately. /etc/passwd is
-# not under /config, so the problem that 30-editor-defaults.sh exists to work
-# around — a named volume seeded from the image only on its first mount, so
-# later defaults never arrive — does not apply: a rebuild is both necessary and
-# sufficient. A hook would run on every boot to change nothing.
+# not under /config, so the problem a boot hook would exist to work around — a
+# named volume is seeded from the image only on its first mount, so anything
+# written into /config at build time never reaches an environment that already
+# exists — does not apply: a rebuild is both necessary and sufficient. A hook
+# would run on every boot to change nothing.
 #
 # What this gives up, recorded because it is a loosening and not housekeeping:
 # `su abc` from root now yields a shell. The container runs no sshd and already
@@ -284,54 +285,13 @@ RUN /app/code-server/bin/code-server \
     --install-extension CucumberOpen.cucumber-official \
     --install-extension cweijan.vscode-database-client2 || true
 
-# 6.2 Default editor settings: Dark Modern theme, .md files open as preview
-# by default (not the raw source editor), GPU-accelerated terminal rendering
-# off (the canvas/WebGL renderer's async redraw races with dead-key/IME
-# composition, replaying parts of the composition buffer into the terminal —
-# see .code-server/docs/OVERVIEW.md), and VS Code's built-in AI features off.
-#
-# `chat.disableAIFeatures` is the editor's own master switch for those — its
-# description is "Disable and hide built-in AI features provided by GitHub
-# Copilot, including chat and inline suggestions", and internally it's VS
-# Code's CHAT_DISABLED_CONFIGURATION_KEY, so one key covers the chat view, the
-# title-bar chat entry point and inline completions rather than needing a list
-# of individual toggles. Off by default here because the AI assistance in this
-# environment is the Claude Code CLI (installed in section 6), and a second,
-# separately-authenticated assistant embedded in the editor is confusing rather
-# than additive. Key name verified against the VS Code build this image
-# actually ships (1.129.0 via code-server 4.129.0), not assumed.
-#
-# `window.menuBarVisibility: "classic"` draws the menus as a row — File, Edit,
-# Selection and the rest — instead of the single hamburger the web build shows
-# by default. Two reasons, and the second is the load-bearing one: the menus are
-# how anything without a keybinding is reached in a window with no browser
-# chrome around it. The bundled launcher used to put its own window buttons in
-# that row through an injected script, and hiding the row left it with no close
-# button; the launcher is gone, and the setting stays because the row is still
-# the only way to reach what has no keybinding.
-# The setting therefore belongs to the image and not to a preference somebody
-# sets later.
-#
-# The values live in core/settings-defaults.json — one file, read both by the
-# seeding below and by the cont-init script in 6.3, because two copies of a
-# default list is two lists that disagree the first time somebody edits one.
-#
-# Seeding still happens at build time so a brand-new volume arrives complete;
-# 6.3 is what reaches every environment that already exists, which the seeding
-# alone never could.
-COPY core/settings-defaults.json /etc/code-server/settings-defaults.json
-RUN mkdir -p /config/data/User \
-    && cp /etc/code-server/settings-defaults.json /config/data/User/settings.json
-
-# 6.3 And puts them into an environment that already exists, on every start.
-# Seeding /config/data at build time reaches new environments only — Docker
-# seeds a named volume from the image just once, when the volume is empty — so
-# every default added after somebody's volume was created never arrived. Not
-# hypothetical: `chat.disableAIFeatures` shipped on 2026-07-30 and an
-# environment older than that still had the chat button, with nothing anywhere
-# saying why. Absent keys only, so nothing the reader chose is undone.
-COPY core/cont-init/30-editor-defaults.sh /custom-cont-init.d/30-editor-defaults.sh
-RUN chmod +x /custom-cont-init.d/30-editor-defaults.sh
+# The default editor settings that used to be seeded here are gone with
+# code-server. One of them survived, and it is in core/devcontainer.json rather
+# than in a file this image copies: `workbench.iconTheme`, because the
+# `file-icons` extension the label declares is installed and invisible without
+# it. The rule is that a setting reaches the label only if something the label
+# installs needs it, which the other six did not satisfy — see
+# docs/PLANNING/the-image-stops-being-code-servers/.
 
 # 7. Installs ai-jail (akitaonrails/ai-jail), which reads the project's .ai-jail
 #

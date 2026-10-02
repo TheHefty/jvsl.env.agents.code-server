@@ -39,7 +39,7 @@ Depois implemente, e **cubra esses três com testes automatizados** em vez de co
 Testes moram ao lado do que exercitam, no repositório cuja CI os roda: um `*.test.sh` ao lado do
 script sob teste, dirigindo o script real e não uma cópia da lógica dele, mais um job no workflow
 de CI daquele repositório. No template, `packages.test.sh` e
-`core/cont-init/30-editor-defaults.test.sh` são a forma a copiar. Um repo consumidor não tem CI
+`core/cont-init/15-git-credential-helper.test.sh` são a forma a copiar. Um repo consumidor não tem CI
 própria, então um teste escrito lá não roda em lugar nenhum — motivo para fazer a mudança no
 template, não motivo para pular o teste.
 

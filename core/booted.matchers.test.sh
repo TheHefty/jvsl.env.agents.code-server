@@ -18,7 +18,6 @@ SILENT="$(cat <<'EOF'
 [migrations] started
 [custom-init] 10-state-ownership.sh: executing...
 [custom-init] 10-state-ownership.sh: exited 0
-[custom-init] 30-editor-defaults.sh: executing...
 [ls.io-init] done.
 EOF
 )"

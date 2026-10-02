@@ -38,7 +38,7 @@ Then implement, and **cover those three with automated tests** rather than with 
 Tests live beside what they exercise, in the repository whose CI runs them: a `*.test.sh` next to
 the script under test, driving the real script rather than a copy of its logic, plus a job in that
 repository's CI workflow. In the template, `packages.test.sh` and
-`core/cont-init/30-editor-defaults.test.sh` are the shape to copy. A consuming repo has no CI of
+`core/cont-init/15-git-credential-helper.test.sh` are the shape to copy. A consuming repo has no CI of
 its own, so a test written there runs nowhere — a reason to make the change in the template, not a
 reason to skip the test.
 

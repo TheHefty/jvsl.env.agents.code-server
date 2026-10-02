@@ -6,7 +6,7 @@
 # **Why this cannot be fixed by rebuilding.** Everything it touches is under
 # /config, which is a named volume: Docker seeds it from the image only on its
 # *first* mount, so damage done there outlives every rebuild. The same reason
-# 40-ai-memory.sh and 30-editor-defaults.sh run at boot rather than at build.
+# 40-ai-memory.sh runs at boot rather than at build.
 #
 # **What did the damage.** Before the image declared which user a dev container
 # client should connect as, a host editor attaching by hand ran as root — the

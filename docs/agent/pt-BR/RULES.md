@@ -140,7 +140,7 @@ quem abre a mudança.
 - **Um teste aqui é um `*.test.sh` ao lado da coisa que ele exercita**, dirigindo o script real e
   não uma cópia da lógica dele, e saindo com código diferente de zero na falha.
   O `scripts/check-md-size.test.sh`, o `packages.test.sh` e o
-  `core/cont-init/30-editor-defaults.test.sh` do template são o formato a copiar, e são os que têm
+  `core/cont-init/15-git-credential-helper.test.sh` do template são o formato a copiar, e são os que têm
   um job de CI atrás.
 - **Um hook local não é CI.** É opt-in por clone e pulável com `--no-verify`, então trate como
   lembrete para quem escreve, nunca como um gate que o repositório impõe.

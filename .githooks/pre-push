@@ -53,14 +53,12 @@ find . -type f \( -name '*.sh' -o -name 'setup' -o -name 'init' -o -name 'dev' \
 echo "pre-push: the host package table"
 bash packages.test.sh
 
-echo "pre-push: the editor defaults merge"
-bash core/cont-init/30-editor-defaults.test.sh
-
 echo "pre-push: the sandbox wrappers"
 bash core/bin/jail-wrappers.test.sh
 
-echo "pre-push: core's pinned versions"
+echo "pre-push: core's pinned versions and the composed label"
 bash core/compose-dockerfile.test.sh
+bash core/check-devcontainer-metadata.test.sh
 
 echo "pre-push: the language folders are the same document"
 bash docs/agent/check-parity.sh
@@ -76,6 +74,7 @@ bash scripts/no-launcher.test.sh
 # a gated CI job rather than in a hook that would be slow and would fail on a
 # train.
 bash scripts/declares-extensions.test.sh
+bash scripts/agent-docs-cite-real-files.test.sh
 bash scripts/no-whiptail.test.sh
 
 echo "pre-push: ok"

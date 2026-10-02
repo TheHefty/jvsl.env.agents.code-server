@@ -7,7 +7,10 @@
           "file-icons.file-icons",
           "CucumberOpen.cucumber-official",
           "cweijan.vscode-database-client2"
-        ]
+        ],
+        "settings": {
+          "workbench.iconTheme": "file-icons"
+        }
       }
     }
   }

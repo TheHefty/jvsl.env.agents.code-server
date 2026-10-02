@@ -74,6 +74,8 @@ jobs:
         run: bash scripts/no-launcher.test.sh
       - name: the registry check runs on the changes that need it
         run: bash scripts/declares-extensions.test.sh
+      - name: the normative documents cite files that exist
+        run: bash scripts/agent-docs-cite-real-files.test.sh
       - name: nothing requires whiptail
         run: bash scripts/no-whiptail.test.sh
 
@@ -152,17 +154,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: the repair is made by name, once, and says so
         run: bash core/cont-init/10-state-ownership.test.sh
-
-  editor-defaults:
-    # The merge that puts the image's default settings into an environment that
-    # already exists. Its direction is the thing worth guarding: inverted, it is
-    # silent and it quietly puts a setting back on every restart, which is the
-    # kind of bug the reader blames on the editor.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: the merge honours what is already there
-        run: bash core/cont-init/30-editor-defaults.test.sh
 
   ai-memory:
     # The boot hook must preserve ai-memory opt-in and register every supported
@@ -426,7 +417,7 @@ jobs:
   # newly added stack. This name never changes and stands for all of them.
   ci-green:
     if: always()
-    needs: [changes, ci-scripts, declared-extensions, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, editor-defaults, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
+    needs: [changes, ci-scripts, declared-extensions, bash-syntax, host-packages, setup-manifest, git-credential-helper, state-ownership, ai-memory, jail-wrappers, compose-versions, php-keyring, agent-docs, devcontainer-metadata, md-size, core-build, core-booted, discover-stacks, stack-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

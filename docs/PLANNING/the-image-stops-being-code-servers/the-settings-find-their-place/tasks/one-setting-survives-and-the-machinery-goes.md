@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Done
 story: the-image-stops-being-code-servers/the-settings-find-their-place
 epic: the-image-stops-being-code-servers
 pr:
@@ -130,4 +130,39 @@ None. The two that existed — the scopes of `chat.disableAIFeatures` and
 
 ## Outcome
 
-Filled in when the status leaves `Draft`.
+Implemented in #98. 19 files, 176 insertions, **465 deletions**. `check-devcontainer-metadata.test.sh`
+is at 18 assertions (was 16); the new citation check has its own.
+
+**Both silent failures the design predicted happened, and the new check caught one of them on its
+first run** — before the deletion, against a citation that was already wrong. `docs/agent/` cited
+`.code-server/scripts/check-md-size.sh`, which does not exist *from inside the template*: it is the
+path as a consuming repository sees it, where the template is vendored at `.code-server/`. The rules
+say so themselves — "this file is read from two repositories". **That was my false positive, not a
+broken citation**, and the check now strips the prefix and looks one level up. Written down because a
+guard that cries wolf on correct content is a guard that gets disabled.
+
+Then it went red for the real reason: the four normative citations of the deleted test. Replaced with
+`core/cont-init/15-git-credential-helper.test.sh` — same directory, same shape, its own job — in both
+languages, with `check-parity.sh` green.
+
+**Three more stale references turned up that the design did not list**, all in documentation and all
+invisible to every check:
+
+- `docs/overview/setup.md` described the whole seeding mechanism — the jsonc stripper, the `.bak`,
+  the merge direction — across two blocks;
+- `docs/overview/the-agent-in-the-terminal.md` opened by explaining that it existed because a boot
+  hook's test referenced it by name;
+- **`docs/overview/pre-push-hook.md` listed the launcher's title-bar test and `cargo test` as steps
+  the hook runs.** Those left with the launcher two releases ago. Nothing failed either time, which
+  is the point: a hook's documentation describing steps it no longer runs reads exactly like one
+  describing steps it does. That sentence is now in the file.
+
+**And the hook itself still ran the deleted test**, which the design listed as a loud failure and
+which it would have been — on the next push rather than in CI, because the hook is not CI. It now
+also runs `check-devcontainer-metadata.test.sh`, which it never did and should have.
+
+**The citation check deliberately does not scan `docs/overview/`.** It would have caught two of the
+three above and it would also flag every deliberate historical mention — "it used to be tested in
+X" — which is the same wall the `Tauri` pattern hit in the launcher's removal: a grep cannot tell a
+citation from a recollection. `docs/agent/` is where a path is an instruction, so that is where the
+check looks, and the rest is read by a person.
