@@ -203,7 +203,12 @@ the bundled launcher two epics ago. `--break-system-packages` existed because PE
 the line they modified.
 
 **`scripts/no-launchpad-ppa.test.sh` is green at 12 and was proven able to fail**, by adding a PPA
-line to the ruby fragment and watching it named. It excludes comment lines on purpose: a fragment
+line to the ruby fragment and watching it named.
+
+**It was also too narrow, which the next story found.** It checked for `launchpad` while this story's
+scenario claims no stack adds an Ubuntu-only repository — and the dotnet stack's hardcoded
+`config/ubuntu/24.04` config package is Ubuntu-only without being a PPA. It is now
+`scripts/no-ubuntu-only-sources.test.sh`, looking for a literal distribution name in a source. It excludes comment lines on purpose: a fragment
 recording that it *used to* use a PPA is the history this project keeps, and a grep cannot tell a
 recollection from an instruction — the same limit the launcher's guard records.
 

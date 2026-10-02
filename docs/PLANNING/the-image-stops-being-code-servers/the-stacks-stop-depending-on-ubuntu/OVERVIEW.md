@@ -96,6 +96,21 @@ Independent of each other, and both before the base swap. The php one is a repos
 python one is the only piece of this epic with no precedent in the repository, which is why it is
 second and alone.
 
+## What this story got wrong, found by the story after it
+
+**Its repository-wide guard was narrower than its own scenario.** The scenario says "no stack adds
+an Ubuntu-only repository"; the test said "no stack adds a Launchpad PPA", and checked for
+`launchpad`.
+
+The dotnet stack hardcoded `packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb`
+— an Ubuntu-only source that is not a PPA — and the guard did not see it. It was found while looking
+for exactly this class of thing after the base swap's first CI run failed on a renamed package,
+which is to say: found by somebody looking, not by the check written to look.
+
+The guard is now `scripts/no-ubuntu-only-sources.test.sh` and looks for a **literal distribution
+name in a source**, because the correct form reads it from `/etc/os-release` and follows whatever the
+base is. It was shown catching the dotnet line before that line was fixed.
+
 ## Out of scope
 
 - **Changing the base.** The story after this one.
