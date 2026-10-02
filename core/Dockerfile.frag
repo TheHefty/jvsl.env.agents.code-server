@@ -271,14 +271,17 @@ ENV CLAUDE_CONFIG_DIR=/config/.claude
 # per-stack ones already are: code-server's marketplace is the **Open VSX
 # Registry** and not Microsoft's, so a popular `publisher.name` from the real
 # Marketplace is not evidence that it resolves here. Checked:
-# `alexkrechik.cucumberautocomplete` and `cweijan.vscode-database-client2` both
-# publish there directly.
+# `CucumberOpen.cucumber-official` and `cweijan.vscode-database-client2` both
+# publish there directly — the first checked again when it replaced
+# `alexkrechik.cucumberautocomplete`, which also publishes there. Both lists
+# moved together because both identifiers resolve on both registries; where
+# they cannot, they are allowed to differ, which is what `.NET` does.
 
 RUN /app/code-server/bin/code-server \
     --extensions-dir /config/extensions \
     --user-data-dir /config/data \
     --install-extension file-icons.file-icons \
-    --install-extension alexkrechik.cucumberautocomplete \
+    --install-extension CucumberOpen.cucumber-official \
     --install-extension cweijan.vscode-database-client2 || true
 
 # 6.2 Default editor settings: Dark Modern theme, .md files open as preview

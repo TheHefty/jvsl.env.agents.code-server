@@ -56,8 +56,13 @@ A rule rather than a table, so that a stack added later has something to follow:
 > candidate; otherwise the same identifier the `code-server` list already installs.**
 
 Measured against the Marketplace before the rule was accepted: of the thirteen identifiers the
-image installs today, **twelve exist on both registries**. In practice the rule changes exactly
-one — `.NET`, where `muhammad-sammy.csharp` becomes `ms-dotnettools.csharp`. That fork exists on
+image installs today, **twelve exist on both registries**. In practice the rule was expected to
+change exactly one — `.NET`, where `muhammad-sammy.csharp` becomes `ms-dotnettools.csharp`.
+
+**It changed two.** Task 3 queried the registry rather than reasoning about it and found
+`CucumberOpen.cucumber-official`, published by Cucumber, which the rule picks over
+`alexkrechik.cucumberautocomplete`. The paragraph below saying core's three cross unchanged was
+written before anybody looked. That fork exists on
 Open VSX *because* the first-party extension is licensed for Microsoft's own build of the editor,
 which is the build this epic committed to, so it is the one case where the remote list can be better
 rather than merely different.
@@ -116,7 +121,7 @@ Three slices. The third has no code in it, and is written that way on purpose.
 |---|---|---|---|
 | 1 | [`tasks/the-image-composes-one-label.md`](tasks/the-image-composes-one-label.md) | template | Done — #74 |
 | 2 | [`tasks/a-stack-declares-what-it-wants.md`](tasks/a-stack-declares-what-it-wants.md) | template | Done — #77 |
-| 3 | `tasks/what-the-list-does-not-guarantee.md` | template | not yet written |
+| 3 | [`tasks/what-the-list-does-not-guarantee.md`](tasks/what-the-list-does-not-guarantee.md) | template | Draft — one of two measurements done |
 
 **Task 3 is a verification task and is labelled as one.** With the registry measured once and the
 failure path verified rather than implemented, it contains no code and no new test: two measurements

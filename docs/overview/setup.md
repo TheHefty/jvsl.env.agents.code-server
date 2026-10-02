@@ -109,8 +109,10 @@
   load-bearing for a second reason — the bundled launcher injected its own window buttons into that
   row, and hiding the row left the window with no close button. The launcher is gone and the setting
   stays on the first reason alone.
-- **Core extensions** — `file-icons`, `alexkrechik.cucumberautocomplete` (feature files are how a
-  project's acceptance criteria are written and reviewed, whatever language it is written in) and
+- **Core extensions** — `file-icons`, `CucumberOpen.cucumber-official` (feature files are how a
+  project's acceptance criteria are written and reviewed, whatever language it is written in — this
+  replaced `alexkrechik.cucumberautocomplete` once the registry was actually queried and Cucumber
+  turned out to publish one itself) and
   `cweijan.vscode-database-client2` (the services a dev environment brings up nearly always include
   a database, and reaching it otherwise means a client installed by hand in every project). Every
   id verified against `open-vsx.org`'s API before being added, as the per-stack ones are.
