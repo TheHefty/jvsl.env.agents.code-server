@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Done** — one assertion awaits its first CI run |
+| **Status** | **Done** — template `v5.0.0`, every assertion run |
 | **Epic** | `the-image-stops-being-code-servers` |
 | **Date** | 2026-10-02 |
 

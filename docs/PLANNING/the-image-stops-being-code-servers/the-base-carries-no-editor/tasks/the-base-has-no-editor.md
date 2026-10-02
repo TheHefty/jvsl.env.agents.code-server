@@ -2,7 +2,7 @@
 status: Done
 story: the-image-stops-being-code-servers/the-base-carries-no-editor
 epic: the-image-stops-being-code-servers
-pr:
+pr: 106
 depends-on: [python-stops-needing-an-ubuntu-ppa]
 ---
 

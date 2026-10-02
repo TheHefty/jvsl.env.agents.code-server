@@ -19,7 +19,7 @@ This one only *asks*, and asking happens on the host before any container exists
 
 | # | Story | Status |
 |---|---|---|
-| 1 | [`the-template-stops-asking`](the-template-stops-asking/) | Draft |
+| 1 | [`the-template-stops-asking`](the-template-stops-asking/) | **Done** — template `v5.0.0` |
 
 Stories 2 — the editor asks — and 3 — the editor builds — are the extension's and live in that
 repository.

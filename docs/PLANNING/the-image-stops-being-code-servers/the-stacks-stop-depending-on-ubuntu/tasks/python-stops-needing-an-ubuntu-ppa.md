@@ -2,7 +2,7 @@
 status: Done
 story: the-image-stops-being-code-servers/the-stacks-stop-depending-on-ubuntu
 epic: the-image-stops-being-code-servers
-pr:
+pr: 104
 depends-on: [php-takes-its-packages-from-sury]
 ---
 
