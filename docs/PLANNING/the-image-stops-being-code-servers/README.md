@@ -64,8 +64,8 @@ and the method error.
 | # | Story | Status |
 |---|---|---|
 | 1 | [`the-settings-find-their-place`](the-settings-find-their-place/) | **Done** |
-| 2 | [`the-base-carries-no-editor`](the-base-carries-no-editor/) | Draft |
-| 4 | [`the-stacks-stop-depending-on-ubuntu`](the-stacks-stop-depending-on-ubuntu/) | Draft |
+| 2 | [`the-base-carries-no-editor`](the-base-carries-no-editor/) | **Done** — template `v5.0.0`. One `@manual` pass owed |
+| 4 | [`the-stacks-stop-depending-on-ubuntu`](the-stacks-stop-depending-on-ubuntu/) | **Done** — template `v5.0.0` |
 
 Story 3 — the generated configuration stops declaring `PASSWORD` — is the extension's and lives in
 that repository.

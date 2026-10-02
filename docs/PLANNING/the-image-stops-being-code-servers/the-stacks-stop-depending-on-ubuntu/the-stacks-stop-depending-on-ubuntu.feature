@@ -12,8 +12,13 @@ Feature: The stacks stop depending on Ubuntu
   image can change without a stack breaking on a dists path that does not exist.
 
   Scenario: No stack adds an Ubuntu-only repository
+    # The step said "a Launchpad PPA" while the story's title says "Ubuntu", and
+    # the guard that implements it is broader than either: it refuses any
+    # hardcoded distribution or codename in a repository path, because `dotnet`
+    # had `config/ubuntu/24.04` and no PPA. The narrow step was the defect — it
+    # would have passed with the dependency still there.
     When the Dockerfile fragments are examined
-    Then none of them adds a Launchpad PPA
+    Then none of them names a distribution or codename in a repository path
 
   Scenario: PHP still installs the version the manifest asked for
     Given a project selecting a PHP version

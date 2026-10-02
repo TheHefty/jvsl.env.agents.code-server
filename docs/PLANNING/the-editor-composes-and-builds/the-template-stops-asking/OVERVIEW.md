@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft |
+| **Status** | **Done** — template `v5.0.0` |
 | **Epic** | `the-editor-composes-and-builds` |
 | **Date** | 2026-10-01 |
 

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Done** — one `@manual` pass owed |
+| **Status** | **Done** — template `v5.0.0`. One `@manual` pass owed |
 | **Epic** | `the-image-stops-being-code-servers` |
 | **Date** | 2026-10-02 |
 

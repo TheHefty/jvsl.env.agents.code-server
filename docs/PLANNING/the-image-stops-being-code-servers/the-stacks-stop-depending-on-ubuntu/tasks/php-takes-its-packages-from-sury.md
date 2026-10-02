@@ -2,7 +2,7 @@
 status: Done
 story: the-image-stops-being-code-servers/the-stacks-stop-depending-on-ubuntu
 epic: the-image-stops-being-code-servers
-pr:
+pr: 102
 depends-on: []
 ---
 

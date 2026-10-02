@@ -2,7 +2,7 @@
 status: Done
 story: the-image-stops-being-code-servers/the-settings-find-their-place
 epic: the-image-stops-being-code-servers
-pr:
+pr: 98
 depends-on: []
 ---
 
